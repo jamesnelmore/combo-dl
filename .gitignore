@@ -1,3 +1,5 @@
+logs/
+best_model/
 # Python-generated files
 __pycache__/
 *.py[oc]
