@@ -2,11 +2,12 @@ import gymnasium as gym
 import numpy as np
 import logging
 import os
+import torch
 
 class HadamardEnv(gym.Env):
     metadata = {"render_modes": ["human"], "render_fps": 1}
     
-    def __init__(self, n: int, render_mode: str | None = None, patience: int = 10000000):
+    def __init__(self, n: int, render_mode: str | None = None, patience: int = 10000):
         super().__init__()
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
@@ -20,24 +21,28 @@ class HadamardEnv(gym.Env):
         self.n: int = n
         self._max_det: float = n ** (n / 2)
 
-        # Action space: choose a row and column to flip
-        self.action_space = gym.spaces.Discrete(n * n)
+        # Action space: Coordinates of the entry to flip
+        self.action_space = gym.spaces.MultiDiscrete([n, n])
         
-        # Observation space: flattened matrix of size n×n
-        self.observation_space = gym.spaces.Box(low=-1, high=1, shape=(n, n))
+        self.observation_space = gym.spaces.Box(low=-1, high=1, shape=(n, n), dtype=np.int8)
 
-        self.initialize_state()
         self.patience = patience
-        self.best_reward = 0
-        self.steps_without_improvement = 0
-        self.last_action = None
 
-    def initialize_state(self) -> None:
-        self.state = np.ones((self.n, self.n), dtype=np.int8)
+        self.reset()
+
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed, options=options)
-        self.initialize_state()
+        self.state = np.ones((self.n, self.n), dtype=np.int8)
+        # Reset tracking variables
+        self.best_reward = 0
+        self.steps_without_improvement = 0
+        self.episode_steps = 0
+
+         # For reward normalization
+        self.reward_history = []
+        self.reward_mean = 0.0
+        self.reward_std = 1.0
         return self.get_observation(), {}
 
     def get_observation(self) -> np.ndarray:
@@ -58,68 +63,61 @@ class HadamardEnv(gym.Env):
     
     def calculate_reward(self) -> tuple[float, bool]:
         """
-        Calculates reward for current state as the normalized determinant of the matrix.
-        The reward is normalized to be between 0 and 1, with 1 being the maximum possible determinant.
-
         Returns:
-            reward: Normalized reward for current state (between 0 and 1)
+            reward: Reward for current state
             is_hadamard: True if the matrix is Hadamard, False otherwise
         """
-        # Cache determinant calculation
-        abs_det = np.abs(np.linalg.det(self.state))
-        normalized_det = abs_det / self._max_det
-        
-        
-        dot_products = self.state @ self.state.T
-        total_dot_products = np.sum(np.abs(dot_products))
-        
-        # Normalize orthogonality reward to be between 0 and 1
-        max_possible_dot = np.float64(self.n * self.n)
-        orthogonality_reward = 1.0 - (total_dot_products - self.n) / (max_possible_dot - self.n)
-        
-        # Add intermediate rewards for progress
-        progress_reward = 0.0
-        if normalized_det > 0.5:
-            progress_reward += 0.5
-        if orthogonality_reward > 0.5:
-            progress_reward += 0.5
-            
-        if np.isclose(normalized_det, 1.0) and self.is_hadamard():
-            return 10.0, True
-        else:
-            return 0.3 * normalized_det + 0.3 * orthogonality_reward + 0.4 * progress_reward, False
 
-    def step(self, action: int) -> tuple[np.ndarray, float, bool, bool, dict]:
+        # Check if we found a Hadamard matrix
+        if self.is_hadamard():
+            return 100.0, True
+
+        gram_matrix = self.state @ self.state.T
+        
+        target_matrix = self.n * np.eye(self.n)
+        diff_matrix = gram_matrix - target_matrix
+        
+        # Use negative squared Frobenius norm as the main reward component
+        # This gives a clear gradient toward the target
+        frobenius_error = np.linalg.norm(diff_matrix, 'fro') ** 2
+        max_possible_error = 2 * self.n * self.n * (self.n - 1)  # Rough upper bound
+        
+        # Convert to a reward (higher is better)
+        orthogonality_reward = max(0.0, 1.0 - frobenius_error / max_possible_error)
+        
+        total_reward = orthogonality_reward
+        
+        return total_reward, False
+
+    def step(self, action: tuple[int, int]) -> tuple[np.ndarray, float, bool, bool, dict]:
         """
         Take a step in the environment.
         
         Args:
-            action: Integer representing position to flip (0 to n*n-1)
+            action: Tuple (row, col) representing position to flip
             
         Returns:
             observation: The new state
             reward: Reward for the action
             terminated: True if the matrix is Hadamard
-            truncated: False
-            info: Additional information
+            truncated: True if the episode is truncated
+            info: Empty for API compliance
         """
         if not self.action_space.contains(action):
             raise ValueError(f"Action {action} is not in action space {self.action_space}")
 
-        # Convert action to row and column
-        row = action // self.n
-        col = action % self.n
+        row, col = action
         
-        # Flip the value at the chosen position
         self.state[row, col] *= -1
         
         reward, is_hadamard = self.calculate_reward()
         
-        # Add small penalty for repeated actions to encourage exploration
-        if self.last_action == action:
-            reward -= 0.1
+        # Reward shaping: give additional reward for improvement
+        reward_improvement = 0.0
+        if reward > self.best_reward:
+            reward_improvement = (reward - self.best_reward) * 2.0  
         
-        self.last_action = action
+        shaped_reward = reward + reward_improvement
         
         if reward > self.best_reward:
             self.best_reward = reward
@@ -127,12 +125,19 @@ class HadamardEnv(gym.Env):
         else:
             self.steps_without_improvement += 1
         
-        truncated = self.steps_without_improvement >= self.patience
-        return self.get_observation(), reward, is_hadamard, truncated, {}
+        truncated = self.steps_without_improvement >= self.patience or self.episode_steps >= 50000
+        self.episode_steps += 1
+        
+        # Update reward history for normalization
+        self.reward_history.append(shaped_reward)
+        self.reward_mean = np.mean(self.reward_history)
+        self.reward_std = np.std(self.reward_history)
+        
+        return self.get_observation(), shaped_reward, is_hadamard, truncated, {}
     
 if __name__ == "__main__":
     import stable_baselines3 as sb3
-    from stable_baselines3.common.vec_env import DummyVecEnv
+    from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
     from stable_baselines3.common.callbacks import EvalCallback
     from stable_baselines3.common.monitor import Monitor
     from stable_baselines3.common.callbacks import CheckpointCallback
@@ -142,21 +147,32 @@ if __name__ == "__main__":
     os.makedirs(log_dir, exist_ok=True)
 
     n = 4*2
-    env = HadamardEnv(n=n)
-    env = Monitor(env, log_dir)
-    env = DummyVecEnv([lambda: env])
+    
+    # Create training environment
+    def make_env():
+        env = HadamardEnv(n=n)
+        env = Monitor(env, log_dir)
+        return env
+    
+    env = DummyVecEnv([make_env])
+    env = VecNormalize(env, norm_obs=True, norm_reward=True, clip_obs=10.0, clip_reward=10.0)
 
     # Create eval environment
-    eval_env = HadamardEnv(n=n)
-    eval_env = Monitor(eval_env)
-    eval_env = DummyVecEnv([lambda: eval_env])
+    def make_eval_env():
+        eval_env = HadamardEnv(n=n, patience=1000)  # Much smaller patience for evaluation
+        eval_env = Monitor(eval_env)
+        return eval_env
+    
+    eval_env = DummyVecEnv([make_eval_env])
+    eval_env = VecNormalize(eval_env, norm_obs=True, norm_reward=False, training=False)  # Don't normalize rewards for eval
 
     # Create evaluation callback with less frequent evaluation
     eval_callback = EvalCallback(
         eval_env,
         best_model_save_path="./best_model",
         log_path=log_dir,
-        eval_freq=50000,  # Reduced evaluation frequency
+        eval_freq=10000,  # More frequent evaluation to track progress
+        n_eval_episodes=5,  # Fewer eval episodes
         deterministic=True,
         render=False
     )
@@ -172,21 +188,22 @@ if __name__ == "__main__":
         "MlpPolicy", 
         env, 
         verbose=1, 
-        learning_rate=1e-3,
-        n_steps=1024,        # Reduced steps per update
-        batch_size=128,      # Reduced batch size
-        n_epochs=10,         
-        gamma=0.99,          
-        gae_lambda=0.95,     
-        clip_range=0.2,      
-        ent_coef=0.1,        
-        vf_coef=0.5,         
-        max_grad_norm=0.5,   
-        use_sde=False,       
-        sde_sample_freq=-1,  
+        learning_rate=3e-4,     # More standard learning rate
+        n_steps=2048,           # Increased for better value estimation
+        batch_size=64,          # Smaller batch size for more frequent updates
+        n_epochs=10,            
+        gamma=0.99,             
+        gae_lambda=0.95,        
+        clip_range=0.2,         
+        ent_coef=0.01,          # Reduced entropy coefficient
+        vf_coef=1.0,            # Increased value function coefficient
+        max_grad_norm=0.5,      
+        use_sde=False,          
+        sde_sample_freq=-1,     
         target_kl=None,
         policy_kwargs=dict(
-            net_arch=dict(pi=[128, 128], vf=[128, 128])
+            net_arch=dict(pi=[256, 256], vf=[256, 256]),  # Larger networks
+            activation_fn=torch.nn.ReLU
         ),
         tensorboard_log=log_dir
     )
