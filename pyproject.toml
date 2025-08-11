@@ -4,3 +4,10 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
+
+
+[tool.pyright]
+venvPath = "/opt/miniconda3/envs"
+venv = "thesis"
+pythonVersion = "3.11"
+typeCheckingMode = "basic"
