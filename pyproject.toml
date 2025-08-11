@@ -4,14 +4,3 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = [
-    "ipykernel>=6.29.5",
-    "pip>=25.1.1",
-    "stable-baselines3>=2.6.0",
-    "torch>=2.7.1",
-    "torch-geometric>=2.3.0",
-    "gymnasium>=0.29.0",
-    "networkx>=3.0",
-    "matplotlib>=3.5.0",
-    "numpy>=1.21.0",
-]
