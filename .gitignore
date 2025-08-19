@@ -24,3 +24,7 @@ wheels/
 # Jupyter config
 jupyter_notebook_config.py
 jupyter_notebook_config.json
+
+# Marimo
+__marimo__
+
