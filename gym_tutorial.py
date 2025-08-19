@@ -11,6 +11,7 @@ def _():
     import numpy as np
 
     import matplotlib.pyplot as plt
+
     return gym, mo, np, plt
 
 
@@ -26,7 +27,6 @@ def _(gym, np):
     from typing import TypeVar, Generic
 
     ObsType = TypeVar("ObsType")
-
 
     class BlackjackAgent(Generic[ObsType]):
         def __init__(
@@ -73,9 +73,7 @@ def _(gym, np):
             terminated: bool,
             next_obs: ObsType,
         ):
-            expected_future_value = (not terminated) * np.max(
-                self.q_table[next_obs]
-            )
+            expected_future_value = (not terminated) * np.max(self.q_table[next_obs])
             # First term is what the q_value should be (Bellman equation)
             td_error = (
                 reward + self.discount_factor * expected_future_value
@@ -85,9 +83,8 @@ def _(gym, np):
             self.training_error.append(td_error)
 
         def decay_epsilon(self):
-            self.epsilon = max(
-                self.epsilon - self.epsilon_decay, self.final_epsilon
-            )
+            self.epsilon = max(self.epsilon - self.epsilon_decay, self.final_epsilon)
+
     return BlackjackAgent, Generic, ObsType, TypeVar, defaultdict
 
 
@@ -153,12 +150,9 @@ def _(agent, env, np, plt):
     def get_moving_avgs(arr, window, convolution_mode):
         """Compute moving average to smooth noisy data."""
         return (
-            np.convolve(
-                np.array(arr).flatten(), np.ones(window), mode=convolution_mode
-            )
+            np.convolve(np.array(arr).flatten(), np.ones(window), mode=convolution_mode)
             / window
         )
-
 
     # Smooth over a 500-episode window
     rolling_length = 50000
@@ -166,18 +160,14 @@ def _(agent, env, np, plt):
 
     # Episode rewards (win/loss performance)
     axs[0].set_title("Episode rewards")
-    reward_moving_average = get_moving_avgs(
-        env.return_queue, rolling_length, "valid"
-    )
+    reward_moving_average = get_moving_avgs(env.return_queue, rolling_length, "valid")
     axs[0].plot(range(len(reward_moving_average)), reward_moving_average)
     axs[0].set_ylabel("Average Reward")
     axs[0].set_xlabel("Episode")
 
     # Episode lengths (how many actions per hand)
     axs[1].set_title("Episode lengths")
-    length_moving_average = get_moving_avgs(
-        env.length_queue, rolling_length, "valid"
-    )
+    length_moving_average = get_moving_avgs(env.length_queue, rolling_length, "valid")
     axs[1].plot(range(len(length_moving_average)), length_moving_average)
     axs[1].set_ylabel("Average Episode Length")
     axs[1].set_xlabel("Episode")
@@ -240,7 +230,6 @@ def _(agent, env, np):
         print(f"Win Rate: {win_rate:.1%}")
         print(f"Average Reward: {average_reward:.3f}")
         print(f"Standard Deviation: {np.std(total_rewards):.3f}")
-
 
     # Test your agent
     test_agent(agent, env)

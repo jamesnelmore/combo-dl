@@ -14,6 +14,7 @@ def _():
 
     from stable_baselines3 import PPO
     from stable_baselines3.common.env_util import make_vec_env
+
     return Optional, PPO, check_env, gym, make_vec_env, mo, np
 
 
@@ -77,9 +78,7 @@ def _(Optional, check_env, gym, np):
                 a=self._agent_location + direction, a_min=0, a_max=self.size - 1
             )
 
-            terminated = np.array_equal(
-                self._agent_location, self._target_location
-            )
+            terminated = np.array_equal(self._agent_location, self._target_location)
             truncated = False  # TODO add limit
             reward = (
                 1 if terminated else 0
@@ -89,7 +88,6 @@ def _(Optional, check_env, gym, np):
             info = self._get_info()
 
             return observation, reward, terminated, truncated, info
-
 
     gym.register(
         id="gymnasium_env/GridWorld-v0",
@@ -103,7 +101,12 @@ def _(Optional, check_env, gym, np):
 
 @app.cell
 def _(PPO, make_vec_env):
-    vec_env = make_vec_env("gymnasium_env/GridWorld-v0", n_envs=20, render_mode=None, env_kwargs={"size": 32})
+    vec_env = make_vec_env(
+        "gymnasium_env/GridWorld-v0",
+        n_envs=20,
+        render_mode=None,
+        env_kwargs={"size": 32},
+    )
     model = PPO("MultiInputPolicy", vec_env, device="mps", verbose=1)
     model.learn(total_timesteps=1_000_000)
 

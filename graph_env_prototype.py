@@ -14,6 +14,7 @@ def _():
 
     from stable_baselines3 import PPO
     from stable_baselines3.common.env_util import make_vec_env
+
     return Optional, PPO, check_env, gym, make_vec_env, mo, np
 
 
@@ -43,7 +44,7 @@ def _(Optional, float64, gym, np, size):
             self.size = size
             self.max_matrix_value = max_matrix_value
             self._matrix = np.zeros((size, size), dtype=np.float32)
-            self._max_steps = 10 * (self.size ** 2) # Can modify each entry 10 times
+            self._max_steps = 10 * (self.size**2)  # Can modify each entry 10 times
             self._eigenvalues: np.ndarray | None = None
             get_matrix_space = lambda: gym.spaces.Box(
                 low=0,
@@ -64,10 +65,12 @@ def _(Optional, float64, gym, np, size):
                 }
             )
 
-            self.action_space = gym.spaces.Dict({
-                "index": gym.spaces.MultiDiscrete([size, size]),
-                "value": gym.spaces.Box(low=0, high=1, shape=(), dtype=np.float32)
-            })
+            self.action_space = gym.spaces.Dict(
+                {
+                    "index": gym.spaces.MultiDiscrete([size, size]),
+                    "value": gym.spaces.Box(low=0, high=1, shape=(), dtype=np.float32),
+                }
+            )
 
         def _get_obs(self) -> dict:
             return {"matrix": self._matrix, "target_eigenvalues": self._eigenvalues}
@@ -84,7 +87,6 @@ def _(Optional, float64, gym, np, size):
             self._eigenvalues = self.generate_eigenvalues()
             self._matrix = np.zeros((self.size, self.size), dtype=np.float32)
 
-
             obs = self._get_obs()
             info = self._get_info()
 
@@ -96,7 +98,9 @@ def _(Optional, float64, gym, np, size):
             new_value = action["value"] * self.max_matrix_value
 
             self._matrix[i, j] = new_value
-            self._matrix[j, i] = new_value # Matrix is symmetric to avoid complex eigenvalues
+            self._matrix[j, i] = (
+                new_value  # Matrix is symmetric to avoid complex eigenvalues
+            )
 
             reward, diff = self._calculate_reward()
 
@@ -112,22 +116,28 @@ def _(Optional, float64, gym, np, size):
             current_eigenvalues = np.linalg.eigvals(self._matrix)
             current_eigenvalues.sort()
 
-            eigval_diff = np.linalg.norm(self.target_eigenvalues - current_eigenvalues) # Consider different norms
-            log_transformed_diff = -np.log(1 + eigval_diff) # Ranges from (-inf, 0]
-        
+            eigval_diff = np.linalg.norm(
+                self.target_eigenvalues - current_eigenvalues
+            )  # Consider different norms
+            log_transformed_diff = -np.log(1 + eigval_diff)  # Ranges from (-inf, 0]
+
             return log_transformed_diff, eigval_diff
 
         def generate_eigenvalues(self) -> np.ndarray:
             min_eigenvalue = 0
-            max_eigenvalue = self.size * self.max_matrix_value # Based on eigenvalue feasibility
+            max_eigenvalue = (
+                self.size * self.max_matrix_value
+            )  # Based on eigenvalue feasibility
 
-            eigenvalues = np.random.uniform(min_eigenvalue, max_eigenvalue, shape=(size,))
+            eigenvalues = np.random.uniform(
+                min_eigenvalue, max_eigenvalue, shape=(size,)
+            )
             assert eigenvalues.sum() <= size * self.max_matrix_value
 
             eigenvalues.sort()
 
             return eigenvalues
-        
+
     # gym.register(
     #     id="gymnasium_env/GridWorld-v0",
     #     entry_point=GridWorldEnv,
