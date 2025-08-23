@@ -43,6 +43,17 @@ class WagnerModel(nn.Module):
     def score(self, x: torch.Tensor) -> torch.Tensor:
         ...
 
+def generate_sampled_constructions(model: WagnerModel, batch_size=64):
+   w = torch.zeros((batch_size, model.n))
+   for i in range(model.edges):
+        i_tensor = torch.full((batch_size,), i, dtype=torch.long, device=w.device)
+        x = model(w, i_tensor)
+        assert x.shape == (batch_size, 2)
+        probs = F.softmax(x, dim=-1)
+        sampled = torch.multinomial(probs, 1).squeeze(-1)
+        w[:, i] = sampled 
+   return w
+
 def select_elite(constructions: torch.Tensor, batch_scores: torch.Tensor, elite_proportion: float=.1):
     batch_size = len(batch_scores)
     return_count = int(batch_size * elite_proportion)
@@ -64,11 +75,11 @@ def extract_examples(elite_constructions: torch.Tensor, output_batch_size=64) ->
             observations.append(construction * step_mask)
     
     obs_tensor = torch.stack(observations)
-    pos_tensor = torch.stack(positions)
-    actions_tensor = torch.stack(actions)
+    pos_tensor = torch.tensor(positions, dtype=torch.long)
+    actions_tensor = torch.tensor(actions, dtype=torch.long)
     dataset = TensorDataset(obs_tensor, pos_tensor, actions_tensor)
     dataloader = DataLoader(dataset, batch_size=output_batch_size, shuffle=True)
-    
+
     return dataloader
 
 def train(n=600, batch_size=1_000):
@@ -77,16 +88,11 @@ def train(n=600, batch_size=1_000):
     while True: # best found construction is not a counterexample
 
         # Generate constructions via random sampling from action space
-        w = torch.zeros((batch_size, n))
-        for i in range(model.edges):
-            i_tensor = torch.full((batch_size,), i, dtype=torch.long, device=w.device)
-            x = model(w, i_tensor)
-            assert x.shape == (batch_size, 2)
-            probs = F.softmax(x, dim=-1)
-            sampled = torch.multinomial(probs, 1).squeeze(-1)
-            w[:, i] = sampled
+        w = generate_sampled_constructions(model)
         
         # Evaluate the score of each construction
         batch_scores = model.score(w)
         # Outputs the edge tuple. We can make model.edges examples from this
         remaining_constructions = select_elite(w, batch_scores, .1)
+
+        break
