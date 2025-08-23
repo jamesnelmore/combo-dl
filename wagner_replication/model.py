@@ -3,6 +3,7 @@ from torch import nn
 from torch.nn import Linear, GELU, Dropout
 from torch.nn import functional as F
 from torch.utils.data import TensorDataset, DataLoader
+from tqdm import tqdm
 
 device = "mps"
 
@@ -103,20 +104,35 @@ def extract_examples(
     return dataloader
 
 
-def train(n=600, batch_size=1_000):
-    model = WagnerModel(n).to(device)
+from tqdm import tqdm
 
-    while True:  # best found construction is not a counterexample
-        # Generate constructions via random sampling from action space
-        w = generate_sampled_constructions(model)
+def train(model: WagnerModel, train_loader: DataLoader):
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    model.train()
+    train_loss = 0.0
+    train_correct = 0
+    train_total = 0
 
-        # Evaluate the score of each construction
-        batch_scores = model.score(w)
-        # Outputs the edge tuple. We can make model.edges examples from this
-        remaining_constructions = select_elites(w, batch_scores, 0.1)
+    progress_bar = tqdm(train_loader, desc="Training", leave=True)
+    for batch_idx, (obs, pos, target_actions) in enumerate(progress_bar):
+        optimizer.zero_grad()
+        outputs = model(obs, pos)
+        loss = criterion(outputs, target_actions)
+        loss.backward()
+        optimizer.step()
 
-        break
+        train_loss += loss.item()
+        _, predicted = torch.max(outputs.data, 1)
+        train_total += target_actions.size(0)
+        train_correct += (predicted == target_actions).sum().item()
 
+        avg_loss = train_loss / (batch_idx + 1)
+        accuracy = 100.0 * train_correct / train_total if train_total > 0 else 0.0
+        progress_bar.set_postfix({
+            "loss": f"{avg_loss:.4f}",
+            "acc": f"{accuracy:.2f}%"
+        })
 
 if __name__ == "__main__":
     model = WagnerModel(4).to(device)
@@ -124,4 +140,5 @@ if __name__ == "__main__":
     batch_scores = model.score(w)
     elites = select_elites(w, batch_scores, 0.1)
     dataloader = extract_examples(elites)
-    print(dataloader)
+    
+    train(model, dataloader)
