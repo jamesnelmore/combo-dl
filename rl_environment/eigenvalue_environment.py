@@ -49,7 +49,7 @@ class InverseEigenvalue(gym.Env):
 
         # Action encodes [row_index_norm, col_index_norm, value_norm] all in [0, 1]
         # Indices are derived by scaling to [0, size-1] and flooring
-        self.action_space = gym.spaces.Discrete(self.size ** 2)
+        self.action_space = gym.spaces.Discrete(self.size**2)
 
     def _get_obs(self) -> dict:
         return {"matrix": self._matrix, "target_eigenvalues": self._eigenvalues}
@@ -126,24 +126,28 @@ class InverseEigenvalue(gym.Env):
         self._current_eigenvalues.sort()
 
         assert self._eigenvalues is not None
-        eigval_diff = float(np.linalg.norm(self._eigenvalues - self._current_eigenvalues))
-        
+        eigval_diff = float(
+            np.linalg.norm(self._eigenvalues - self._current_eigenvalues)
+        )
+
         # Better reward shaping
         log_transformed_diff = float(-np.log(1.0 + eigval_diff))
-        
+
         return eigval_diff, log_transformed_diff
 
     def generate_eigenvalues(self) -> np.ndarray:
         """Generate achievable eigenvalue targets from a random matrix"""
         # Create random symmetric boolean matrix
-        random_matrix = np.random.randint(0, 2, size=(self.size, self.size)).astype(np.bool_)
+        random_matrix = np.random.randint(0, 2, size=(self.size, self.size)).astype(
+            np.bool_
+        )
         random_matrix = np.logical_or(random_matrix, random_matrix.T)
-        
+
         # Convert to float for eigenvalue computation
         matrix_float = random_matrix.astype(np.float32)
         eigenvalues = np.linalg.eigvals(matrix_float).real.astype(np.float32)
         eigenvalues.sort()
-        
+
         return eigenvalues
 
 
