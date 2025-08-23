@@ -27,8 +27,8 @@ class InverseEigenvalue(gym.Env):
 
         self.size = size
         self.max_matrix_value = max_matrix_value
-        self._matrix = np.zeros((size, size), dtype=np.float32)
-        self._max_steps = 10 * (self.size**2)  # Can modify each entry 10 times
+        self._matrix = np.zeros((size, size), dtype=np.bool)
+        self._max_steps = 5 * (self.size**2)  # Can modify each entry 5 times
         self._eigenvalues: np.ndarray | None = None
 
         self._current_eigenvalues = np.zeros(size, dtype=np.float32)
@@ -37,12 +37,7 @@ class InverseEigenvalue(gym.Env):
 
         self.observation_space = gym.spaces.Dict(
             {
-                "matrix": gym.spaces.Box(
-                    low=-self.max_matrix_value,  # Allow negative values
-                    high=self.max_matrix_value,
-                    shape=(size, size),
-                    dtype=np.float32,
-                ),
+                "matrix": gym.spaces.MultiBinary((size, size)),
                 "target_eigenvalues": gym.spaces.Box(
                     low=-np.inf,  # Allow negative eigenvalues
                     high=np.inf,
@@ -54,9 +49,7 @@ class InverseEigenvalue(gym.Env):
 
         # Action encodes [row_index_norm, col_index_norm, value_norm] all in [0, 1]
         # Indices are derived by scaling to [0, size-1] and flooring
-        self.action_space = gym.spaces.Box(
-            low=0.0, high=1.0, shape=(3,), dtype=np.float32
-        )
+        self.action_space = gym.spaces.Discrete(self.size ** 2)
 
     def _get_obs(self) -> dict:
         return {"matrix": self._matrix, "target_eigenvalues": self._eigenvalues}
@@ -74,7 +67,7 @@ class InverseEigenvalue(gym.Env):
 
         self._step_count = 0
         self._eigenvalues = self.generate_eigenvalues()
-        self._matrix = np.zeros((self.size, self.size), dtype=np.float32)
+        self._matrix = np.zeros((self.size, self.size), dtype=np.bool)
         self._eigenvalue_diff_cache = float("inf")
 
         obs = self._get_obs()
@@ -82,24 +75,17 @@ class InverseEigenvalue(gym.Env):
 
         return obs, info
 
-    def step(self, action: np.ndarray) -> tuple[dict, float, bool, bool, dict]:
+    def step(self, action: int) -> tuple[dict, float, bool, bool, dict]:
         """
         returns: obs, reward, terminated, truncated, info
         """
-        assert action.shape == (3,)
+        # assert action.shape == (2,)
         # Do action
-        i = int(np.floor(action[0] * self.size))
-        j = int(np.floor(action[1] * self.size))
-        # Ensure indices are within bounds
-        i = min(i, self.size - 1)
-        j = min(j, self.size - 1)
+        i = action // self.size
+        j = action % self.size
 
-        new_value = (
-            action[2] * 2 - 1
-        ) * self.max_matrix_value  # Map [0,1] to [-max_value, max_value]
-
-        self._matrix[i, j] = new_value
-        self._matrix[j, i] = new_value  # Symmetric for simplicity
+        self._matrix[i, j] = not self._matrix[i, j]
+        self._matrix[j, i] = not self._matrix[j, i]  # Symmetric so eigenvalues are real
 
         compute_eigenvalues = (
             self._step_count % self._reward_computation_interval == 0
@@ -135,42 +121,39 @@ class InverseEigenvalue(gym.Env):
         """
         returns: eigenvalue_diff, log_transformed_eigenvalue_diff
         """
-        self._current_eigenvalues[:] = np.linalg.eigvals(self._matrix).real
+        matrix_float = self._matrix.astype(np.float32)
+        self._current_eigenvalues[:] = np.linalg.eigvals(matrix_float).real
         self._current_eigenvalues.sort()
 
         assert self._eigenvalues is not None
-        eigval_diff = float(
-            np.linalg.norm(self._eigenvalues - self._current_eigenvalues)
-        )  # Consider different norms
-        log_transformed_diff = float(
-            -np.log(1.0 + eigval_diff)
-        )  # Ranges from (-inf, 0]
-
+        eigval_diff = float(np.linalg.norm(self._eigenvalues - self._current_eigenvalues))
+        
+        # Better reward shaping
+        log_transformed_diff = float(-np.log(1.0 + eigval_diff))
+        
         return eigval_diff, log_transformed_diff
 
     def generate_eigenvalues(self) -> np.ndarray:
         """Generate achievable eigenvalue targets from a random matrix"""
-        # Create random symmetric matrix within our constraints
-        random_matrix = np.random.uniform(
-            -self.max_matrix_value, self.max_matrix_value, (self.size, self.size)
-        )
-        random_matrix = (random_matrix + random_matrix.T) / 2  # Ensure symmetry
-
-        # Extract its eigenvalues as our target
-        eigenvalues = np.linalg.eigvals(random_matrix).real.astype(np.float32)
+        # Create random symmetric boolean matrix
+        random_matrix = np.random.randint(0, 2, size=(self.size, self.size)).astype(np.bool_)
+        random_matrix = np.logical_or(random_matrix, random_matrix.T)
+        
+        # Convert to float for eigenvalue computation
+        matrix_float = random_matrix.astype(np.float32)
+        eigenvalues = np.linalg.eigvals(matrix_float).real.astype(np.float32)
         eigenvalues.sort()
-
+        
         return eigenvalues
 
 
 if __name__ == "__main__":
     vec_env = make_vec_env(
         InverseEigenvalue,
-        n_envs=8,  # Reduced from 20 to 8 for faster startup
+        n_envs=16,
         env_kwargs={"size": 4},
     )
 
-    # Optimized PPO parameters for faster training
     model = PPO(
         "MultiInputPolicy",
         vec_env,
@@ -182,10 +165,9 @@ if __name__ == "__main__":
         ent_coef=0.01,
     )
 
-    # Start with smaller number of timesteps to test
     print("Starting training...")
     start_time = time.time()
-    model.learn(total_timesteps=100_000)  # Reduced from 1M to 100K for testing
+    model.learn(total_timesteps=1_000_000)  # Reduced from 1M to 100K for testing
     training_time = time.time() - start_time
     print(f"Training completed in {training_time:.1f} seconds")
 
