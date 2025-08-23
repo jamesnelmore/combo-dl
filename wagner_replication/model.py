@@ -12,7 +12,7 @@ class WagnerModel(nn.Module):
         """
         n: number of vertices in the graph
         """
-
+        super().__init__()
         self.n = n
         self.edges = (n**2 - n) // 2
 
@@ -30,12 +30,12 @@ class WagnerModel(nn.Module):
         )
 
     def forward(self, x: torch.Tensor, i: torch.Tensor) -> torch.Tensor:
-        assert i.dim() == 0 or (i.dim() == 1 and i.numel() == 1), (
-            "i must be a singleton tensor"
-        )
-        assert i.item() < self.edges, (
-            f"i ({i.item()}) must be less than number of edges ({self.edges})"
-        )
+        # assert i.dim() == 0 or (i.dim() == 1 and i.numel() == 1), (
+        #     "i must be a singleton tensor"
+        # )
+        # assert i.item() < self.edges, (
+        #     f"i ({i.item()}) must be less than number of edges ({self.edges})"
+        # )
         one_hot_position = F.one_hot(i.to(device=device), num_classes=self.edges).to(
             dtype=x.dtype
         )
@@ -46,13 +46,14 @@ class WagnerModel(nn.Module):
         input_tensor = torch.cat((x, one_hot_position), dim=-1)
         return self.layers(input_tensor)
 
-    def score(self, x: torch.Tensor) -> torch.Tensor: ...
+    def score(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.norm(x, dim=-1)
 
 
 def generate_sampled_constructions(model: WagnerModel, batch_size=64):
-    w = torch.zeros((batch_size, model.n))
+    w = torch.zeros((batch_size, model.edges), device=device)
     for i in range(model.edges):
-        i_tensor = torch.full((batch_size,), i, dtype=torch.long, device=w.device)
+        i_tensor = torch.full((batch_size,), i, dtype=torch.long, device=device)
         x = model(w, i_tensor)
         assert x.shape == (batch_size, 2)
         probs = F.softmax(x, dim=-1)
@@ -61,15 +62,15 @@ def generate_sampled_constructions(model: WagnerModel, batch_size=64):
     return w
 
 
-def select_elite(
+def select_elites(
     constructions: torch.Tensor,
     batch_scores: torch.Tensor,
     elite_proportion: float = 0.1,
 ):
     batch_size = len(batch_scores)
     return_count = int(batch_size * elite_proportion)
-    elite_indices = torch.argsort(constructions)
-    return torch.tensor([constructions[i] for i in elite_indices]).to(
+    elite_indices = torch.argsort(batch_scores)
+    return torch.stack([constructions[i] for i in elite_indices]).to(
         constructions.device
     )
 
@@ -87,12 +88,15 @@ def extract_examples(
         for position in range(edges):
             positions.append(position)
             actions.append(construction[position])
-            step_mask = torch.arange(edges) < position
+            step_mask = torch.arange(edges, device=construction.device) < position
             observations.append(construction * step_mask)
 
-    obs_tensor = torch.stack(observations)
-    pos_tensor = torch.tensor(positions, dtype=torch.long)
-    actions_tensor = torch.tensor(actions, dtype=torch.long)
+    # Get the device from elite_constructions
+    target_device = elite_constructions.device
+
+    obs_tensor = torch.stack(observations).to(target_device)
+    pos_tensor = torch.tensor(positions, dtype=torch.long, device=target_device)
+    actions_tensor = torch.stack(actions).to(target_device)
     dataset = TensorDataset(obs_tensor, pos_tensor, actions_tensor)
     dataloader = DataLoader(dataset, batch_size=output_batch_size, shuffle=True)
 
@@ -100,7 +104,7 @@ def extract_examples(
 
 
 def train(n=600, batch_size=1_000):
-    model = WagnerModel(n)
+    model = WagnerModel(n).to(device)
 
     while True:  # best found construction is not a counterexample
         # Generate constructions via random sampling from action space
@@ -109,6 +113,15 @@ def train(n=600, batch_size=1_000):
         # Evaluate the score of each construction
         batch_scores = model.score(w)
         # Outputs the edge tuple. We can make model.edges examples from this
-        remaining_constructions = select_elite(w, batch_scores, 0.1)
+        remaining_constructions = select_elites(w, batch_scores, 0.1)
 
         break
+
+
+if __name__ == "__main__":
+    model = WagnerModel(4).to(device)
+    w = generate_sampled_constructions(model, batch_size=16)
+    batch_scores = model.score(w)
+    elites = select_elites(w, batch_scores, 0.1)
+    dataloader = extract_examples(elites)
+    print(dataloader)
