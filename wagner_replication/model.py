@@ -71,10 +71,8 @@ def select_elites(
 ):
     batch_size = len(batch_scores)
     return_count = int(batch_size * elite_proportion)
-    elite_indices = torch.argsort(batch_scores)
-    return torch.stack([constructions[i] for i in elite_indices]).to(
-        constructions.device
-    )
+    elite_indices = torch.argsort(batch_scores, descending=True)[:return_count]
+    return constructions[elite_indices]
 
 
 def extract_examples(
@@ -86,13 +84,14 @@ def extract_examples(
     num_constructions, num_edges = elite_constructions.shape
     target_device = elite_constructions.device
 
-    # Now create the mask TODO actually understand this
+    # Create mask to hide future positions during training
+    # For each position i, we want to mask out positions >= i
     pos_tensor = (
         torch.arange(num_edges).repeat(num_constructions).to(target_device)
-    )  # The position to mask at and past
+    )  # The current position we're predicting for
     edge_indices = torch.arange(num_edges).to(
         target_device
-    )  # What's getting compared. [0, 1, 2, 3, 4, 5]
+    )  # All edge positions [0, 1, 2, 3, 4, 5]
     mask = (edge_indices.unsqueeze(0) < pos_tensor.unsqueeze(1)).to(target_device)
 
     obs_tensor = elite_constructions.repeat_interleave(num_edges, dim=0) * mask
@@ -117,7 +116,7 @@ def train(
     progress_callback: Callable[[float, float], None] | None = None,
 ):
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
     model.train()
     train_loss = 0.0
     train_correct = 0
@@ -144,18 +143,32 @@ def train(
 def deep_cross_entropy_wagner(model: WagnerModel, batch_size=512):
     iterations = 10_000
     progress_bar = tqdm(range(iterations), desc="DCE Iterations")
-    for iteration in (
-        progress_bar
-    ):  # the best construction found is not a counterexample, with upper bound
+    best_score = float('-inf')
+    
+    for iteration in progress_bar:
         w = generate_sampled_constructions(model, batch_size=batch_size)
         batch_scores = model.score(w)
+        current_best = torch.max(batch_scores).item()
+        
+        if current_best > best_score:
+            best_score = current_best
+            
         elites = select_elites(w, batch_scores, 0.1)
-        dataloader = extract_examples(elites, output_batch_size=batch_size)
+        
+        # Check if we actually have elites
+        if len(elites) == 0:
+            print(f"Warning: No elites selected at iteration {iteration}")
+            continue
+            
+        dataloader = extract_examples(elites, output_batch_size=min(batch_size, len(elites) * model.edges))
 
         def progress_callback(avg_loss, accuracy):
-            progress_bar.set_postfix(
-                {"loss": f"{avg_loss:.4f}", "acc": f"{accuracy:.2f}%"}
-            )
+            progress_bar.set_postfix({
+                "loss": f"{avg_loss:.4f}", 
+                "acc": f"{accuracy:.2f}%",
+                "best_score": f"{best_score:.4f}",
+                "avg_score": f"{torch.mean(batch_scores).item():.4f}"
+            })
 
         train(model, dataloader, progress_callback=progress_callback)
 
