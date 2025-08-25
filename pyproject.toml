@@ -18,3 +18,8 @@ venvPath = "/opt/miniconda3/envs"
 venv = "thesis"
 pythonVersion = "3.11"
 typeCheckingMode = "basic"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.12.10",
+]
