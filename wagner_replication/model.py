@@ -4,6 +4,7 @@ from torch.nn import Linear, GELU, Dropout
 from torch.nn import functional as F
 from torch.utils.data import TensorDataset, DataLoader
 from tqdm import tqdm
+from typing import Callable
 
 device = "mps"
 
@@ -103,10 +104,11 @@ def extract_examples(
 
     return dataloader
 
-
-from tqdm import tqdm
-
-def train(model: WagnerModel, train_loader: DataLoader):
+def train(
+    model: WagnerModel,
+    train_loader: DataLoader,
+    progress_callback: Callable[[float, float], None] | None = None
+):
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     model.train()
@@ -114,8 +116,7 @@ def train(model: WagnerModel, train_loader: DataLoader):
     train_correct = 0
     train_total = 0
 
-    progress_bar = tqdm(train_loader, desc="Training", leave=True)
-    for batch_idx, (obs, pos, target_actions) in enumerate(progress_bar):
+    for batch_idx, (obs, pos, target_actions) in enumerate(train_loader):
         optimizer.zero_grad()
         outputs = model(obs, pos)
         loss = criterion(outputs, target_actions)
@@ -129,16 +130,25 @@ def train(model: WagnerModel, train_loader: DataLoader):
 
         avg_loss = train_loss / (batch_idx + 1)
         accuracy = 100.0 * train_correct / train_total if train_total > 0 else 0.0
-        progress_bar.set_postfix({
-            "loss": f"{avg_loss:.4f}",
-            "acc": f"{accuracy:.2f}%"
-        })
+        if progress_callback is not None:
+            progress_callback(avg_loss, accuracy)
+
+def deep_cross_entropy_wagner(model: WagnerModel):
+    iterations = 10_000
+    progress_bar = tqdm(range(iterations), desc="DCE Iterations")
+    for iteration in progress_bar: # the best construction found is not a counterexample, with upper bound
+        w = generate_sampled_constructions(model, batch_size=512)
+        batch_scores = model.score(w)
+        elites = select_elites(w, batch_scores, 0.1)
+        dataloader = extract_examples(elites)
+
+        def progress_callback(avg_loss, accuracy):
+            progress_bar.set_postfix({
+                "loss": f"{avg_loss:.4f}",
+                "acc": f"{accuracy:.2f}%"
+            })
+        train(model, dataloader, progress_callback=progress_callback)
 
 if __name__ == "__main__":
     model = WagnerModel(4).to(device)
-    w = generate_sampled_constructions(model, batch_size=16)
-    batch_scores = model.score(w)
-    elites = select_elites(w, batch_scores, 0.1)
-    dataloader = extract_examples(elites)
-    
-    train(model, dataloader)
+    deep_cross_entropy_wagner(model)
