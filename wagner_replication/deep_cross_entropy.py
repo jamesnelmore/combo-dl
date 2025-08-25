@@ -1,3 +1,4 @@
+import math
 import torch
 from torch import nn
 from torch.utils.data import TensorDataset, DataLoader
@@ -35,8 +36,8 @@ class WagnerDeepCrossEntropy:
         # Ensure model is on correct device
         self.model = self.model.to(self.device)
         
-        # Track optimization state
-        self.best_score = float('-inf')
+        # Track optimization state (we want to minimize, so start with +inf)
+        self.best_score = float('inf')
         self.best_construction = None
         self.history = []
         
@@ -47,10 +48,10 @@ class WagnerDeepCrossEntropy:
         constructions: torch.Tensor,
         batch_scores: torch.Tensor,
     ) -> torch.Tensor:
-        """Select top elite constructions based on scores."""
+        """Select top elite constructions based on scores (lowest scores for minimization)."""
         batch_size = len(batch_scores)
         return_count = int(batch_size * self.elite_proportion)
-        elite_indices = torch.argsort(batch_scores, descending=True)[:return_count]
+        elite_indices = torch.argsort(batch_scores, descending=False)[:return_count]  # ascending for minimization
         return constructions[elite_indices]
 
     def extract_examples(
@@ -134,13 +135,13 @@ class WagnerDeepCrossEntropy:
         constructions = generate_sampled_constructions(self.model, batch_size=self.batch_size)
         batch_scores = self.model.score(constructions)
         
-        # Track best score and construction
-        current_best = torch.max(batch_scores).item()
+        # Track best score and construction (minimization)
+        current_best = torch.min(batch_scores).item()
         avg_score = torch.mean(batch_scores).item()
         
-        if current_best > self.best_score:
+        if current_best < self.best_score:
             self.best_score = current_best
-            best_idx = torch.argmax(batch_scores)
+            best_idx = torch.argmin(batch_scores)
             self.best_construction = constructions[best_idx].clone()
         
         # Select elites
@@ -169,23 +170,25 @@ class WagnerDeepCrossEntropy:
             **train_metrics
         }
 
-    def optimize(self, progress_callback: Callable[[int, dict], None] | None = None) -> dict:
+    def optimize(self, progress_callback: Callable[[int, dict], None] | None = None, goal_score: float | None = None) -> dict:
         """
         Run the full Deep Cross-Entropy optimization.
         
         Args:
             progress_callback: Optional callback function that receives (iteration, metrics)
+            goal_score: Optional goal score for early stopping
         
         Returns:
             Dictionary with optimization results and history
         """
         progress_bar = tqdm(range(self.iterations), desc="DCE Iterations")
+        early_stopped = False
         
         for iteration in progress_bar:
             metrics = self.run_iteration()
             self.history.append(metrics)
             
-            # Update progress bar
+            # Update progress bar - use proper min/max for minimization
             progress_bar.set_postfix({
                 "loss": f"{metrics['loss']:.4f}" if not torch.isnan(torch.tensor(metrics['loss'])) else "N/A",
                 "acc": f"{metrics['accuracy']:.2f}%" if not torch.isnan(torch.tensor(metrics['accuracy'])) else "N/A",
@@ -198,15 +201,25 @@ class WagnerDeepCrossEntropy:
             if progress_callback is not None:
                 progress_callback(iteration, metrics)
             
+            # Early stopping if goal is reached
+            if goal_score is not None and metrics['best_score'] < goal_score:
+                print(f"\n🎉 Goal achieved! Stopping early at iteration {iteration}")
+                print(f"Best score: {metrics['best_score']:.6f} < goal: {goal_score:.6f}")
+                early_stopped = True
+                break
+            
             # Early stopping condition (optional)
             if metrics['num_elites'] == 0:
                 print(f"Warning: No elites selected at iteration {iteration}")
+                break
         
         return {
             "best_score": self.best_score,
             "best_construction": self.best_construction,
             "history": self.history,
-            "final_metrics": self.history[-1] if self.history else None
+            "final_metrics": self.history[-1] if self.history else None,
+            "early_stopped": early_stopped,
+            "iterations_completed": len(self.history)
         }
 
     def get_best_construction(self) -> torch.Tensor | None:
@@ -220,23 +233,60 @@ class WagnerDeepCrossEntropy:
 
 def main():
     device = "mps" if torch.backends.mps.is_available() else "cpu"
-    model = WagnerModel(4)
+    n = 19
+    goal_score = math.sqrt(n - 1) + 1
+    print(f"Goal score (sqrt({n-1}) + 1): {goal_score:.6f}")
+    print(f"Searching for graphs with eigenvalue + matching < {goal_score:.6f}")
+    model = WagnerModel(n)
+    
+    # Track if we found a solution
+    found_solution = False
+    
+    def progress_callback(iteration: int, metrics: dict):
+        nonlocal found_solution
+        if metrics['best_score'] < goal_score and not found_solution:
+            print(f"\n🎉 SOLUTION FOUND at iteration {iteration}!")
+            print(f"Best score: {metrics['best_score']:.6f} < {goal_score:.6f}")
+            found_solution = True
     
     # Create optimizer instance
     optimizer = WagnerDeepCrossEntropy(
         model=model,
         batch_size=4096,
-        iterations=10_000,
+        iterations=15_000,  # Increased iterations
         learning_rate=0.0001,
         elite_proportion=0.1,
         device=device
     )
     
-    # Run optimization
-    results = optimizer.optimize()
+    # Run optimization with early stopping
+    results = optimizer.optimize(progress_callback=progress_callback, goal_score=goal_score)
     
-    print(f"Best score achieved: {results['best_score']:.4f}")
-    print(f"Best construction: {results['best_construction']}")
+    print(f"\n=== FINAL RESULTS ===")
+    print(f"Best score achieved: {results['best_score']:.6f}")
+    print(f"Goal score: {goal_score:.6f}")
+    print(f"Success: {'YES' if results['best_score'] < goal_score else 'NO'}")
+    print(f"Early stopped: {'YES' if results.get('early_stopped', False) else 'NO'}")
+    print(f"Iterations completed: {results.get('iterations_completed', 0)}")
+    
+    if results['best_construction'] is not None:
+        print(f"Best construction shape: {results['best_construction'].shape}")
+        print(f"Number of edges in best graph: {results['best_construction'].sum().item()}")
+        
+        # Analyze the best construction
+        model.eval()
+        with torch.no_grad():
+            adj_matrix = model._edge_vector_to_adjacency(results['best_construction'])
+            largest_eigenvalue = model._compute_largest_eigenvalue(adj_matrix)
+            matching_number = model._compute_maximum_matching(adj_matrix)
+            
+        print(f"Largest eigenvalue: {largest_eigenvalue:.6f}")
+        print(f"Matching number: {matching_number:.6f}")
+        print(f"Sum: {largest_eigenvalue + matching_number:.6f}")
+    else:
+        print("No construction found")
+        
+    return results
 
 
 if __name__ == "__main__":
