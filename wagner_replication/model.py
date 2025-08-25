@@ -78,36 +78,43 @@ def select_elites(
 
 
 def extract_examples(
-    elite_constructions: torch.Tensor, output_batch_size=64
+    elite_constructions: torch.Tensor, output_batch_size: int = 512
 ) -> DataLoader:
-    # For each construction, mask it past i with 0s. Then the state is the masked construction, the position is i + 1, and the action is what was at i + 1 before the mask
+    """For each construction, mask it past i with 0s. Then the state is the masked construction, the position is i + 1, and the action is what was at i + 1 before the mask. By default the output batch size will match the input batch size
+    """
 
-    observations = []
-    positions = []
-    actions = []
-    for construction in elite_constructions:  # TODO heavily optimize
-        edges = len(construction)
-        for position in range(edges):
-            positions.append(position)
-            actions.append(construction[position])
-            step_mask = torch.arange(edges, device=construction.device) < position
-            observations.append(construction * step_mask)
-
-    # Get the device from elite_constructions
+    num_constructions, num_edges = elite_constructions.shape
     target_device = elite_constructions.device
 
-    obs_tensor = torch.stack(observations).to(target_device)
-    pos_tensor = torch.tensor(positions, dtype=torch.long, device=target_device)
-    actions_tensor = torch.stack(actions).to(target_device)
+    # Now create the mask TODO actually understand this
+    pos_tensor = (
+        torch.arange(num_edges).repeat(num_constructions).to(target_device)
+    )  # The position to mask at and past
+    edge_indices = torch.arange(num_edges).to(
+        target_device
+    )  # What's getting compared. [0, 1, 2, 3, 4, 5]
+    mask = (edge_indices.unsqueeze(0) < pos_tensor.unsqueeze(1)).to(target_device)
+
+    obs_tensor = elite_constructions.repeat_interleave(num_edges, dim=0) * mask
+    obs_tensor.to(target_device)
+    construction_indices = (
+        torch.arange(num_constructions).repeat_interleave(num_edges).to(target_device)
+    )  # [0, 0, 0, 1, 1, 1, ...]
+    # Defined elementwise: T[i] = elite_constructions[i][pos_tensor[i]]
+    actions_tensor = elite_constructions[construction_indices, pos_tensor].to(
+        target_device
+    )
+
     dataset = TensorDataset(obs_tensor, pos_tensor, actions_tensor)
     dataloader = DataLoader(dataset, batch_size=output_batch_size, shuffle=True)
 
     return dataloader
 
+
 def train(
     model: WagnerModel,
     train_loader: DataLoader,
-    progress_callback: Callable[[float, float], None] | None = None
+    progress_callback: Callable[[float, float], None] | None = None,
 ):
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
@@ -133,22 +140,36 @@ def train(
         if progress_callback is not None:
             progress_callback(avg_loss, accuracy)
 
-def deep_cross_entropy_wagner(model: WagnerModel):
+
+def deep_cross_entropy_wagner(model: WagnerModel, batch_size=512):
     iterations = 10_000
     progress_bar = tqdm(range(iterations), desc="DCE Iterations")
-    for iteration in progress_bar: # the best construction found is not a counterexample, with upper bound
-        w = generate_sampled_constructions(model, batch_size=512)
+    for iteration in (
+        progress_bar
+    ):  # the best construction found is not a counterexample, with upper bound
+        w = generate_sampled_constructions(model, batch_size=batch_size)
         batch_scores = model.score(w)
         elites = select_elites(w, batch_scores, 0.1)
-        dataloader = extract_examples(elites)
+        dataloader = extract_examples(elites, output_batch_size=batch_size)
 
         def progress_callback(avg_loss, accuracy):
-            progress_bar.set_postfix({
-                "loss": f"{avg_loss:.4f}",
-                "acc": f"{accuracy:.2f}%"
-            })
+            progress_bar.set_postfix(
+                {"loss": f"{avg_loss:.4f}", "acc": f"{accuracy:.2f}%"}
+            )
+
         train(model, dataloader, progress_callback=progress_callback)
 
-if __name__ == "__main__":
+
+def main():
     model = WagnerModel(4).to(device)
-    deep_cross_entropy_wagner(model)
+    deep_cross_entropy_wagner(model, batch_size=4096)
+
+
+if __name__ == "__main__":
+    main()
+    # model = WagnerModel(6).to(device)
+    # w = generate_sampled_constructions(model, batch_size=10)
+    # batch_scores = model.score(w)
+    # elites = select_elites(w, batch_scores, 1)
+    # print(elites)
+    # dataloader = extract_examples(elites)
