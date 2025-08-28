@@ -6,19 +6,14 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "gymnasium>=1.2.0",
+    "hydra-core>=1.3.2",
     "networkx>=3.0",
     "numpy>=2.3.2",
+    "omegaconf>=2.3.0",
     "stable-baselines3>=2.7.0",
     "torch>=2.8.0",
     "tqdm>=4.67.1",
 ]
-
-
-[tool.pyright]
-venvPath = "/opt/miniconda3/envs"
-venv = "thesis"
-pythonVersion = "3.11"
-typeCheckingMode = "basic"
 
 [dependency-groups]
 dev = [

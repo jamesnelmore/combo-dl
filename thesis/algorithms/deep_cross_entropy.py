@@ -160,7 +160,7 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         # Extract training examples and train
         dataloader = self.extract_examples(
             elites, 
-            output_batch_size=min(self.batch_size, len(elites) * int(self.model.edges))
+            output_batch_size=min(self.batch_size, len(elites) * elites.shape[1])
         )
         train_metrics = self.train_step(dataloader)
         

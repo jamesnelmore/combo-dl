@@ -1,0 +1,9 @@
+# Wagner Corollary 2.1 problem configuration
+_target_: thesis.problems.wagner_corollary_2_1.WagnerCorollary2_1
+
+# Problem parameters
+n: 19  # Number of vertices in the graph
+
+# The problem seeks graphs where:
+# largest_eigenvalue + maximum_matching < sqrt(n-1) + 1
+# For n=19: goal_score = sqrt(18) + 1 ≈ 5.236

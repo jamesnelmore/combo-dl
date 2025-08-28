@@ -1,7 +1,7 @@
 import torch
 from abc import ABC, abstractmethod
 
-from thesis.core import BaseProblem
+from .problem import BaseProblem
 
 class BaseAlgorithm(ABC):
     """Base class for all algorithms."""

@@ -41,6 +41,20 @@ class WagnerCorollary2_1(BaseProblem):
         scores = largest_eigenvalues + matching_numbers
         return scores
     
+    def solution_space_info(self) -> dict:
+        """Return information about the solution space."""
+        return {
+            'type': 'tensor',
+            'dim': self.edges,
+            'dtype': torch.float32,
+            'constraints': 'binary',
+            'description': f'Binary edge vector for {self.n}-node graph'
+        }
+    
+    def is_valid_solution(self, solution: torch.Tensor) -> bool:
+        """Check if solution is valid (binary values)."""
+        return bool(torch.all((solution == 0) | (solution == 1)).item())
+    
     def _edge_vector_to_adjacency(self, edge_vector: torch.Tensor) -> torch.Tensor:
         """
         Convert edge vector to adjacency matrix using vectorized operations.

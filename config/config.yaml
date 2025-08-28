@@ -1,0 +1,26 @@
+# Main configuration file for thesis experiments
+defaults:
+  - model: wagner
+  - problem: wagner_corollary_2_1
+  - algorithm: wagner_deep_cross_entropy
+  - _self_
+
+# Global experiment settings
+seed: 42
+device: auto  # auto, cpu, cuda, mps
+
+# Hydra settings for output management
+hydra:
+  run:
+    dir: outputs/${experiment_name}/${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: multirun/${experiment_name}/${now:%Y-%m-%d_%H-%M-%S}
+    subdir: ${hydra.job.num}
+
+# Experiment metadata
+experiment_name: wagner_base
+notes: "Base Wagner corollary 2.1 experiment"
+
+# Ensure model and problem use same n
+model:
+  n: ${problem.n}
