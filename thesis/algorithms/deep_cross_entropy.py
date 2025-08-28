@@ -5,20 +5,22 @@ from torch.utils.data import TensorDataset, DataLoader
 from tqdm import tqdm
 from typing import Callable
 
-from wagner_model import WagnerModel, generate_sampled_constructions
+from thesis.core import BaseAlgorithm, BaseProblem, SamplingModel
 
-
-class WagnerDeepCrossEntropy:
+class WagnerDeepCrossEntropy(BaseAlgorithm):
+    model: SamplingModel
+    
     def __init__(
         self, 
-        model: WagnerModel,
+        model: SamplingModel,
+        problem: BaseProblem,
         iterations: int = 10_000,
         batch_size: int = 512,
         learning_rate: float = 0.0001,
         elite_proportion: float = 0.1,
         device: str | None = None
     ):
-        self.model = model
+        super().__init__(model, problem)
         self.iterations = iterations
         self.batch_size = batch_size
         self.learning_rate = learning_rate
@@ -34,14 +36,13 @@ class WagnerDeepCrossEntropy:
         )
         
         # Ensure model is on correct device
-        self.model = self.model.to(self.device)
+        self.model.to(self.device)
         
         # Track optimization state (we want to minimize, so start with +inf)
         self.best_score = float('inf')
         self.best_construction = None
         self.history = []
-        
-        assert hasattr(model, "score") and callable(getattr(model, "score")), "model.score must be a function"
+
 
     def select_elites(
         self,
@@ -132,8 +133,8 @@ class WagnerDeepCrossEntropy:
     def run_iteration(self) -> dict[str, float]:
         """Run one DCE iteration and return metrics."""
         # Generate constructions and score them
-        constructions = generate_sampled_constructions(self.model, batch_size=self.batch_size)
-        batch_scores = self.model.score(constructions)
+        constructions = self.model.sample(self.batch_size)
+        batch_scores = self.problem.score(constructions)
         
         # Track best score and construction (minimization)
         current_best = torch.min(batch_scores).item()
@@ -159,7 +160,7 @@ class WagnerDeepCrossEntropy:
         # Extract training examples and train
         dataloader = self.extract_examples(
             elites, 
-            output_batch_size=min(self.batch_size, len(elites) * self.model.edges)
+            output_batch_size=min(self.batch_size, len(elites) * int(self.model.edges))
         )
         train_metrics = self.train_step(dataloader)
         
@@ -231,63 +232,63 @@ class WagnerDeepCrossEntropy:
         return self.history
 
 
-def main():
-    device = "mps" if torch.backends.mps.is_available() else "cpu"
-    n = 19
-    goal_score = math.sqrt(n - 1) + 1
-    print(f"Goal score (sqrt({n-1}) + 1): {goal_score:.6f}")
-    print(f"Searching for graphs with eigenvalue + matching < {goal_score:.6f}")
-    model = WagnerModel(n)
+# def main():
+#     device = "mps" if torch.backends.mps.is_available() else "cpu"
+#     n = 19
+#     goal_score = math.sqrt(n - 1) + 1
+#     print(f"Goal score (sqrt({n-1}) + 1): {goal_score:.6f}")
+#     print(f"Searching for graphs with eigenvalue + matching < {goal_score:.6f}")
+#     model = WagnerModel(n)
     
-    # Track if we found a solution
-    found_solution = False
+#     # Track if we found a solution
+#     found_solution = False
     
-    def progress_callback(iteration: int, metrics: dict):
-        nonlocal found_solution
-        if metrics['best_score'] < goal_score and not found_solution:
-            print(f"\n🎉 SOLUTION FOUND at iteration {iteration}!")
-            print(f"Best score: {metrics['best_score']:.6f} < {goal_score:.6f}")
-            found_solution = True
+#     def progress_callback(iteration: int, metrics: dict):
+#         nonlocal found_solution
+#         if metrics['best_score'] < goal_score and not found_solution:
+#             print(f"\n🎉 SOLUTION FOUND at iteration {iteration}!")
+#             print(f"Best score: {metrics['best_score']:.6f} < {goal_score:.6f}")
+#             found_solution = True
     
-    # Create optimizer instance
-    optimizer = WagnerDeepCrossEntropy(
-        model=model,
-        batch_size=4096,
-        iterations=15_000,  # Increased iterations
-        learning_rate=0.0001,
-        elite_proportion=0.1,
-        device=device
-    )
+#     # Create optimizer instance
+#     optimizer = WagnerDeepCrossEntropy(
+#         model=model,
+#         batch_size=4096,
+#         iterations=15_000,  # Increased iterations
+#         learning_rate=0.0001,
+#         elite_proportion=0.1,
+#         device=device
+#     )
     
-    # Run optimization with early stopping
-    results = optimizer.optimize(progress_callback=progress_callback, goal_score=goal_score)
+#     # Run optimization with early stopping
+#     results = optimizer.optimize(progress_callback=progress_callback, goal_score=goal_score)
     
-    print(f"\n=== FINAL RESULTS ===")
-    print(f"Best score achieved: {results['best_score']:.6f}")
-    print(f"Goal score: {goal_score:.6f}")
-    print(f"Success: {'YES' if results['best_score'] < goal_score else 'NO'}")
-    print(f"Early stopped: {'YES' if results.get('early_stopped', False) else 'NO'}")
-    print(f"Iterations completed: {results.get('iterations_completed', 0)}")
+#     print(f"\n=== FINAL RESULTS ===")
+#     print(f"Best score achieved: {results['best_score']:.6f}")
+#     print(f"Goal score: {goal_score:.6f}")
+#     print(f"Success: {'YES' if results['best_score'] < goal_score else 'NO'}")
+#     print(f"Early stopped: {'YES' if results.get('early_stopped', False) else 'NO'}")
+#     print(f"Iterations completed: {results.get('iterations_completed', 0)}")
     
-    if results['best_construction'] is not None:
-        print(f"Best construction shape: {results['best_construction'].shape}")
-        print(f"Number of edges in best graph: {results['best_construction'].sum().item()}")
+#     if results['best_construction'] is not None:
+#         print(f"Best construction shape: {results['best_construction'].shape}")
+#         print(f"Number of edges in best graph: {results['best_construction'].sum().item()}")
         
-        # Analyze the best construction
-        model.eval()
-        with torch.no_grad():
-            adj_matrix = model._edge_vector_to_adjacency(results['best_construction'])
-            largest_eigenvalue = model._compute_largest_eigenvalue(adj_matrix)
-            matching_number = model._compute_maximum_matching(adj_matrix)
+#         # Analyze the best construction
+#         model.eval()
+#         with torch.no_grad():
+#             adj_matrix = model._edge_vector_to_adjacency(results['best_construction'])
+#             largest_eigenvalue = model._compute_largest_eigenvalue(adj_matrix)
+#             matching_number = model._compute_maximum_matching(adj_matrix)
             
-        print(f"Largest eigenvalue: {largest_eigenvalue:.6f}")
-        print(f"Matching number: {matching_number:.6f}")
-        print(f"Sum: {largest_eigenvalue + matching_number:.6f}")
-    else:
-        print("No construction found")
+#         print(f"Largest eigenvalue: {largest_eigenvalue:.6f}")
+#         print(f"Matching number: {matching_number:.6f}")
+#         print(f"Sum: {largest_eigenvalue + matching_number:.6f}")
+#     else:
+#         print("No construction found")
         
-    return results
+#     return results
 
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()

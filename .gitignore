@@ -28,3 +28,4 @@ jupyter_notebook_config.json
 # Marimo
 __marimo__
 
+.DS_Store
