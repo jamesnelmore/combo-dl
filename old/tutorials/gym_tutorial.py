@@ -6,11 +6,10 @@ app = marimo.App(width="full")
 
 @app.cell
 def _():
-    import marimo as mo
     import gymnasium as gym
-    import numpy as np
-
+    import marimo as mo
     import matplotlib.pyplot as plt
+    import numpy as np
 
     return gym, mo, np, plt
 
@@ -18,13 +17,12 @@ def _():
 @app.cell
 def _(mo):
     mo.md(r"""## BlackJack Q-Learning""")
-    return
 
 
 @app.cell
 def _(gym, np):
     from collections import defaultdict
-    from typing import TypeVar, Generic
+    from typing import Generic, TypeVar
 
     ObsType = TypeVar("ObsType")
 
@@ -60,10 +58,9 @@ def _(gym, np):
             if np.random.random() < self.epsilon:
                 return int(self.env.action_space.sample())
                 pass
-            else:
-                return int(
-                    np.argmax(self.q_table[obs])
-                )  # Take the action with the highest expected reward at state obs
+            return int(
+                np.argmax(self.q_table[obs])
+            )  # Take the action with the highest expected reward at state obs
 
         def update(
             self,
@@ -90,8 +87,9 @@ def _(gym, np):
 
 @app.cell
 def _(BlackjackAgent, gym, np):
-    from tqdm import tqdm
     from collections import deque
+
+    from tqdm import tqdm
 
     n_episodes = 1_000_000
     start_epsilon = 1.0

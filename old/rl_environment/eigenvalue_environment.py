@@ -1,12 +1,10 @@
-import numpy as np
-import gymnasium as gym
-from typing import Optional, cast
-from gymnasium.utils.env_checker import check_env
 import time
+from typing import cast
 
+import gymnasium as gym
+import numpy as np
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
-
 
 """
 # Environment design prototype: Inverse Eigenvalue Problem
@@ -58,7 +56,7 @@ class InverseEigenvalue(gym.Env):
         return {}
 
     def reset(
-        self, seed: Optional[int] = None, options: Optional[dict] = None
+        self, seed: int | None = None, options: dict | None = None
     ) -> tuple[dict, dict]:
         """
         return: obs, info

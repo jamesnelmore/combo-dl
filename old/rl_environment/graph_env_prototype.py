@@ -6,12 +6,12 @@ app = marimo.App(width="full")
 
 @app.cell
 def _():
+    from typing import Optional
+
+    import gymnasium as gym
+    from gymnasium.utils.env_checker import check_env
     import marimo as mo
     import numpy as np
-    import gymnasium as gym
-    from typing import Optional
-    from gymnasium.utils.env_checker import check_env
-
     from stable_baselines3 import PPO
     from stable_baselines3.common.env_util import make_vec_env
 
@@ -33,7 +33,6 @@ def _(mo):
         - Try initializing randomly
         """
     )
-    return
 
 
 @app.cell

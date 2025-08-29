@@ -4,6 +4,7 @@ from torch.nn import functional as F
 
 from .protocols import SamplingModel
 
+
 class WagnerModel(SamplingModel):
     def __init__(self, n: int):
         """
@@ -46,7 +47,9 @@ class WagnerModel(SamplingModel):
             with torch.no_grad():
                 w = torch.zeros((batch_size, self.edges), device=device)
                 for i in range(self.edges):
-                    i_tensor = torch.full((batch_size,), i, dtype=torch.long, device=device)
+                    i_tensor = torch.full(
+                        (batch_size,), i, dtype=torch.long, device=device
+                    )
                     x = self.forward(w, i_tensor)
                     assert x.shape == (batch_size, 2)
                     probs = F.softmax(x, dim=-1)

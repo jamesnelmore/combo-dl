@@ -1,0 +1,45 @@
+{
+  // Python configuration
+  "python.defaultInterpreterPath": "./.venv/bin/python",
+  "python.terminal.activateEnvironment": true,
+  "python.venvPath": "${workspaceFolder}",
+  "python.pythonPath": "./.venv/bin/python",
+  
+  // Ruff configuration
+  "ruff.enable": true,
+  "ruff.lint.enable": true,
+  "ruff.organizeImports": true,
+  "ruff.fixAll": true,
+  "ruff.showSyntaxErrors": true,
+  "ruff.codeAction.fixViolation": {
+    "enable": true
+  },
+  "ruff.codeAction.disableRuleComment": {
+    "enable": true
+  },
+  
+  // Editor settings for Python
+  "[python]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
+    },
+    "editor.defaultFormatter": "charliermarsh.ruff"
+  },
+  
+  // General editor settings
+  "editor.rulers": [88],
+  "editor.trimAutoWhitespace": true,
+  
+  // File associations
+  "files.associations": {
+    "*.yaml": "yaml",
+    "*.yml": "yaml"
+  },
+  
+  // Jupyter settings (for your old notebooks)
+  "jupyter.askForKernelRestart": false,
+  "jupyter.interactiveWindow.textEditor.executeSelection": true,
+  "makefile.configureOnOpen": false
+}
