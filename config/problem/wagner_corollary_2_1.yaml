@@ -1,5 +1,5 @@
 # Wagner Corollary 2.1 problem configuration
-_target_: thesis.problems.wagner_corollary_2_1.WagnerCorollary2_1
+_target_: problems.wagner_corollary_2_1.WagnerCorollary2_1
 
 # Problem parameters
 n: 19  # Number of vertices in the graph

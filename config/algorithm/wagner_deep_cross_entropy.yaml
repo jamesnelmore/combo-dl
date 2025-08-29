@@ -1,5 +1,5 @@
 # Wagner Deep Cross-Entropy algorithm configuration
-_target_: thesis.algorithms.deep_cross_entropy.WagnerDeepCrossEntropy
+_target_: algorithms.deep_cross_entropy.WagnerDeepCrossEntropy
 
 # Training hyperparameters
 iterations: 15000

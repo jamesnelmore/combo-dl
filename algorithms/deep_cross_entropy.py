@@ -6,8 +6,8 @@ from tqdm import tqdm
 from typing import Callable
 
 from .algorithm import BaseAlgorithm
-from thesis.problems.base_problem import BaseProblem
-from thesis.models.protocols import SamplingModel
+from problems.base_problem import BaseProblem
+from models.protocols import SamplingModel
 
 class WagnerDeepCrossEntropy(BaseAlgorithm):
     model: SamplingModel

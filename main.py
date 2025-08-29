@@ -16,8 +16,8 @@ import torch
 from torch import nn
 import logging
 
-from thesis.experiment_logger.logger import BaseExperimentLogger
-from thesis.algorithms import BaseAlgorithm
+from experiment_logger.logger import BaseExperimentLogger
+from algorithms import BaseAlgorithm
 
 log = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ def get_device(device_config: str) -> str:
             return "cpu"
     return device_config
 
-@hydra.main(version_base=None, config_path="../config", config_name="config")
+@hydra.main(version_base=None, config_path="config", config_name="config")
 def main(cfg: DictConfig) -> dict:
     """
     Main training function with Hydra configuration.

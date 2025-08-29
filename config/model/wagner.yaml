@@ -1,5 +1,5 @@
 # Wagner model configuration
-_target_: thesis.models.wagner_model.WagnerModel
+_target_: models.wagner_model.WagnerModel
 
 # Model parameters
 n: 19  # Number of vertices in the graph

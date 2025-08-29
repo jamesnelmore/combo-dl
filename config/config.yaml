@@ -48,9 +48,9 @@ model:
 
 # Custom logger configuration
 logger:
-  _target_: thesis.experiment_logger.logger.MultiLogger
+  _target_: experiment_logger.logger.MultiLogger
   experiment_name: ${experiment_name}
   fail_fast: false
   loggers:
-    - _target_: thesis.experiment_logger.console_logger.ConsoleLogger
+    - _target_: experiment_logger.console_logger.ConsoleLogger
       experiment_name: ${experiment_name}

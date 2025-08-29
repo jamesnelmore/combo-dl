@@ -2,8 +2,8 @@ import torch
 from abc import ABC, abstractmethod
 from typing import List, Any, Dict
 
-from thesis.problems.base_problem import BaseProblem
-from thesis.experiment_logger.logger import BaseExperimentLogger
+from problems.base_problem import BaseProblem
+from experiment_logger.logger import BaseExperimentLogger
 
 class BaseAlgorithm(ABC):
     """Base class for all algorithms."""
