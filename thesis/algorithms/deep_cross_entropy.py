@@ -5,7 +5,9 @@ from torch.utils.data import TensorDataset, DataLoader
 from tqdm import tqdm
 from typing import Callable
 
-from thesis.core import BaseAlgorithm, BaseProblem, SamplingModel
+from .algorithm import BaseAlgorithm
+from thesis.problems.base_problem import BaseProblem
+from thesis.models.protocols import SamplingModel
 
 class WagnerDeepCrossEntropy(BaseAlgorithm):
     model: SamplingModel

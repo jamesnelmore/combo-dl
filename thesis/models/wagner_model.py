@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from thesis.core import SamplingModel
+from .protocols import SamplingModel
 
 class WagnerModel(SamplingModel):
     def __init__(self, n: int):

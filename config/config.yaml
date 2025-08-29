@@ -16,6 +16,27 @@ hydra:
   sweep:
     dir: multirun/${experiment_name}/${now:%Y-%m-%d_%H-%M-%S}
     subdir: ${hydra.job.num}
+  
+  # Simple logging configuration
+  job_logging:
+    version: 1
+    formatters:
+      simple:
+        format: '[%(asctime)s][%(name)s][%(levelname)s] - %(message)s'
+        datefmt: '%Y-%m-%d %H:%M:%S'
+    handlers:
+      console:
+        class: logging.StreamHandler
+        formatter: simple
+        stream: ext://sys.stdout
+      file:
+        class: logging.FileHandler
+        formatter: simple
+        filename: ${hydra:runtime.output_dir}/experiment.log
+    root:
+      level: INFO
+      handlers: [console, file]
+    disable_existing_loggers: false
 
 # Experiment metadata
 experiment_name: wagner_base
@@ -24,3 +45,12 @@ notes: "Base Wagner corollary 2.1 experiment"
 # Ensure model and problem use same n
 model:
   n: ${problem.n}
+
+# Custom logger configuration
+logger:
+  _target_: thesis.experiment_logger.logger.MultiLogger
+  experiment_name: ${experiment_name}
+  fail_fast: false
+  loggers:
+    - _target_: thesis.experiment_logger.console_logger.ConsoleLogger
+      experiment_name: ${experiment_name}

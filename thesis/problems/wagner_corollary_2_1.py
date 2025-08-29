@@ -2,7 +2,7 @@ import torch
 import math
 import networkx as nx
 
-from thesis.core.problem import BaseProblem
+from .base_problem import BaseProblem
 
 # TODO figuure out what this vibe coded scoring function does
 
