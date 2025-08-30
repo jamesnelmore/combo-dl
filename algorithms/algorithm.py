@@ -17,7 +17,7 @@ class BaseAlgorithm(ABC):
     ):
         self.model = model
         self.problem = problem
-        self.logger = logger or []
+        self.logger = logger
 
     @abstractmethod
     def optimize(self, **kwargs) -> dict:

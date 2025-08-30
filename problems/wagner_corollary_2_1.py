@@ -141,7 +141,6 @@ class WagnerCorollary2_1(BaseProblem):  # noqa: N801
         Returns:
             Exact maximum matching number as a scalar tensor
         """
-        n = self.n
 
         # Convert adjacency matrix to NetworkX graph
         # First convert to numpy for NetworkX compatibility
@@ -216,12 +215,11 @@ class WagnerCorollary2_1(BaseProblem):  # noqa: N801
         Batch compute the largest eigenvalue for multiple adjacency matrices.
 
         Args:
-            adj_matrices: Batch of symmetric adjacency matrices of shape (batch_size, n, n)
+            adj_matrices: Symmetric adjacency matrices of shape (batch_size, n, n)
 
         Returns:
             Largest eigenvalues as tensor of shape (batch_size,)
         """
-        batch_size = adj_matrices.shape[0]
         original_device = adj_matrices.device
 
         # Convert to float and move to CPU for eigenvalue computation

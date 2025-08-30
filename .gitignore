@@ -1,5 +1,6 @@
 logs/
 best_model/
+hydra_outputs/
 # Python-generated files
 __pycache__/
 *.py[oc]

@@ -41,7 +41,7 @@ class BaseExperimentLogger(ABC):
         pass
 
     @abstractmethod
-    def log_info(self, message: str, level: str = "info") -> None:
+    def log_info(self, message: str) -> None:
         """
         Log text messages at different levels.
 
@@ -52,9 +52,7 @@ class BaseExperimentLogger(ABC):
         pass
 
     @abstractmethod
-    def log_artifact(
-        self, file_paths: str | Path, artifact_type: str = "general"
-    ) -> None:
+    def log_artifact(self, file_paths: str | Path, artifact_type: str = "general") -> None:
         """
         Log files as artifacts (models, plots, configs, etc.).
 
@@ -112,9 +110,7 @@ class BaseExperimentLogger(ABC):
         self.log_hyperparameters(config)
         self.log_info(f"Starting experiment: {self.experiment_name or 'unnamed'}")
 
-    def log_experiment_end(
-        self, results: dict[str, Any], success: bool = False
-    ) -> None:
+    def log_experiment_end(self, results: dict[str, Any], success: bool = False) -> None:
         """
         Log experiment completion with final results.
         Default implementation logs results as metrics and a completion message.
@@ -132,9 +128,12 @@ class BaseExperimentLogger(ABC):
         status = "SUCCESS" if success else "COMPLETED"
         self.log_info(f"Experiment {status}: {self.experiment_name or 'unnamed'}")
 
-    def log_progress(
-        self, iteration: int, metrics: dict[str, Any], frequency: int = 100
-    ) -> None:
+    @abstractmethod
+    def finalize(self) -> None:
+        """Finalize logging (close files, upload pending data, etc.)."""
+        pass
+
+    def log_progress(self, iteration: int, metrics: dict[str, Any], frequency: int = 100) -> None:
         """
         Log training progress at specified frequency.
         Default implementation logs metrics with step and periodic info messages.
@@ -144,14 +143,7 @@ class BaseExperimentLogger(ABC):
         if iteration % frequency == 0:
             best_score = metrics.get("best_score", "N/A")
             avg_score = metrics.get("avg_score", "N/A")
-            self.log_info(
-                f"Iteration {iteration}: best_score={best_score}, avg_score={avg_score}"
-            )
-
-    @abstractmethod
-    def finalize(self) -> None:
-        """Finalize logging (close files, upload pending data, etc.)."""
-        pass
+            self.log_info(f"Iteration {iteration}: best_score={best_score}, avg_score={avg_score}")
 
     def __enter__(self):
         """Context manager entry."""
@@ -215,9 +207,7 @@ class MultiLogger(BaseExperimentLogger):
                 method = getattr(logger, method_name)
                 method(*args, **kwargs)
             except Exception as e:
-                error_msg = (
-                    f"Logger {i} ({type(logger).__name__}) failed on {method_name}: {e}"
-                )
+                error_msg = f"Logger {i} ({type(logger).__name__}) failed on {method_name}: {e}"
                 errors.append(error_msg)
 
                 if self.fail_fast:
@@ -225,9 +215,7 @@ class MultiLogger(BaseExperimentLogger):
                 self._logger.error(error_msg)
 
         if errors and not self.fail_fast:
-            self._logger.warning(
-                f"MultiLogger completed {method_name} with {len(errors)} errors"
-            )
+            self._logger.warning(f"MultiLogger completed {method_name} with {len(errors)} errors")
 
     def setup(self) -> None:
         """Setup all composed loggers."""
@@ -245,9 +233,7 @@ class MultiLogger(BaseExperimentLogger):
         """Log info messages to all composed loggers."""
         self._execute_on_all("log_info", message, level=level)
 
-    def log_artifact(
-        self, file_paths: str | Path, artifact_type: str = "general"
-    ) -> None:
+    def log_artifact(self, file_paths: str | Path, artifact_type: str = "general") -> None:
         """Log artifacts to all composed loggers."""
         self._execute_on_all("log_artifact", file_paths, artifact_type=artifact_type)
 
@@ -258,9 +244,7 @@ class MultiLogger(BaseExperimentLogger):
         metadata: dict[str, Any] | None = None,
     ) -> None:
         """Log model to all composed loggers."""
-        self._execute_on_all(
-            "log_model", model, model_name=model_name, metadata=metadata
-        )
+        self._execute_on_all("log_model", model, model_name=model_name, metadata=metadata)
 
     def log_construction(
         self,
@@ -270,9 +254,7 @@ class MultiLogger(BaseExperimentLogger):
         metadata: dict[str, Any] | None = None,
     ) -> None:
         """Log construction to all composed loggers."""
-        self._execute_on_all(
-            "log_construction", construction, score, step=step, metadata=metadata
-        )
+        self._execute_on_all("log_construction", construction, score, step=step, metadata=metadata)
 
     def finalize(self) -> None:
         """Finalize all composed loggers."""

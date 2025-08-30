@@ -1,56 +1,35 @@
-# Main configuration file for thesis experiments
-defaults:
-  - model: wagner
-  - problem: wagner_corollary_2_1
-  - algorithm: wagner_deep_cross_entropy
-  - _self_
+# Simple Hydra Configuration
+# Everything in one file - no complex defaults or multiple config files!
 
-# Global experiment settings
+# Experiment settings
 seed: 42
 device: auto  # auto, cpu, cuda, mps
+experiment_name: simple_experiment
 
-# Hydra settings for output management
+# Model configuration  
+model:
+  _target_: models.wagner_model.WagnerModel
+  n: 19
+
+# Problem configuration
+problem:
+  _target_: problems.wagner_corollary_2_1.WagnerCorollary2_1
+  n: 19
+
+# Algorithm configuration
+algorithm:
+  _target_: algorithms.deep_cross_entropy.WagnerDeepCrossEntropy
+  iterations: 1000  # Reduced for quick testing
+  batch_size: 512   # Reduced for quick testing
+  learning_rate: 0.001
+  elite_proportion: 0.1
+
+# Logger configuration - Simple console logger
+logger:
+  _target_: experiment_logger.console_logger.ConsoleLogger
+  experiment_name: ${experiment_name}
+
+# Hydra output directory (optional - Hydra will use default if not specified)
 hydra:
   run:
-    dir: outputs/${experiment_name}/${now:%Y-%m-%d_%H-%M-%S}
-  sweep:
-    dir: multirun/${experiment_name}/${now:%Y-%m-%d_%H-%M-%S}
-    subdir: ${hydra.job.num}
-  
-  # Simple logging configuration
-  job_logging:
-    version: 1
-    formatters:
-      simple:
-        format: '[%(asctime)s][%(name)s][%(levelname)s] - %(message)s'
-        datefmt: '%Y-%m-%d %H:%M:%S'
-    handlers:
-      console:
-        class: logging.StreamHandler
-        formatter: simple
-        stream: ext://sys.stdout
-      file:
-        class: logging.FileHandler
-        formatter: simple
-        filename: ${hydra:runtime.output_dir}/experiment.log
-    root:
-      level: INFO
-      handlers: [console, file]
-    disable_existing_loggers: false
-
-# Experiment metadata
-experiment_name: wagner_base
-notes: "Base Wagner corollary 2.1 experiment"
-
-# Ensure model and problem use same n
-model:
-  n: ${problem.n}
-
-# Custom logger configuration
-logger:
-  _target_: experiment_logger.logger.MultiLogger
-  experiment_name: ${experiment_name}
-  fail_fast: false
-  loggers:
-    - _target_: experiment_logger.console_logger.ConsoleLogger
-      experiment_name: ${experiment_name}
+    dir: hydra_outputs/${experiment_name}/${now:%Y-%m-%d_%H-%M-%S}

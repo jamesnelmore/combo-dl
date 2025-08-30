@@ -1,26 +1,17 @@
 """
-Main entry point for thesis experiments using Hydra configuration.
+Simple main entry point using minimal Hydra configuration.
 
 Usage:
-    python -m thesis.main                    # Default config
-    python -m thesis.main model.n=25         # Override model size
-    python -m thesis.main algorithm=ppo      # Use different algorithm
-    python -m thesis.main --multirun seed=1,2,3  # Run multiple seeds
+    python main.py                              # Use default config
+    python main.py model.n=25                   # Override model size
+    python main.py algorithm.learning_rate=0.01 # Override learning rate
+    python main.py seed=123                     # Change random seed
 """
 
-import logging
-
 import hydra
-from hydra.core.hydra_config import HydraConfig
 from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 import torch
-from torch import nn
-
-from algorithms import BaseAlgorithm
-from experiment_logger.logger import BaseExperimentLogger
-
-log = logging.getLogger(__name__)
 
 
 def get_device(device_config: str) -> str:
@@ -37,45 +28,50 @@ def get_device(device_config: str) -> str:
 @hydra.main(version_base=None, config_path="config", config_name="config")
 def main(cfg: DictConfig) -> dict:
     """
-    Main training function with Hydra configuration.
+    Simple main function with Hydra configuration.
 
-    Args:
-        cfg: Hydra configuration object
-
-    Returns:
-        Dictionary with experiment results
+    This function:
+    1. Sets up the device (CPU/GPU/MPS)
+    2. Creates model, problem, algorithm, and logger from config
+    3. Runs the optimization
+    4. Returns results
     """
 
-    # Set up device
-    device = get_device(cfg.device)
-    log.info(f"Using device: {device}")
-
-    # Instantiate components with proper device handling
-    model: nn.Module = instantiate(cfg.model)
-    model = model.to(device)
-
-    problem = instantiate(cfg.problem)
-
-    logger: BaseExperimentLogger = instantiate(cfg.logger)
-
-    # Convert config to container for logging
+    # Logger
+    logger = instantiate(cfg.logger)
     config_dict = OmegaConf.to_container(cfg, resolve=True)
     logger.log_experiment_start(config_dict)
 
-    logger.log_info(f"Working directory: {HydraConfig.get().runtime.output_dir}")
-    logger.log_info(f"Using device: {device}")
-    logger.log_info("Starting main experiment...")
+    # Seed
+    torch.manual_seed(cfg.seed)
+    logger.log_info(f"Set random seed: {cfg.seed}")
 
-    # Instantiate algorithm with all required parameters
-    algorithm: BaseAlgorithm = instantiate(
+    # Device
+    device = get_device(cfg.device)
+    logger.log_info(f"Set device: {device}")
+
+    # Model
+    model = instantiate(cfg.model).to(device)
+
+    # Problem
+    problem = instantiate(cfg.problem)
+
+    # Algorithm
+    algorithm = instantiate(
         cfg.algorithm, model=model, problem=problem, logger=logger, device=device
     )
 
+    logger.log_info(f"Experiment: {cfg.experiment_name}")
+
+    # Run the optimization
     results = algorithm.optimize()
 
-    # Log experiment completion
-    logger.log_model(model, model_name="model")
+    # Log final model and results
+    logger.log_model(model, model_name="trained_model")
     logger.log_experiment_end(results, success=True)
+
+    logger.log_info("Experiment completed!")
+    logger.log_info(f"Final results: {results}")
 
     return results
 
