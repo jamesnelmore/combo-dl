@@ -8,7 +8,7 @@ from .base_problem import BaseProblem
 # TODO figuure out what this vibe coded scoring function does
 
 
-class WagnerCorollary2_1(BaseProblem):
+class WagnerCorollary2_1(BaseProblem):  # noqa: N801
     def __init__(self, n: int):
         self.n = n
         self.edges = (n**2 - n) // 2
@@ -30,7 +30,6 @@ class WagnerCorollary2_1(BaseProblem):
         Returns:
             Tensor of shape (batch_size,) with scores for each construction
         """
-        batch_size = x.shape[0]
 
         # Batch convert all edge vectors to adjacency matrices
         adj_matrices = self._batch_edge_vector_to_adjacency(x)
@@ -42,8 +41,7 @@ class WagnerCorollary2_1(BaseProblem):
         matching_numbers = self._batch_compute_maximum_matching(adj_matrices)
 
         # Combine scores
-        scores = largest_eigenvalues + matching_numbers
-        return scores
+        return largest_eigenvalues + matching_numbers
 
     def solution_space_info(self) -> dict:
         """Return information about the solution space."""
