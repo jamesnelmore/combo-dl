@@ -1,0 +1,20 @@
+# Simple WandB Logger
+# Use this by running: python main.py logger=wandb
+
+_target_: experiment_logger.ExperimentLogger
+experiment_name: ${experiment_name}
+
+use_wandb: true
+use_progress_bar: true
+
+# WandB-specific settings
+entity: null 
+wandb_mode: online  # online, offline, disabled
+
+# Authentication (will use WANDB_API_KEY environment variable)
+api_key: null  # Leave null to use environment variable (recommended for HPC)
+
+# WandB run configuration (passed to wandb.init)
+tags: []
+notes: ""
+save_code: true

@@ -1,4 +1,3 @@
-from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
@@ -6,8 +5,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from experiment_logger.console_logger import ConsoleLogger
-from experiment_logger.logger import BaseExperimentLogger
+from experiment_logger import ExperimentLogger
 from models.protocols import SamplingModel
 from problems.base_problem import BaseProblem
 
@@ -25,14 +23,16 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         batch_size: int = 512,
         learning_rate: float = 0.0001,
         elite_proportion: float = 0.1,
+        goal_score: float | None = None,
         device: str | None = None,
-        logger: BaseExperimentLogger | None = None,
+        logger: ExperimentLogger | None = None,
     ):
         super().__init__(model, problem, logger)
         self.iterations = iterations
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.elite_proportion = elite_proportion
+        self.goal_score = goal_score
         self.device = (
             device
             if device is not None
@@ -47,10 +47,9 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         if logger is None:
             date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             experiment_name = f"Deep Cross Entropy {date} {type(problem).__name__}"
-            self.logger: BaseExperimentLogger = ConsoleLogger(experiment_name)
+            self.logger: ExperimentLogger = ExperimentLogger(experiment_name, use_wandb=False)
         else:
             self.logger = logger
-
         metrics = ["best_score", "avg_score", "loss", "accuracy"]
         self.logger.setup(metrics, self.iterations)
 
@@ -183,11 +182,7 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
             **train_metrics,
         }
 
-    def optimize(
-        self,
-        progress_callback: Callable[[int, dict], None] | None = None,
-        goal_score: float | None = None,
-    ) -> dict[str, Any]:
+    def optimize(self, **kwargs) -> dict[str, Any]:
         """
         Run the full Deep Cross-Entropy optimization.
 
@@ -202,6 +197,11 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         early_stopped = False
         iterations_completed = 0
         final_metrics = None
+
+        # Update progress bar with total iterations if not already set
+        if self.logger.progress_bar is not None and self.logger.progress_bar.total is None:
+            self.logger.progress_bar.total = self.iterations
+            self.logger.progress_bar.refresh()  # TODO This should not be necessary
 
         for iteration in range(self.iterations):
             metrics = self.run_iteration()
@@ -220,15 +220,11 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
                     metadata={"iteration": iteration},
                 )
 
-            # Call external progress callback if provided
-            if progress_callback is not None:
-                progress_callback(iteration, metrics)
-
             # Early stopping if goal is reached
-            if goal_score is not None and metrics["best_score"] < goal_score:
+            if self.goal_score is not None and metrics["best_score"] < self.goal_score:
                 self.logger.log_info(f"Goal achieved! Stopping early at iteration {iteration}")
                 self.logger.log_info(
-                    f"Best score: {metrics['best_score']:.6f} < goal: {goal_score:.6f}"
+                    f"Best score: {metrics['best_score']:.6f} < goal: {self.goal_score:.6f}"
                 )
                 self.logger.log_info("Early Stopping")
                 early_stopped = True

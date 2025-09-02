@@ -16,6 +16,7 @@ dependencies = [
     "stable-baselines3>=2.7.0",
     "torch>=2.8.0",
     "tqdm>=4.67.1",
+    "wandb>=0.21.3",
 ]
 
 [project.optional-dependencies]
@@ -86,6 +87,7 @@ include = [".", "algorithms", "models", "problems", "experiment_logger"]
 exclude = ["**/__pycache__", "**/.venv", "**/venv"]
 pythonVersion = "3.11"
 typeCheckingMode = "basic"
+reportIncompatibleMethodOverride = "error"
 
 # Use library code for better type analysis
 useLibraryCodeForTypes = true

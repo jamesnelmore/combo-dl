@@ -24,9 +24,13 @@ algorithm:
   learning_rate: 0.001
   elite_proportion: 0.1
 
-# Logger configuration - Simple console logger
+# Logger configuration - defaults to console, override with logger=wandb
+defaults:
+  - logger: console
+  - _self_
+
+# Override logger settings if needed
 logger:
-  _target_: experiment_logger.console_logger.ConsoleLogger
   experiment_name: ${experiment_name}
 
 # Hydra output directory (optional - Hydra will use default if not specified)
