@@ -24,17 +24,39 @@ class ConsoleLogger(BaseExperimentLogger):
         self.postfix_metrics = postfix_metrics
         self.p_bar = tqdm(
             total=self.total_iterations,
-            desc=f"Experiment: {self.experiment_name or ''}",
-            unit="iter",
-            ncols=100,
+            desc=self.experiment_name or "",
             position=0,
             leave=True,
+            dynamic_ncols=True,  # Adjust width dynamically based on terminal
         )
 
-    def log_metrics(self, metrics: dict[str, Any], step: int | None = None) -> None:
+    def _log_metrics(self, metrics: dict[str, Any], step: int | None = None) -> None:
+        if self.p_bar is None:
+            self.setup(list(metrics.keys()))
         assert self.p_bar is not None
-        self.p_bar.update(step)
-        self.p_bar.set_postfix(metrics)
+
+        # Filter metrics to only show those specified in setup
+        filtered_metrics = {}
+        if self.postfix_metrics:
+            for key in self.postfix_metrics:
+                if key in metrics:
+                    filtered_metrics[key] = metrics[key]
+        else:
+            filtered_metrics = metrics
+
+        # Format metrics for better display
+        formatted_metrics = {}
+        for key, value in filtered_metrics.items():
+            if isinstance(value, float):
+                if abs(value) < 0.001 or abs(value) > 1000:
+                    formatted_metrics[key] = f"{value:.2e}"  # Scientific notation
+                else:
+                    formatted_metrics[key] = f"{value:.4f}"  # 4 decimal places
+            else:
+                formatted_metrics[key] = value
+
+        self.p_bar.update(1)
+        self.p_bar.set_postfix(filtered_metrics)
 
     def log_hyperparameters(self, params: dict[str, Any]) -> None:
         print(params)

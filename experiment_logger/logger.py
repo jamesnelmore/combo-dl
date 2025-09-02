@@ -15,12 +15,15 @@ class BaseExperimentLogger(ABC):
         self._is_setup = False
 
     @abstractmethod
-    def setup(self) -> None:
-        """Setup/initialize the logger (e.g., create directories, authenticate APIs)."""
+    def setup(self, *args) -> None:
+        """
+        Setup logger with information from the algorithm.
+        Should be run from inside the algorithm
+        """
         pass
 
     @abstractmethod
-    def log_metrics(self, metrics: dict[str, Any], step: int | None = None) -> None:
+    def _log_metrics(self, metrics: dict[str, Any], step: int | None = None) -> None:
         """
         Log scalar metrics (loss, accuracy, best_score, etc.).
 
@@ -29,6 +32,9 @@ class BaseExperimentLogger(ABC):
             step: Optional step/iteration number for time series logging
         """
         pass
+
+    def log_metrics(self, metrics: dict[str, Any], step: int | None = None) -> None:
+        self._log_metrics(metrics, step)
 
     @abstractmethod
     def log_hyperparameters(self, params: dict[str, Any]) -> None:
@@ -118,11 +124,10 @@ class BaseExperimentLogger(ABC):
         # Filter out non-serializable results (like tensors)
         serializable_results = {}
         for key, value in results.items():
-            if isinstance(value, (int, float, str, bool, type(None))):
+            if isinstance(value, (int | float | str | bool | None)):
                 serializable_results[key] = value
-            elif isinstance(value, torch.Tensor):
-                if value.numel() == 1:  # Single value tensor
-                    serializable_results[key] = value.item()
+            elif isinstance(value, torch.Tensor) and value.numel() == 1:
+                serializable_results[key] = value.item()
 
         self.log_metrics(serializable_results)
         status = "SUCCESS" if success else "COMPLETED"
@@ -132,18 +137,6 @@ class BaseExperimentLogger(ABC):
     def finalize(self) -> None:
         """Finalize logging (close files, upload pending data, etc.)."""
         pass
-
-    def log_progress(self, iteration: int, metrics: dict[str, Any], frequency: int = 100) -> None:
-        """
-        Log training progress at specified frequency.
-        Default implementation logs metrics with step and periodic info messages.
-        """
-        self.log_metrics(metrics, step=iteration)
-
-        if iteration % frequency == 0:
-            best_score = metrics.get("best_score", "N/A")
-            avg_score = metrics.get("avg_score", "N/A")
-            self.log_info(f"Iteration {iteration}: best_score={best_score}, avg_score={avg_score}")
 
     def __enter__(self):
         """Context manager entry."""
