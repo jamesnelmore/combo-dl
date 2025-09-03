@@ -7,7 +7,7 @@ class BaseProblem(ABC):
     """Defines an optimization goal and how to evaluate solutions."""
 
     @abstractmethod
-    def score(self, solutions: torch.Tensor) -> torch.Tensor:
+    def score(self, x: torch.Tensor) -> torch.Tensor:
         """
         Compute the score for each solution in the batch. Higher is better.
 
@@ -18,7 +18,7 @@ class BaseProblem(ABC):
         pass
 
     @abstractmethod
-    def is_valid_solution(self, solutions: torch.Tensor) -> torch.Tensor:
+    def is_valid_solution(self, solution: torch.Tensor) -> torch.Tensor:
         """
         Whether each element in the batch is a valid solution to the problem.
         """

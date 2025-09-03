@@ -14,9 +14,7 @@ class WagnerCorollary2_1(BaseProblem):  # noqa: N801
         self.edges = (n**2 - n) // 2
         self.goal_score = math.sqrt(n - 1) + 1
         print(f"Goal score (sqrt({n - 1}) + 1): {self.goal_score:.6f}")
-        print(
-            f"Searching for graphs with eigenvalue + matching < {self.goal_score:.6f}"
-        )
+        print(f"Searching for graphs with eigenvalue + matching < {self.goal_score:.6f}")
 
     def score(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -53,9 +51,24 @@ class WagnerCorollary2_1(BaseProblem):  # noqa: N801
             "description": f"Binary edge vector for {self.n}-node graph",
         }
 
-    def is_valid_solution(self, solution: torch.Tensor) -> bool:
-        """Check if solution is valid (binary values)."""
-        return bool(torch.all((solution == 0) | (solution == 1)).item())
+    def is_valid_solution(self, solution: torch.Tensor) -> torch.Tensor:
+        """Check if solution is valid (binary values and correct dimension).
+
+        Args:
+            solution: Tensor of shape (batch_size, edges) where each entry should be 0 or 1
+
+        Returns:
+            Tensor of shape (batch_size,) with boolean values indicating validity
+        """
+        # Check that the tensor has the correct shape
+        if solution.dim() != 2 or solution.shape[1] != self.edges:
+            # Return False for all batch items if shape is wrong
+            batch_size = solution.shape[0] if solution.dim() >= 1 else 1
+            return torch.zeros(batch_size, dtype=torch.bool, device=solution.device)
+
+        # Check that each solution vector contains only binary values (0 or 1)
+        # Use dim=1 to check across the edges dimension for each batch item
+        return torch.all((solution == 0) | (solution == 1), dim=1)
 
     def _edge_vector_to_adjacency(self, edge_vector: torch.Tensor) -> torch.Tensor:
         """
@@ -79,9 +92,7 @@ class WagnerCorollary2_1(BaseProblem):  # noqa: N801
         if not hasattr(self, "_upper_triangle_indices"):
             # Cache the indices for reuse - create on CPU first if MPS device
             if device.type == "mps":
-                triu_indices = torch.triu_indices(n, n, offset=1, device="cpu").to(
-                    device
-                )
+                triu_indices = torch.triu_indices(n, n, offset=1, device="cpu").to(device)
             else:
                 triu_indices = torch.triu_indices(n, n, offset=1, device=device)
             self._upper_triangle_indices = triu_indices
@@ -91,9 +102,7 @@ class WagnerCorollary2_1(BaseProblem):  # noqa: N801
             if triu_indices.device != device:
                 if device.type == "mps":
                     # Create on CPU first then move to MPS
-                    triu_indices = torch.triu_indices(n, n, offset=1, device="cpu").to(
-                        device
-                    )
+                    triu_indices = torch.triu_indices(n, n, offset=1, device="cpu").to(device)
                 else:
                     triu_indices = triu_indices.to(device)
                 self._upper_triangle_indices = triu_indices
@@ -156,13 +165,9 @@ class WagnerCorollary2_1(BaseProblem):  # noqa: N801
         # Return the size of the matching
         matching_size = len(matching)
 
-        return torch.tensor(
-            matching_size, dtype=torch.float32, device=adj_matrix.device
-        )
+        return torch.tensor(matching_size, dtype=torch.float32, device=adj_matrix.device)
 
-    def _batch_edge_vector_to_adjacency(
-        self, edge_vectors: torch.Tensor
-    ) -> torch.Tensor:
+    def _batch_edge_vector_to_adjacency(self, edge_vectors: torch.Tensor) -> torch.Tensor:
         """
         Batch convert edge vectors to adjacency matrices.
 
@@ -183,9 +188,7 @@ class WagnerCorollary2_1(BaseProblem):  # noqa: N801
         # Use cached indices or create them
         if not hasattr(self, "_upper_triangle_indices"):
             if device.type == "mps":
-                triu_indices = torch.triu_indices(n, n, offset=1, device="cpu").to(
-                    device
-                )
+                triu_indices = torch.triu_indices(n, n, offset=1, device="cpu").to(device)
             else:
                 triu_indices = torch.triu_indices(n, n, offset=1, device=device)
             self._upper_triangle_indices = triu_indices
@@ -193,9 +196,7 @@ class WagnerCorollary2_1(BaseProblem):  # noqa: N801
             triu_indices = self._upper_triangle_indices
             if triu_indices.device != device:
                 if device.type == "mps":
-                    triu_indices = torch.triu_indices(n, n, offset=1, device="cpu").to(
-                        device
-                    )
+                    triu_indices = torch.triu_indices(n, n, offset=1, device="cpu").to(device)
                 else:
                     triu_indices = triu_indices.to(device)
                 self._upper_triangle_indices = triu_indices
@@ -208,9 +209,7 @@ class WagnerCorollary2_1(BaseProblem):  # noqa: N801
 
         return adj_matrices
 
-    def _batch_compute_largest_eigenvalue(
-        self, adj_matrices: torch.Tensor
-    ) -> torch.Tensor:
+    def _batch_compute_largest_eigenvalue(self, adj_matrices: torch.Tensor) -> torch.Tensor:
         """
         Batch compute the largest eigenvalue for multiple adjacency matrices.
 
@@ -235,9 +234,7 @@ class WagnerCorollary2_1(BaseProblem):  # noqa: N801
 
         return largest_eigenvalues.to(original_device)
 
-    def _batch_compute_maximum_matching(
-        self, adj_matrices: torch.Tensor
-    ) -> torch.Tensor:
+    def _batch_compute_maximum_matching(self, adj_matrices: torch.Tensor) -> torch.Tensor:
         """
         Batch compute maximum matching numbers using NetworkX.
 
