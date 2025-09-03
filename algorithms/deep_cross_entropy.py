@@ -26,6 +26,7 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         goal_score: float | None = None,
         device: str | None = None,
         logger: ExperimentLogger | None = None,
+        log_frequency: int = 1,
     ):
         super().__init__(model, problem, logger)
         self.iterations = iterations
@@ -33,6 +34,7 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         self.learning_rate = learning_rate
         self.elite_proportion = elite_proportion
         self.goal_score = goal_score
+        self.log_frequency = log_frequency
         self.device = (
             device
             if device is not None
@@ -51,7 +53,7 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         else:
             self.logger = logger
         metrics = ["best_score", "avg_score", "loss", "accuracy"]
-        self.logger.setup(metrics, self.iterations)
+        self.logger.setup(metrics, total_iterations=self.iterations)
 
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
@@ -199,17 +201,17 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         final_metrics = None
 
         # Update progress bar with total iterations if not already set
-        if self.logger.progress_bar is not None and self.logger.progress_bar.total is None:
-            self.logger.progress_bar.total = self.iterations
-            self.logger.progress_bar.refresh()  # TODO This should not be necessary
+        # if self.logger.progress_bar is not None and self.logger.progress_bar.total is None:
+        #     self.logger.progress_bar.total = self.iterations
+        #     self.logger.progress_bar.refresh()  # TODO This should not be necessary
 
         for iteration in range(self.iterations):
             metrics = self.run_iteration()
             final_metrics = metrics
-            iterations_completed = iteration + 1
 
             # Log progress with experiment logger
-            self.logger.log_metrics(metrics, iteration)
+            if iteration % self.log_frequency == 0:
+                self.logger.log_metrics(metrics, self.log_frequency)
 
             # Log best construction when it improves
             if metrics["found_new_best"] and self.best_construction is not None:
@@ -240,5 +242,5 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
             "best_construction": self.best_construction,
             "final_metrics": final_metrics,
             "early_stopped": early_stopped,
-            "iterations_completed": iterations_completed,
+            "iterations": iteration,
         }

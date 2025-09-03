@@ -84,14 +84,14 @@ class ExperimentLogger:
         Setup logger with algorithm-specific parameters.
         """
         if self._is_setup:
-            return
+            self.log_info("Re setting up logger")
 
         print(f"Setting up Logger for experiment: {self.experiment_name or 'unnamed'}")
         if self.use_progress_bar:
-            self.setup_progress_bar(postfix_metrics, total_iterations)
+            self._setup_progress_bar(postfix_metrics, total_iterations)
         self._is_setup = True
 
-    def setup_progress_bar(
+    def _setup_progress_bar(
         self, postfix_metrics: list[str] | None, total_iterations: int | None = None
     ) -> None:
         """Setup progress bar for training loops."""
@@ -106,32 +106,30 @@ class ExperimentLogger:
                 dynamic_ncols=True,
             )
 
-    def log_info(self, message: str) -> None:
-        """Log info message to console."""
-        print(f"[INFO] {message}")
-
     def log_metrics(self, metrics: dict[str, Any], step: int | None = None) -> None:
         """Log metrics to both console (via progress bar) and WandB."""
-        self.log_metrics_wandb(metrics, step)
-        self.log_metrics_progress_bar(metrics, step)
+        self._log_metrics_wandb(metrics, step)
+        self._log_metrics_progress_bar(metrics, step)
 
         # WandB logging
         if self.use_wandb and self.wandb_run:
             self.wandb_run.log(metrics, step=step)
 
-    def log_metrics_wandb(self, metrics: dict[str, Any], step) -> None:
+    def _log_metrics_wandb(self, metrics: dict[str, Any], step) -> None:
         if not self.use_wandb:
             return
         assert self.wandb_run is not None
         self.wandb_run.log(metrics, step)
 
-    def log_metrics_progress_bar(self, metrics: dict[str, Any], step: int | None = None) -> None:
+    def _log_metrics_progress_bar(
+        self, metrics: dict[str, Any], step_increment: int | None = None
+    ) -> None:
         if not self.use_progress_bar:
             return
         if self.progress_bar is None:
             # If we don't have total iterations yet, set up without it
             total_iter = getattr(self, "total_iterations", None)
-            self.setup_progress_bar(list(metrics.keys()), total_iter)
+            self._setup_progress_bar(list(metrics.keys()), total_iter)
             assert self.progress_bar is not None
 
         # Filter Metrics
@@ -157,12 +155,16 @@ class ExperimentLogger:
                 formatted_metrics[key] = value
 
         # Update progress bar to current step
-        if step is not None:
-            self.progress_bar.n = step + 1  # +1 because step is 0-indexed
+        if step_increment is not None:
+            self.progress_bar.n = step_increment + 1  # +1 because step is 0-indexed
         else:
             self.progress_bar.update(1)
         self.progress_bar.set_postfix(formatted_metrics)
         self.progress_bar.refresh()
+
+    def log_info(self, message: str) -> None:
+        """Log info message to console."""
+        print(f"[INFO] {message}")
 
     def log_hyperparameters(self, params: dict[str, Any]) -> None:
         """Log hyperparameters to console and WandB."""
@@ -232,8 +234,6 @@ class ExperimentLogger:
                 self.wandb_run.log_artifact(artifact)
                 Path(construction_path).unlink(missing_ok=True)
 
-        print(f"Construction score: {score} (step {step})")
-
     def log_experiment_start(self, config: dict[str, Any]) -> None:
         """Log experiment start."""
         if not self._is_setup:
@@ -276,3 +276,14 @@ class ExperimentLogger:
         if self.use_wandb and self.wandb_run:
             wandb.finish()
             self.wandb_run = None
+
+
+if __name__ == "__main__":
+    from time import sleep
+
+    logger = ExperimentLogger("test", wandb_mode="disabled")
+    iters = 100
+    logger.setup(total_iterations=iters)
+    for i in range(iters):
+        logger.log_metrics({"sample": 1}, i)
+        sleep(0.25)
