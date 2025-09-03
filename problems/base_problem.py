@@ -1,3 +1,5 @@
+"""Base class that problems are derived from."""
+
 from abc import ABC, abstractmethod
 
 import torch
@@ -19,7 +21,5 @@ class BaseProblem(ABC):
 
     @abstractmethod
     def is_valid_solution(self, solution: torch.Tensor) -> torch.Tensor:
-        """
-        Whether each element in the batch is a valid solution to the problem.
-        """
+        """Whether each element in the batch is a valid solution to the problem."""
         pass

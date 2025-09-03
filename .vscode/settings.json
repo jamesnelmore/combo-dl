@@ -4,7 +4,6 @@
   "python.terminal.activateEnvironment": true,
   "python.venvPath": "${workspaceFolder}",
   "python.pythonPath": "./.venv/bin/python",
-  
   // Ruff configuration
   "ruff.enable": true,
   "ruff.lint.enable": true,
@@ -17,7 +16,6 @@
   "ruff.codeAction.disableRuleComment": {
     "enable": true
   },
-  
   // Editor settings for Python
   "[python]": {
     "editor.formatOnSave": true,
@@ -27,19 +25,18 @@
     },
     "editor.defaultFormatter": "charliermarsh.ruff"
   },
-  
   // General editor settings
-  "editor.rulers": [88],
+  "editor.rulers": [
+    88
+  ],
   "editor.trimAutoWhitespace": true,
-  
   // File associations
   "files.associations": {
     "*.yaml": "yaml",
     "*.yml": "yaml"
   },
-  
   // Jupyter settings (for your old notebooks)
   "jupyter.askForKernelRestart": false,
   "jupyter.interactiveWindow.textEditor.executeSelection": true,
-  "makefile.configureOnOpen": false
+  "makefile.configureOnOpen": false,
 }

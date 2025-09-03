@@ -55,6 +55,7 @@ select = [
     "ERA", # eradicate (remove commented code)
     "PL",  # pylint
     "RUF", # ruff-specific rules
+    "D",   # pydocstyle - docstring conventions
 ]
 
 ignore = [
@@ -75,6 +76,9 @@ ignore = [
 known-first-party = ["thesis", "algorithms", "models", "problems", "experiment_logger"]
 force-sort-within-sections = true
 split-on-trailing-comma = true
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
 
 [tool.ruff.format]
 quote-style = "double"
