@@ -58,6 +58,7 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         # Optimization State (we want to maximize)
         self.best_score = float("-inf")
         self.best_construction = None
+        self.samples_seen = 0
 
     @override
     def optimize(self, **kwargs) -> dict[str, Any]:
@@ -91,7 +92,10 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
                 self.logger.log_metrics(metrics, iteration)
             else:
                 # Still update progress bar with minimal info
-                minimal_metrics = {"best_score": metrics["best_score"]}
+                minimal_metrics = {
+                    "best_score": metrics["best_score"],
+                    "samples_seen": metrics["samples_seen"],
+                }
                 self.logger.log_metrics(minimal_metrics, iteration)
 
             # Log best construction when it improves
@@ -128,12 +132,16 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
             "final_metrics": final_metrics,
             "early_stopped": early_stopped,
             "iterations": iteration,
+            "samples_seen": self.samples_seen,
         }
 
     def run_iteration(self) -> dict[str, float]:
         """Run one DCE iteration and return metrics."""
         constructions = self.model.sample(self.batch_size)
         batch_scores = self.problem.reward(constructions)
+
+        # Update samples seen counter
+        self.samples_seen += self.batch_size
 
         current_best = torch.max(batch_scores).item()
         avg_score = torch.mean(batch_scores).item()
@@ -156,6 +164,7 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
                 "found_new_best": found_new_best,
                 "loss": float("nan"),
                 "accuracy": float("nan"),
+                "samples_seen": self.samples_seen,
             }
 
         # Extract training examples and train
@@ -170,6 +179,7 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
             "avg_score": avg_score,
             "num_elites": len(elites),
             "found_new_best": found_new_best,
+            "samples_seen": self.samples_seen,
             **train_metrics,
         }
 
