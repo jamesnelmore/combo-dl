@@ -3,19 +3,22 @@
   "python.defaultInterpreterPath": "./.venv/bin/python",
   "python.terminal.activateEnvironment": true,
   "python.venvPath": "${workspaceFolder}",
-  "python.pythonPath": "./.venv/bin/python",
   // Ruff configuration
   "ruff.enable": true,
   "ruff.lint.enable": true,
   "ruff.organizeImports": true,
   "ruff.fixAll": true,
   "ruff.showSyntaxErrors": true,
+  "ruff.path": ["${workspaceFolder}/.venv/bin/ruff"],
+  "ruff.interpreter": ["${workspaceFolder}/.venv/bin/python"],
   "ruff.codeAction.fixViolation": {
     "enable": true
   },
   "ruff.codeAction.disableRuleComment": {
     "enable": true
   },
+  // Pylance configuration
+  "python.languageServer": "Pylance",
   // Editor settings for Python
   "[python]": {
     "editor.formatOnSave": true,

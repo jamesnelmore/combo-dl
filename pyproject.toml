@@ -36,6 +36,13 @@ packages = ["src"]
 line-length = 99
 target-version = "py313"
 src = ["src"]
+exclude = [
+    "old/**",
+    "config_backup/**",
+    "hydra_outputs/**",
+    "wandb/**",
+    ".venv/**",
+]
 
 [tool.ruff.lint]
 select = [
