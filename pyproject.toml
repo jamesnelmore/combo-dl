@@ -34,7 +34,7 @@ packages = ["."]
 
 [tool.ruff]
 line-length = 99
-target-version = "py311"
+target-version = "py313"
 src = [".", "algorithms", "models", "problems", "experiment_logger"]
 
 [tool.ruff.lint]
@@ -86,7 +86,7 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [tool.pyright]
-include = [".", "algorithms", "models", "problems", "experiment_logger"]
+include = [".", "src/thesis/"]
 exclude = ["**/__pycache__", "**/.venv", "**/venv"]
 pythonVersion = "3.13"
 typeCheckingMode = "basic"

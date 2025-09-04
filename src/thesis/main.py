@@ -25,7 +25,7 @@ def get_device(device_config: str) -> str:
     return device_config
 
 
-@hydra.main(version_base=None, config_path="config", config_name="config")
+@hydra.main(version_base=None, config_path="../../config", config_name="config")
 def main(cfg: DictConfig) -> dict:
     """
     Simple main function with Hydra configuration.

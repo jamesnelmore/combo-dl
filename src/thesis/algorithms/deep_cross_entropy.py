@@ -9,7 +9,7 @@ from experiment_logger import ExperimentLogger
 from models.protocols import SamplingModel
 from problems.base_problem import BaseProblem
 
-from .algorithm import BaseAlgorithm
+from .base_algorithm import BaseAlgorithm
 
 
 class WagnerDeepCrossEntropy(BaseAlgorithm):
@@ -50,8 +50,8 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
             self.logger: ExperimentLogger = ExperimentLogger(experiment_name, use_wandb=False)
         else:
             self.logger = logger
-        metrics = ["best_score", "avg_score", "loss", "accuracy"]
-        self.logger.setup(metrics, total_iterations=self.iterations)
+        postfix_metrics = ["best_score", "avg_score", "loss", "accuracy"]
+        self.logger.configure_progress_bar(postfix_metrics, total_iterations=self.iterations)
 
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)

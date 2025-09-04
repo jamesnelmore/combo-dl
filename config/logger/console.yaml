@@ -1,7 +1,0 @@
-# Simple Console Logger (Default)
-# Use this by running: python main.py logger=console
-
-_target_: experiment_logger.ExperimentLogger
-experiment_name: ${experiment_name}
-use_wandb: false
-use_progress_bar: true

@@ -1,7 +1,4 @@
-"""
-Simple unified logger that handles both console output and WandB logging.
-Replaces the complex multi-logger architecture with a single, easy-to-use class.
-"""
+"""Simple unified logger that handles both console output and WandB logging."""
 
 import os
 from pathlib import Path
@@ -19,12 +16,21 @@ except ImportError:
 
 
 class ExperimentLogger:
-    """Unified logger that sends output to both console and WandB."""
+    """Unified logger that sends output to both console and WandB.
+
+    Usage:
+        - Instantiate class: will make wandb api connection. At this point it can accept logs
+        - Log starting metrics, like the full config of the experiment
+        - Pass logger to algorithm
+        - Call algorithm.optimize()
+        - From within algorithm.optimize(), call configure_progress_bar() to pass postfix metrics and 
+          total iterations, so that the progress bar will look nice
+    """
 
     def __init__(
         self,
         experiment_name: str | None = None,
-        project: str | None = None,
+        project: str = "undergrad-thesis",
         wandb_mode: Literal["online", "offline", "disabled"] = "online",
         api_key: str | None = None,
         use_progress_bar: bool = True,
@@ -37,10 +43,9 @@ class ExperimentLogger:
         # Progress bar setup
         self.progress_bar: tqdm | None = None
         self.total_iterations: int | None = None
-        self._is_setup = False
 
         # WandB setup
-        self.project = project or experiment_name or "thesis-experiments"
+        self.project = project
         self.wandb_mode = wandb_mode
         self.api_key = api_key
         self.wandb_kwargs = wandb_kwargs
@@ -77,19 +82,18 @@ class ExperimentLogger:
                 print(f"Warning: WandB setup failed ({e}), continuing without")
                 self.use_wandb = False
 
-    def setup(
+    def configure_progress_bar(
         self, postfix_metrics: list[str] | None = None, total_iterations: int | None = None
     ) -> None:
         """
-        Setup logger with algorithm-specific parameters.
+        Configure progress bar with algorithm-specific metrics and iteration count.
+        
+        This can be called multiple times to reconfigure the progress bar
+        with different metrics or iteration counts as needed.
         """
-        if self._is_setup:
-            self.log_info("Re setting up logger")
-
-        print(f"Setting up Logger for experiment: {self.experiment_name or 'unnamed'}")
+        print(f"Configuring progress bar for experiment: {self.experiment_name or 'unnamed'}")
         if self.use_progress_bar:
             self._setup_progress_bar(postfix_metrics, total_iterations)
-        self._is_setup = True
 
     def _setup_progress_bar(
         self, postfix_metrics: list[str] | None, total_iterations: int | None = None
@@ -111,7 +115,6 @@ class ExperimentLogger:
         self._log_metrics_wandb(metrics, step)
         self._log_metrics_progress_bar(metrics, step)
 
-        # WandB logging
         if self.use_wandb and self.wandb_run:
             self.wandb_run.log(metrics, step=step)
 
@@ -236,10 +239,6 @@ class ExperimentLogger:
 
     def log_experiment_start(self, config: dict[str, Any]) -> None:
         """Log experiment start."""
-        if not self._is_setup:
-            self.setup()
-            self._is_setup = True
-
         self.log_info(f"Starting experiment: {self.experiment_name or 'unnamed'}")
         self.log_hyperparameters(config)
 
@@ -264,9 +263,7 @@ class ExperimentLogger:
         self.log_info(f"Experiment {status}")
 
     def __enter__(self):
-        if not self._is_setup:
-            self.setup()
-            self._is_setup = True
+        """Context manager entry - logger is ready to use."""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -281,9 +278,9 @@ class ExperimentLogger:
 if __name__ == "__main__":
     from time import sleep
 
-    logger = ExperimentLogger("test", wandb_mode="disabled")
+    logger = ExperimentLogger(project="test", wandb_mode="online")
     iters = 100
-    logger.setup(total_iterations=iters)
+    logger.configure_progress_bar(total_iterations=iters)
     for i in range(iters):
         logger.log_metrics({"sample": 1}, i)
         sleep(0.25)
