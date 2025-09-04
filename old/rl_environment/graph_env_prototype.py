@@ -97,9 +97,7 @@ def _(Optional, float64, gym, np, size):
             new_value = action["value"] * self.max_matrix_value
 
             self._matrix[i, j] = new_value
-            self._matrix[j, i] = (
-                new_value  # Matrix is symmetric to avoid complex eigenvalues
-            )
+            self._matrix[j, i] = new_value  # Matrix is symmetric to avoid complex eigenvalues
 
             reward, diff = self._calculate_reward()
 
@@ -124,13 +122,9 @@ def _(Optional, float64, gym, np, size):
 
         def generate_eigenvalues(self) -> np.ndarray:
             min_eigenvalue = 0
-            max_eigenvalue = (
-                self.size * self.max_matrix_value
-            )  # Based on eigenvalue feasibility
+            max_eigenvalue = self.size * self.max_matrix_value  # Based on eigenvalue feasibility
 
-            eigenvalues = np.random.uniform(
-                min_eigenvalue, max_eigenvalue, shape=(size,)
-            )
+            eigenvalues = np.random.uniform(min_eigenvalue, max_eigenvalue, shape=(size,))
             assert eigenvalues.sum() <= size * self.max_matrix_value
 
             eigenvalues.sort()

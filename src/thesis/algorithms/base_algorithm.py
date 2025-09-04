@@ -20,7 +20,7 @@ class BaseAlgorithm(ABC):
         self.problem = problem
 
         if logger is None:
-            logger = ExperimentLogger(wandb_mode='disabled')
+            logger = ExperimentLogger(wandb_mode="disabled")
         self.logger = logger
 
     @abstractmethod

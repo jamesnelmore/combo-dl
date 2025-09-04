@@ -47,9 +47,7 @@ def _(Optional, check_env, gym, np):
 
         def _get_info(self) -> dict:
             return {
-                "distance": np.linalg.norm(
-                    self._agent_location - self._target_location, ord=1
-                )
+                "distance": np.linalg.norm(self._agent_location - self._target_location, ord=1)
             }
 
         def reset(
@@ -57,15 +55,11 @@ def _(Optional, check_env, gym, np):
         ) -> (dict, dict):
             super().reset(seed=seed)
 
-            self._agent_location = self.np_random.integers(
-                0, self.size, size=2, dtype=int
-            )
+            self._agent_location = self.np_random.integers(0, self.size, size=2, dtype=int)
             self._target_location = self._agent_location
 
             while np.array_equal(self._target_location, self._agent_location):
-                self._target_location = self.np_random.integers(
-                    0, self.size, size=2, dtype=int
-                )
+                self._target_location = self.np_random.integers(0, self.size, size=2, dtype=int)
 
             obs = self._get_obs()
             info = self._get_info()
@@ -80,9 +74,7 @@ def _(Optional, check_env, gym, np):
 
             terminated = np.array_equal(self._agent_location, self._target_location)
             truncated = False  # TODO add limit
-            reward = (
-                1 if terminated else 0
-            )  # TODO add negative rewards to encourage efficiency
+            reward = 1 if terminated else 0  # TODO add negative rewards to encourage efficiency
 
             observation = self._get_obs()
             info = self._get_info()

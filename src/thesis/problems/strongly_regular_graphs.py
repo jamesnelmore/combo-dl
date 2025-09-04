@@ -7,6 +7,7 @@ from .edge_utils import edge_vector_to_adjacency_matrix
 
 from typing import override
 
+
 class StronglyRegularGraphs(BaseProblem):
     """Optimization problem for finding strongly regular graphs.
 
@@ -20,6 +21,7 @@ class StronglyRegularGraphs(BaseProblem):
         self.k = k
         self.lambda_param = lambda_param
         self.mu = mu
+
     @override
     def reward(self, x: torch.Tensor) -> torch.Tensor:
         r"""Compute the negative squared Frobenius norm of the constraint residual.
@@ -41,7 +43,7 @@ class StronglyRegularGraphs(BaseProblem):
         batch_size = x.shape[0]
 
         A = self._ensure_adjacency_matrix(x)
-        
+
         A2 = A @ A
         mu_lambda_A = (self.mu - self.lambda_param) * A
         I = torch.eye(self.n, device=A.device, dtype=A.dtype).expand(batch_size, -1, -1)  # noqa: E741
@@ -54,6 +56,7 @@ class StronglyRegularGraphs(BaseProblem):
         # Return negative of squared Frobenius norm (higher is better, perfect SRG = 0)
         # dim=(1, 2) specifies the row and column dimension of the matrix
         return -(torch.frobenius_norm(residual, dim=(1, 2)) ** 2)
+
     @override
     def is_valid_solution(self, solution: torch.Tensor) -> torch.Tensor:
         """Check if solutions represent valid adjacency matrices.
@@ -61,13 +64,13 @@ class StronglyRegularGraphs(BaseProblem):
         Args:
             solution: Either a 2D tensor of shape (batch_size, edges) representing edge vectors,
                      or a 3D tensor of shape (batch_size, n, n) representing adjacency matrices.
-    
+
         Returns
         -------
             Boolean tensor of shape (batch_size, 1): True if valid solution, False otherwise
         """
         A = self._ensure_adjacency_matrix(solution)
-        
+
         # Check diagonal is zero
         diagonal_is_zero = (torch.diagonal(A, dim1=1, dim2=2) == 0).all(dim=1)
 
@@ -96,10 +99,10 @@ class StronglyRegularGraphs(BaseProblem):
                 f"Expected 2D (edge vector) or 3D (adjacency matrix) tensor, got {x.dim()}D"
             )
         return adj_matrix
-    
+
     def edges(self) -> int:
         return (self.n * (self.n - 1)) // 2
-    
+
     @override
     def get_goal_score(self) -> float:
         """Return the goal score for SRG (perfect SRG has score 0)."""

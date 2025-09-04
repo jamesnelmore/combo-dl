@@ -23,7 +23,7 @@ class ExperimentLogger:
         - Log starting metrics, like the full config of the experiment
         - Pass logger to algorithm
         - Call algorithm.optimize()
-        - From within algorithm.optimize(), call configure_progress_bar() to pass postfix metrics and 
+        - From within algorithm.optimize(), call configure_progress_bar() to pass postfix metrics and
           total iterations, so that the progress bar will look nice
     """
 
@@ -87,7 +87,7 @@ class ExperimentLogger:
     ) -> None:
         """
         Configure progress bar with algorithm-specific metrics and iteration count.
-        
+
         This can be called multiple times to reconfigure the progress bar
         with different metrics or iteration counts as needed.
         """
@@ -122,15 +122,13 @@ class ExperimentLogger:
 
     def _log_metrics_wandb(self, metrics: dict[str, Any], current_iteration: int) -> None:
         if not self.use_wandb:
-            return # TODO add proper linting for docstrings
+            return  # TODO add proper linting for docstrings
             # TODO fix issues with autoformatting
             # TODO add check that errors for functions without type signatures
         assert self.wandb_run is not None
         self.wandb_run.log(metrics, step=current_iteration)
 
-    def _log_metrics_progress_bar(
-        self, metrics: dict[str, Any], current_iteration: int
-    ) -> None:
+    def _log_metrics_progress_bar(self, metrics: dict[str, Any], current_iteration: int) -> None:
         if not self.use_progress_bar:
             return
         if self.progress_bar is None:
@@ -161,8 +159,8 @@ class ExperimentLogger:
                 formatted_metrics[key] = value
 
         # Update progress bar to current iteration
-        self.progress_bar.n = current_iteration # TODO see if this needs a +1
-    
+        self.progress_bar.n = current_iteration  # TODO see if this needs a +1
+
         self.progress_bar.set_postfix(formatted_metrics)
         self.progress_bar.refresh()
 

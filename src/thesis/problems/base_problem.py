@@ -15,7 +15,7 @@ class BaseProblem(ABC):
 
         Args:
             x: Tensor of shape (batch_size, *)
-        
+
         Returns
         -------
             Tensor of shape (batch_size, *) with rewards
@@ -25,8 +25,7 @@ class BaseProblem(ABC):
 
     @abstractmethod
     def is_valid_solution(self, solution: torch.Tensor) -> torch.Tensor:
-        """Whether each element in the batch is a valid solution to the problem. Batched.
-        """
+        """Whether each element in the batch is a valid solution to the problem. Batched."""
         pass
 
     def get_goal_score(self) -> float | None:

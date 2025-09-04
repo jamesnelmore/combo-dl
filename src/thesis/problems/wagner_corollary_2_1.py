@@ -35,7 +35,7 @@ class WagnerCorollary2_1(BaseProblem):
             Tensor of shape (batch_size,) with scores for each construction
             Higher scores are better (negative of eigenvalue + matching)
         """
-    
+
         adj_matrix = edge_vector_to_adjacency_matrix(x, self.n)
 
         largest_eigenvalue = self._compute_largest_eigenvalue(adj_matrix)

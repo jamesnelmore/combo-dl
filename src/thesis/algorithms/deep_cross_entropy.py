@@ -26,13 +26,13 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         device: str = "cpu",
         logger: ExperimentLogger | None = None,  # pyright: ignore[reportRedeclaration]
         log_frequency: int = 1,
-        model_save_frequency: int = 1000
+        model_save_frequency: int = 1000,
     ):
         if logger is None:
             date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             experiment_name = f"Deep Cross Entropy {date} {type(problem).__name__}"
             logger: ExperimentLogger = ExperimentLogger(experiment_name, use_wandb=False)
-        
+
         super().__init__(model, problem, logger)
 
         postfix_metrics = ["best_score", "avg_score", "loss", "accuracy"]
@@ -59,7 +59,7 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         """Run the full Deep Cross-Entropy optimization.
         Args:
             None
-        
+
         Kwargs:
             Not used, only for API compatability
         Returns
@@ -67,8 +67,10 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
             Dictionary of optimization results
         """
         if kwargs != {}:
-            self.logger.log_info(f"Deep Cross Entropy passed keyword arguments but does not use any.\n{kwargs}")
-        
+            self.logger.log_info(
+                f"Deep Cross Entropy passed keyword arguments but does not use any.\n{kwargs}"
+            )
+
         early_stopped = False
         final_metrics = None
 
@@ -92,9 +94,11 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
                     step=iteration,
                     metadata={"iteration": iteration},
                 )
-            
+
             if iteration % self.model_save_frequency:
-                self.logger.log_model(self.model, model_name = f"{self.logger.experiment_name} step {iteration}")
+                self.logger.log_model(
+                    self.model, model_name=f"{self.logger.experiment_name} step {iteration}"
+                )
 
             # Check if problem wants to stop early
             should_stop, stop_reason = self.problem.should_stop_early(metrics["best_score"])
@@ -168,7 +172,7 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         batch_size = len(batch_scores)
         return_count = int(batch_size * self.elite_proportion)
         # descending for maximization
-        elite_indices = torch.argsort(batch_scores, descending=True)[:return_count]  
+        elite_indices = torch.argsort(batch_scores, descending=True)[:return_count]
         return constructions[elite_indices]
 
     def extract_examples(
@@ -231,6 +235,3 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
             accuracy = train_correct / train_total if train_total > 0 else 0.0
 
         return {"loss": avg_loss, "accuracy": accuracy, "total_samples": train_total}
-
-    
-

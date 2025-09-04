@@ -55,9 +55,7 @@ class InverseEigenvalue(gym.Env):
     def _get_info(self) -> dict:
         return {}
 
-    def reset(
-        self, seed: int | None = None, options: dict | None = None
-    ) -> tuple[dict, dict]:
+    def reset(self, seed: int | None = None, options: dict | None = None) -> tuple[dict, dict]:
         """
         return: obs, info
         """
@@ -86,8 +84,7 @@ class InverseEigenvalue(gym.Env):
         self._matrix[j, i] = not self._matrix[j, i]  # Symmetric so eigenvalues are real
 
         compute_eigenvalues = (
-            self._step_count % self._reward_computation_interval == 0
-            or self._step_count < 5
+            self._step_count % self._reward_computation_interval == 0 or self._step_count < 5
         )
 
         # Only compute expensive eigenvalues periodically or when needed
@@ -101,9 +98,7 @@ class InverseEigenvalue(gym.Env):
 
         # Episode termination - check every step but only compute eigenvalues when needed
         if compute_eigenvalues:
-            terminated = bool(
-                np.isclose(eigval_diff, 0, atol=1e-2)
-            )  # Slightly looser tolerance
+            terminated = bool(np.isclose(eigval_diff, 0, atol=1e-2))  # Slightly looser tolerance
         else:
             terminated = False
 
@@ -124,9 +119,7 @@ class InverseEigenvalue(gym.Env):
         self._current_eigenvalues.sort()
 
         assert self._eigenvalues is not None
-        eigval_diff = float(
-            np.linalg.norm(self._eigenvalues - self._current_eigenvalues)
-        )
+        eigval_diff = float(np.linalg.norm(self._eigenvalues - self._current_eigenvalues))
 
         # Better reward shaping
         log_transformed_diff = float(-np.log(1.0 + eigval_diff))
@@ -136,9 +129,7 @@ class InverseEigenvalue(gym.Env):
     def generate_eigenvalues(self) -> np.ndarray:
         """Generate achievable eigenvalue targets from a random matrix"""
         # Create random symmetric boolean matrix
-        random_matrix = np.random.randint(0, 2, size=(self.size, self.size)).astype(
-            np.bool_
-        )
+        random_matrix = np.random.randint(0, 2, size=(self.size, self.size)).astype(np.bool_)
         random_matrix = np.logical_or(random_matrix, random_matrix.T)
 
         # Convert to float for eigenvalue computation

@@ -72,9 +72,9 @@ def _(gym, np):
         ):
             expected_future_value = (not terminated) * np.max(self.q_table[next_obs])
             # First term is what the q_value should be (Bellman equation)
-            td_error = (
-                reward + self.discount_factor * expected_future_value
-            ) - self.q_table[obs][action]
+            td_error = (reward + self.discount_factor * expected_future_value) - self.q_table[obs][
+                action
+            ]
             # assert type(action) == int
             self.q_table[obs][action] += self.lr * td_error
             self.training_error.append(td_error)
@@ -148,8 +148,7 @@ def _(agent, env, np, plt):
     def get_moving_avgs(arr, window, convolution_mode):
         """Compute moving average to smooth noisy data."""
         return (
-            np.convolve(np.array(arr).flatten(), np.ones(window), mode=convolution_mode)
-            / window
+            np.convolve(np.array(arr).flatten(), np.ones(window), mode=convolution_mode) / window
         )
 
     # Smooth over a 500-episode window
@@ -175,9 +174,7 @@ def _(agent, env, np, plt):
     training_error_moving_average = get_moving_avgs(
         np.abs(agent.training_error), rolling_length, "same"
     )
-    axs[2].plot(
-        range(len(training_error_moving_average)), training_error_moving_average
-    )
+    axs[2].plot(range(len(training_error_moving_average)), training_error_moving_average)
     axs[2].set_ylabel("Temporal Difference Error")
     axs[2].set_xlabel("Step")
 
