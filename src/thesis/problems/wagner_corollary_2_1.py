@@ -1,23 +1,32 @@
+"""Example Corollary shown in Wagner 2021."""
+
 import math
 from typing import override
+
+from edge_utils import edge_vector_to_adjacency_matrix
 import networkx as nx
 import torch
 
 from .base_problem import BaseProblem
 
-from edge_utils import edge_vector_to_adjacency_matrix
 
-# TODO figuure out what this vibe coded scoring function does
+class WagnerCorollary21(BaseProblem):
+    r"""Corollary 2.1 from [Wagner 2021](http://arxiv.org/abs/2104.14516).
 
+    Example problem to demonstrate the DCE method.
+    Goal is to construct a graph G with matching number $m$ and largest eigenvalue $\mu$ such that
+    .. math:
+        m + \mu < \sqrt{n - 1} + 1
+    """
 
-class WagnerCorollary2_1(BaseProblem):
     def __init__(self, n: int):
         self.n = n
         self.edges = (n**2 - n) // 2
         self.goal_score = -(math.sqrt(n - 1) + 1)  # Negative because we want to maximize
         print(f"Goal score (-(sqrt({n - 1}) + 1)): {self.goal_score:.6f}")
         print(
-            f"Searching for graphs with score > {self.goal_score:.6f} (eigenvalue + matching < {-self.goal_score:.6f})"
+            f"Searching for graphs with score > {self.goal_score:.6f} "
+            f"(eigenvalue + matching < {-self.goal_score:.6f})"
         )
 
     @override
@@ -35,7 +44,6 @@ class WagnerCorollary2_1(BaseProblem):
             Tensor of shape (batch_size,) with scores for each construction
             Higher scores are better (negative of eigenvalue + matching)
         """
-
         adj_matrix = edge_vector_to_adjacency_matrix(x, self.n)
 
         largest_eigenvalue = self._compute_largest_eigenvalue(adj_matrix)
@@ -53,16 +61,6 @@ class WagnerCorollary2_1(BaseProblem):
                 f"Wagner Corollary 2.1 goal achieved: {best_score:.6f} > {self.goal_score:.6f}",
             )
         return False, ""
-
-    # def solution_space_info(self) -> dict:
-    #     """Return information about the solution space."""
-    #     return {
-    #         "type": "tensor",
-    #         "dim": self.edges,
-    #         "dtype": torch.float32,
-    #         "constraints": "binary",
-    #         "description": f"Binary edge vector for {self.n}-node graph",
-    #     } # TODO remove if no errors
 
     @override
     def is_valid_solution(self, solution: torch.Tensor) -> torch.Tensor:
@@ -99,7 +97,7 @@ class WagnerCorollary2_1(BaseProblem):
         # TODO find faster binary eigenvalue algorithm to avoid doubling memory usage
         original_device = adj_matrix.device
 
-        # Convert to float and move to CPU for eigenvalue computation (eigenvals not supported on MPS)
+        # Convert to float and move to CPU (eigenval computation not supported on MPS)
         adj_float = adj_matrix.float()
         if adj_float.device.type == "mps":
             adj_float = adj_float.cpu()

@@ -96,7 +96,7 @@ def adjacency_matrix_to_edge_vector(adj_matrix: torch.Tensor) -> torch.Tensor:
 
 
 def get_edge_count(n: int) -> int:
-    """Get the number of edges in the upper triangular part of an n×n adjacency matrix.
+    """Get the number of edges in the upper triangular part of an nxn adjacency matrix.
 
     Args:
         n: Number of vertices

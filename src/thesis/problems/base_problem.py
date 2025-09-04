@@ -42,7 +42,8 @@ class BaseProblem(ABC):
 
     def should_stop_early(self, best_score: float) -> tuple[bool, str]:
         """Check if optimization should stop early based on the current best score.
-        By default, this occurs when the best known score equals goal_score
+
+        By default, this occurs when the best known score equals goal_score.
 
         Args:
             best_score: Current best score achieved

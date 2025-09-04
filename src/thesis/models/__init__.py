@@ -1,3 +1,5 @@
+"""Pytorch models used in experiments."""
+
 from .protocols import SamplingModel, SupportsSampling
 from .wagner_model import WagnerModel
 

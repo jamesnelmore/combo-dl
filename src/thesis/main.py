@@ -27,8 +27,7 @@ def get_device(device_config: str) -> str:
 
 @hydra.main(version_base=None, config_path="../../config", config_name="config")
 def main(cfg: DictConfig) -> dict:
-    """
-    Simple main function with Hydra configuration.
+    """Entrypoint for Hydra.
 
     This function:
     1. Sets up the device (CPU/GPU/MPS)
@@ -36,7 +35,6 @@ def main(cfg: DictConfig) -> dict:
     3. Runs the optimization
     4. Returns results
     """
-
     # Logger
     logger = instantiate(cfg.logger)
     config_dict = OmegaConf.to_container(cfg, resolve=True)

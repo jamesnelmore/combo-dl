@@ -1,3 +1,5 @@
+"""Implemented ML algorithms."""
+
 from .base_algorithm import BaseAlgorithm
 from .deep_cross_entropy import WagnerDeepCrossEntropy
 

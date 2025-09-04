@@ -23,8 +23,8 @@ class ExperimentLogger:
         - Log starting metrics, like the full config of the experiment
         - Pass logger to algorithm
         - Call algorithm.optimize()
-        - From within algorithm.optimize(), call configure_progress_bar() to pass postfix metrics and
-          total iterations, so that the progress bar will look nice
+        - From within algorithm.optimize(), call configure_progress_bar() to pass postfix metrics
+          and total iterations, so that the progress bar will look nice
     """
 
     def __init__(
@@ -98,7 +98,7 @@ class ExperimentLogger:
     def _setup_progress_bar(
         self, postfix_metrics: list[str] | None, total_iterations: int | None = None
     ) -> None:
-        """Setup progress bar for training loops."""
+        """Set up progress bar for training loops."""
         self.postfix_metrics = postfix_metrics
         if self.use_progress_bar:
             self.total_iterations = total_iterations
@@ -266,6 +266,7 @@ class ExperimentLogger:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Close progress bar and wandb session."""
         if self.progress_bar:
             self.progress_bar.close()
 

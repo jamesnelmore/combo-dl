@@ -1,20 +1,25 @@
+"""Model used by Wagner in DCE."""
+
 from typing import override
 
 import torch
 from torch import nn
-from torch.nn import functional as F
+from torch.nn import functional as F  # noqa: N812
 
 from .protocols import SamplingModel
 
 
 class WagnerModel(SamplingModel):
-    """Feed forward network used in Wagner 2021.
+    """Feed forward network used in [Wagner 2021](http://arxiv.org/abs/2104.14516).
+
     Modified to use dropout.
     """
 
     def __init__(self, n: int):
-        """Args:
-        n: number of vertices in the graph
+        """Create WagnerModel object.
+
+        Args:
+            n: number of vertices in the graph.
         """
         super().__init__()
         self.n = n

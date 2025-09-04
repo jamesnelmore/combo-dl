@@ -1,18 +1,24 @@
+"""Deep Cross Entropy Algorithm."""
+
 from datetime import datetime
 from typing import Any, override
-
-import torch
-from torch import nn
-from torch.utils.data import DataLoader, TensorDataset
 
 from experiment_logger import ExperimentLogger
 from models.protocols import SamplingModel
 from problems.base_problem import BaseProblem
+import torch
+from torch import nn
+from torch.utils.data import DataLoader, TensorDataset
 
 from .base_algorithm import BaseAlgorithm
 
 
 class WagnerDeepCrossEntropy(BaseAlgorithm):
+    """Deep Cross Entropy Algorithm.
+
+    Implementation of Deep Cross Entropy from [Wagner 2021](http://arxiv.org/abs/2104.14516).
+    """
+
     model: SamplingModel
 
     def __init__(
@@ -57,11 +63,13 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
     @override
     def optimize(self, **kwargs) -> dict[str, Any]:
         """Run the full Deep Cross-Entropy optimization.
+
         Args:
-            None
+            None.
 
         Kwargs:
             Not used, only for API compatability
+
         Returns
         -------
             Dictionary of optimization results
@@ -176,9 +184,10 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         return constructions[elite_indices]
 
     def extract_examples(
-        self, elite_constructions: torch.Tensor, output_batch_size: int | None = None
+        self, constructions: torch.Tensor, output_batch_size: int | None = None
     ) -> DataLoader:
-        """
+        """Create training examples from constructions.
+
         For each construction, mask it past i with 0s. Then the state is the masked
         construction, the position is i + 1, and the action is what was at i + 1
         before the mask.
@@ -186,22 +195,22 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         if output_batch_size is None:
             output_batch_size = self.batch_size
 
-        num_constructions, num_edges = elite_constructions.shape
-        target_device = elite_constructions.device
+        num_constructions, num_edges = constructions.shape
+        target_device = constructions.device
 
         # Create mask to hide future positions during training
         pos_tensor = torch.arange(num_edges).repeat(num_constructions).to(target_device)
         edge_indices = torch.arange(num_edges).to(target_device)
         mask = (edge_indices.unsqueeze(0) < pos_tensor.unsqueeze(1)).to(target_device)
 
-        obs_tensor = elite_constructions.repeat_interleave(num_edges, dim=0) * mask
+        obs_tensor = constructions.repeat_interleave(num_edges, dim=0) * mask
         obs_tensor = obs_tensor.to(target_device)
         construction_indices = (
             torch.arange(num_constructions)
             .repeat_interleave(num_edges)
             .to(target_device)  # Defined elementwise: T[i] = elite_constructions[i][pos_tensor[i]]
         )
-        actions_tensor = elite_constructions[construction_indices, pos_tensor].to(target_device)
+        actions_tensor = constructions[construction_indices, pos_tensor].to(target_device)
 
         dataset = TensorDataset(obs_tensor, pos_tensor, actions_tensor)
         dataloader = DataLoader(dataset, batch_size=output_batch_size, shuffle=True)

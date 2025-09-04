@@ -1,10 +1,11 @@
+"""Holds base class for algorithms."""
+
 from abc import ABC, abstractmethod
 from typing import Any
 
-import torch
-
 from experiment_logger import ExperimentLogger
 from problems.base_problem import BaseProblem
+import torch
 
 
 class BaseAlgorithm(ABC):

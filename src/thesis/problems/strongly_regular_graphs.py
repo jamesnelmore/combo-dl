@@ -1,11 +1,11 @@
 """Problem class for SRG problem."""
 
+from typing import override
+
 import torch
 
 from .base_problem import BaseProblem
 from .edge_utils import edge_vector_to_adjacency_matrix
-
-from typing import override
 
 
 class StronglyRegularGraphs(BaseProblem):
@@ -74,7 +74,7 @@ class StronglyRegularGraphs(BaseProblem):
         # Check diagonal is zero
         diagonal_is_zero = (torch.diagonal(A, dim1=1, dim2=2) == 0).all(dim=1)
 
-        is_symmetric = (A == A.transpose(-1, -2)).all(dim=(1, 2))
+        is_symmetric = (A.transpose(-1, -2) == A).all(dim=(1, 2))
 
         # Check binary values (0 or 1)
         is_binary = ((A == 0) | (A == 1)).all(dim=(1, 2))
@@ -101,6 +101,7 @@ class StronglyRegularGraphs(BaseProblem):
         return adj_matrix
 
     def edges(self) -> int:
+        """Get number of edges for the current graph size."""
         return (self.n * (self.n - 1)) // 2
 
     @override
