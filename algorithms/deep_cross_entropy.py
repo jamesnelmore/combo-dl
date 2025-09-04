@@ -23,7 +23,6 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         batch_size: int = 512,
         learning_rate: float = 0.0001,
         elite_proportion: float = 0.1,
-        goal_score: float | None = None,
         device: str | None = None,
         logger: ExperimentLogger | None = None,
         log_frequency: int = 1,
@@ -33,7 +32,6 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.elite_proportion = elite_proportion
-        self.goal_score = goal_score
         self.log_frequency = log_frequency
         self.device = (
             device
@@ -58,8 +56,8 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
-        # Track optimization state (we want to minimize, so start with +inf)
-        self.best_score = float("inf")
+        # Track optimization state (we want to maximize, so start with -inf)
+        self.best_score = float("-inf")
         self.best_construction = None
 
     def select_elites(
@@ -67,14 +65,12 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         constructions: torch.Tensor,
         batch_scores: torch.Tensor,
     ) -> torch.Tensor:
-        """
-        Select top elite constructions based on scores (lowest for minimization).
-        """
+        """Select top elite constructions based on scores (highest for maximization)."""
         batch_size = len(batch_scores)
         return_count = int(batch_size * self.elite_proportion)
-        elite_indices = torch.argsort(batch_scores, descending=False)[
+        elite_indices = torch.argsort(batch_scores, descending=True)[
             :return_count
-        ]  # ascending for minimization
+        ]  # descending for maximization
         return constructions[elite_indices]
 
     def extract_examples(
@@ -115,7 +111,6 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         train_loader: DataLoader,
     ) -> dict[str, float]:
         """Perform one training step and return metrics."""
-
         self.model.train()
 
         train_loss = 0.0
@@ -143,16 +138,16 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         """Run one DCE iteration and return metrics."""
         # Generate constructions and score them
         constructions = self.model.sample(self.batch_size)
-        batch_scores = self.problem.score(constructions)
+        batch_scores = self.problem.reward(constructions)
 
-        # Track best score and construction (minimization)
-        current_best = torch.min(batch_scores).item()
+        # Track best score and construction (maximization)
+        current_best = torch.max(batch_scores).item()
         avg_score = torch.mean(batch_scores).item()
         found_new_best = False
 
-        if current_best < self.best_score:
+        if current_best > self.best_score:
             self.best_score = current_best
-            best_idx = torch.argmin(batch_scores)
+            best_idx = torch.argmax(batch_scores)
             self.best_construction = constructions[best_idx].clone()
             found_new_best = True
 
@@ -193,25 +188,25 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
                 (iteration, metrics)
             goal_score: Optional goal score for early stopping
 
-        Returns:
+        Returns
+        -------
             Dictionary with optimization results
         """
         early_stopped = False
         iterations_completed = 0
         final_metrics = None
 
-        # Update progress bar with total iterations if not already set
-        # if self.logger.progress_bar is not None and self.logger.progress_bar.total is None:
-        #     self.logger.progress_bar.total = self.iterations
-        #     self.logger.progress_bar.refresh()  # TODO This should not be necessary
-
         for iteration in range(self.iterations):
             metrics = self.run_iteration()
             final_metrics = metrics
 
-            # Log progress with experiment logger
+            # Always update progress bar, but only log detailed metrics at log_frequency
             if iteration % self.log_frequency == 0:
-                self.logger.log_metrics(metrics, self.log_frequency)
+                self.logger.log_metrics(metrics, iteration)
+            else:
+                # Still update progress bar with minimal info
+                minimal_metrics = {"best_score": metrics["best_score"]}
+                self.logger.log_metrics(minimal_metrics, iteration)
 
             # Log best construction when it improves
             if metrics["found_new_best"] and self.best_construction is not None:
@@ -222,13 +217,11 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
                     metadata={"iteration": iteration},
                 )
 
-            # Early stopping if goal is reached
-            if self.goal_score is not None and metrics["best_score"] < self.goal_score:
-                self.logger.log_info(f"Goal achieved! Stopping early at iteration {iteration}")
-                self.logger.log_info(
-                    f"Best score: {metrics['best_score']:.6f} < goal: {self.goal_score:.6f}"
-                )
-                self.logger.log_info("Early Stopping")
+            # Check if problem wants to stop early
+            should_stop, stop_reason = self.problem.should_stop_early(metrics["best_score"])
+            if should_stop:
+                self.logger.log_info(f"Early stopping at iteration {iteration}")
+                self.logger.log_info(stop_reason)
                 early_stopped = True
                 break
 

@@ -1,0 +1,44 @@
+# Configuration for Strongly Regular Graphs (SRG) Problem
+# Using Deep Cross Entropy algorithm with Wagner model
+
+# Experiment settings
+seed: 42
+device: auto  # auto, cpu, cuda, mps
+experiment_name: small_srg_test
+
+# Problem configuration - Strongly Regular Graph (n,k,λ,μ)
+# Example: Petersen graph parameters (10, 3, 0, 1)
+problem:
+  _target_: problems.strongly_regular_graphs.StronglyRegularGraphs
+  n: 10          # Number of vertices
+  k: 3          # Degree (each vertex has exactly k neighbors)
+  lambda_param: 0  # Common neighbors for adjacent vertices
+  mu: 1          # Common neighbors for non-adjacent vertices
+
+# Model configuration - Wagner model adapted for SRG
+# The model will work with flattened adjacency matrices (n*n elements)
+model:
+  _target_: models.wagner_model.WagnerModel
+  n: ${problem.n}  # Use same n as problem
+
+# Algorithm configuration - Deep Cross Entropy
+algorithm:
+  _target_: algorithms.deep_cross_entropy.WagnerDeepCrossEntropy
+  iterations: 10000      # Number of optimization iterations
+  batch_size: 2048      # Batch size for sampling
+  learning_rate: 0.001  # Learning rate for neural network training
+  elite_proportion: 0.1 # Proportion of best samples to use as elites
+
+# Logger configuration - defaults to console, override with logger=wandb
+defaults:
+  - logger: both
+  - _self_
+
+# Override logger settings if needed
+logger:
+  experiment_name: ${experiment_name}
+
+# Hydra output directory
+hydra:
+  run:
+    dir: hydra_outputs/${experiment_name}/${now:%Y-%m-%d_%H-%M-%S}

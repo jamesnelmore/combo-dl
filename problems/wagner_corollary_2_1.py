@@ -12,23 +12,26 @@ class WagnerCorollary2_1(BaseProblem):  # noqa: N801
     def __init__(self, n: int):
         self.n = n
         self.edges = (n**2 - n) // 2
-        self.goal_score = math.sqrt(n - 1) + 1
-        print(f"Goal score (sqrt({n - 1}) + 1): {self.goal_score:.6f}")
-        print(f"Searching for graphs with eigenvalue + matching < {self.goal_score:.6f}")
+        self.goal_score = -(math.sqrt(n - 1) + 1)  # Negative because we want to maximize
+        print(f"Goal score (-(sqrt({n - 1}) + 1)): {self.goal_score:.6f}")
+        print(
+            f"Searching for graphs with score > {self.goal_score:.6f} (eigenvalue + matching < {-self.goal_score:.6f})"
+        )
 
-    def score(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Compute the score for each construction in the batch.
-        Score = largest eigenvalue + matching number (to be minimized)
+    def reward(self, x: torch.Tensor) -> torch.Tensor:
+        """Compute the score for each construction in the batch.
+
+        Score = -(largest eigenvalue + matching number) (higher is better)
 
         Args:
             x: Tensor of shape (batch_size, edges) where each entry is 0 or 1
                representing whether an edge is present in the graph
 
-        Returns:
+        Returns
+        -------
             Tensor of shape (batch_size,) with scores for each construction
+            Higher scores are better (negative of eigenvalue + matching)
         """
-
         # Batch convert all edge vectors to adjacency matrices
         adj_matrices = self._batch_edge_vector_to_adjacency(x)
 
@@ -38,8 +41,21 @@ class WagnerCorollary2_1(BaseProblem):  # noqa: N801
         # Batch compute matching numbers using NetworkX
         matching_numbers = self._batch_compute_maximum_matching(adj_matrices)
 
-        # Combine scores
-        return largest_eigenvalues + matching_numbers
+        # Return negative to make higher scores better
+        return -(largest_eigenvalues + matching_numbers)
+
+    def get_goal_score(self) -> float:
+        """Return the goal score for Wagner Corollary 2.1."""
+        return self.goal_score
+
+    def should_stop_early(self, best_score: float) -> tuple[bool, str]:
+        """Check if optimization should stop early (exclusive comparison for Wagner)."""
+        if best_score > self.goal_score:
+            return (
+                True,
+                f"Wagner Corollary 2.1 goal achieved: {best_score:.6f} > {self.goal_score:.6f}",
+            )
+        return False, ""
 
     def solution_space_info(self) -> dict:
         """Return information about the solution space."""
@@ -57,7 +73,8 @@ class WagnerCorollary2_1(BaseProblem):  # noqa: N801
         Args:
             solution: Tensor of shape (batch_size, edges) where each entry should be 0 or 1
 
-        Returns:
+        Returns
+        -------
             Tensor of shape (batch_size,) with boolean values indicating validity
         """
         # Check that the tensor has the correct shape
@@ -77,7 +94,8 @@ class WagnerCorollary2_1(BaseProblem):  # noqa: N801
         Args:
             edge_vector: Tensor of shape (edges,) with 0s and 1s
 
-        Returns:
+        Returns
+        -------
             Adjacency matrix of shape (n, n)
         """
         n = self.n
@@ -122,7 +140,8 @@ class WagnerCorollary2_1(BaseProblem):  # noqa: N801
         Args:
             adj_matrix: Symmetric adjacency matrix of shape (n, n)
 
-        Returns:
+        Returns
+        -------
             Largest eigenvalue as a scalar tensor
         """
         # Convert to float for eigenvalue computation
@@ -147,10 +166,10 @@ class WagnerCorollary2_1(BaseProblem):  # noqa: N801
         Args:
             adj_matrix: Adjacency matrix of shape (n, n)
 
-        Returns:
+        Returns
+        -------
             Exact maximum matching number as a scalar tensor
         """
-
         # Convert adjacency matrix to NetworkX graph
         # First convert to numpy for NetworkX compatibility
         adj_np = adj_matrix.detach().cpu().numpy()
@@ -174,7 +193,8 @@ class WagnerCorollary2_1(BaseProblem):  # noqa: N801
         Args:
             edge_vectors: Tensor of shape (batch_size, edges) with 0s and 1s
 
-        Returns:
+        Returns
+        -------
             Batch of adjacency matrices of shape (batch_size, n, n)
         """
         batch_size = edge_vectors.shape[0]
@@ -216,7 +236,8 @@ class WagnerCorollary2_1(BaseProblem):  # noqa: N801
         Args:
             adj_matrices: Symmetric adjacency matrices of shape (batch_size, n, n)
 
-        Returns:
+        Returns
+        -------
             Largest eigenvalues as tensor of shape (batch_size,)
         """
         original_device = adj_matrices.device
@@ -241,7 +262,8 @@ class WagnerCorollary2_1(BaseProblem):  # noqa: N801
         Args:
             adj_matrices: Batch of adjacency matrices of shape (batch_size, n, n)
 
-        Returns:
+        Returns
+        -------
             Maximum matching numbers as tensor of shape (batch_size,)
         """
         batch_size = adj_matrices.shape[0]

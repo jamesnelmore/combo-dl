@@ -23,6 +23,7 @@ lint-all:  ## Run all linting, formatting, and type checking
 
 clean:  ## Clean up cache and temporary files
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".pyright" -exec rm -rf {} + 2>/dev/null || true
 	find . -name "*.pyc" -delete 2>/dev/null || true
+	uv clean
+	ruff clean
