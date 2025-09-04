@@ -14,14 +14,19 @@ class BaseProblem(ABC):
         Compute the score for each solution in the batch. Higher is better.
 
         Args:
-            solutions: Tensor of shape (batch_size, edges) where each entry is 0 or 1
-               representing whether an edge is present in the graph
+            x: Tensor of shape (batch_size, *)
+        
+        Returns
+        -------
+            Tensor of shape (batch_size, *) with rewards
+
         """
-        pass
+        ...
 
     @abstractmethod
     def is_valid_solution(self, solution: torch.Tensor) -> torch.Tensor:
-        """Whether each element in the batch is a valid solution to the problem."""
+        """Whether each element in the batch is a valid solution to the problem. Batched.
+        """
         pass
 
     def get_goal_score(self) -> float | None:
@@ -47,7 +52,6 @@ class BaseProblem(ABC):
         if goal_score is None:
             return False, ""
 
-        # Default implementation - subclasses can override for custom logic
         if best_score >= goal_score:
             return True, f"Goal achieved: {best_score:.6f} >= {goal_score:.6f}"
         return False, ""
