@@ -3,7 +3,7 @@ name = "thesis"
 version = "0.1.0"
 description = "Graph optimization using deep learning"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 authors = [
     {name = "James Elmore", email = "email@jameselmore.org"},
 ]
@@ -19,10 +19,10 @@ dependencies = [
     "wandb>=0.21.3",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
+    "pyright>=1.1.404",
     "ruff>=0.12.10",
-    "pyright>=1.1.390",
 ]
 
 [build-system]
@@ -38,7 +38,6 @@ target-version = "py311"
 src = [".", "algorithms", "models", "problems", "experiment_logger"]
 
 [tool.ruff.lint]
-# Enable comprehensive linting rules
 select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
@@ -89,15 +88,13 @@ line-ending = "auto"
 [tool.pyright]
 include = [".", "algorithms", "models", "problems", "experiment_logger"]
 exclude = ["**/__pycache__", "**/.venv", "**/venv"]
-pythonVersion = "3.11"
+pythonVersion = "3.13"
 typeCheckingMode = "basic"
 reportIncompatibleMethodOverride = "error"
+reportImplicitOverride = "error"
+reportIncompatibleVariableOverride = "error"
+reportInconsistentConstructor = "error"
+reportUnsafeMultipleInheritance = "warning"
 
 # Use library code for better type analysis
 useLibraryCodeForTypes = true
-
-[dependency-groups]
-dev = [
-    "pyright>=1.1.404",
-    "ruff>=0.12.10",
-]
