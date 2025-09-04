@@ -3,9 +3,10 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from experiment_logger import ExperimentLogger
-from problems.base_problem import BaseProblem
 import torch
+
+from ..experiment_logger import ExperimentLogger
+from ..problems.base_problem import BaseProblem
 
 
 class BaseAlgorithm(ABC):

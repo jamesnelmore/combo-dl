@@ -21,8 +21,25 @@ lint-fix:  ## Run Ruff linting with auto-fix
 lint-all:  ## Run all linting, formatting, and type checking
 	uv run python scripts.py
 
-run:  ## Run the main experiment (make run ARGS="algorithm.iterations=100 seed=42")
-	uv run python src/thesis/main.py $(ARGS)
+run:  ## Run experiment with config name (make run CONFIG=wagner_corollary_2_1)
+	@if [ -z "$(CONFIG)" ]; then \
+		echo "Error: CONFIG is required. Usage: make run CONFIG=experiment_name"; \
+		echo "Available configs:"; \
+		ls config/*.yaml | grep -v base_config.yaml | sed 's/config\///g' | sed 's/\.yaml//g' | sed 's/^/  - /'; \
+		exit 1; \
+	fi
+	PYTHONPATH=./src uv run python -m thesis.main --config-name $(CONFIG)
+
+run-with-args:  ## Run experiment with additional args (make run-with-args CONFIG=wagner_corollary_2_1 ARGS="seed=999 algorithm.iterations=100")
+	@if [ -z "$(CONFIG)" ]; then \
+		echo "Error: CONFIG is required. Usage: make run-with-args CONFIG=experiment_name ARGS=\"key=value\""; \
+		exit 1; \
+	fi
+	PYTHONPATH=./src uv run python -m thesis.main --config-name $(CONFIG) $(ARGS)
+
+list-configs:  ## List available experiment configurations
+	@echo "Available experiment configurations:"
+	@ls config/*.yaml | grep -v base_config.yaml | sed 's/config\///g' | sed 's/\.yaml//g' | sed 's/^/  - /'
 
 clean:  ## Clean up cache and temporary files
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true

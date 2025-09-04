@@ -1,0 +1,30 @@
+defaults:
+  - _self_
+
+seed: 42
+device: auto  # auto, cpu, cuda, mps
+
+# Set to null for random wandb names, or override for specific experiments
+experiment_name: null
+
+logger:
+  _target_: thesis.experiment_logger.ExperimentLogger
+  experiment_name: ${experiment_name}
+  use_progress_bar: true
+  project: undergraduate-thesis
+  entity: null
+  wandb_mode: online
+  api_key: null
+  # Experiment organization
+  group: null  # For grouping related experiments (e.g., "wagner_corollary_2_1", "ablation_study")
+  tags: []     # For categorization (e.g., ["baseline", "hyperparameter_search"])
+  notes: ""    # Human-readable description of what this experiment tests
+  job_type: "train"  # Workflow stage: train, eval, sweep, etc.
+  save_code: true
+
+hydra:
+  run:
+    dir: hydra_outputs/${oc.select:experiment_name,random_run}/${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: multirun/${oc.select:experiment_name,random_sweep}/${now:%Y-%m-%d_%H-%M-%S}
+    subdir: ${hydra.job.num}

@@ -3,11 +3,11 @@
 import math
 from typing import override
 
-from edge_utils import edge_vector_to_adjacency_matrix
 import networkx as nx
 import torch
 
 from .base_problem import BaseProblem
+from .edge_utils import edge_vector_to_adjacency_matrix
 
 
 class WagnerCorollary21(BaseProblem):

@@ -3,13 +3,13 @@
 from datetime import datetime
 from typing import Any, override
 
-from experiment_logger import ExperimentLogger
-from models.protocols import SamplingModel
-from problems.base_problem import BaseProblem
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
+from ..experiment_logger import ExperimentLogger
+from ..models.protocols import SamplingModel
+from ..problems.base_problem import BaseProblem
 from .base_algorithm import BaseAlgorithm
 
 
@@ -41,10 +41,9 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
 
         super().__init__(model, problem, logger)
 
+        self.iterations = iterations
         postfix_metrics = ["best_score", "avg_score", "loss", "accuracy"]
         self.logger.configure_progress_bar(postfix_metrics, total_iterations=self.iterations)
-
-        self.iterations = iterations
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.elite_proportion = elite_proportion
@@ -85,7 +84,8 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         for iteration in range(self.iterations):
             metrics = self.run_iteration()
             final_metrics = metrics
-
+            num_elites = metrics["num_elites"]
+            del metrics["num_elites"]
             # Always update progress bar, but only log detailed metrics at log_frequency
             if iteration % self.log_frequency == 0:
                 self.logger.log_metrics(metrics, iteration)
@@ -103,9 +103,9 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
                     metadata={"iteration": iteration},
                 )
 
-            if iteration % self.model_save_frequency:
+            if iteration > 0 and iteration % self.model_save_frequency == 0:
                 self.logger.log_model(
-                    self.model, model_name=f"{self.logger.experiment_name} step {iteration}"
+                    self.model, model_name=f"{self.logger.experiment_name}_step_{iteration}"
                 )
 
             # Check if problem wants to stop early
@@ -117,13 +117,14 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
                 break
 
             # Early stopping condition (optional)
-            if metrics["num_elites"] == 0:
+            if num_elites == 0:
                 self.logger.log_info(f"Warning: No elites selected at iteration {iteration}")
                 break
 
         return {
             "best_score": self.best_score,
             "best_construction": self.best_construction,
+            "num_elites": num_elites,
             "final_metrics": final_metrics,
             "early_stopped": early_stopped,
             "iterations": iteration,
@@ -147,6 +148,7 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         elites = self.select_elites(constructions, batch_scores)
 
         if len(elites) == 0:
+            self.logger.log_info("Zero elites passed. This should not occur. Stopping run.")
             return {
                 "best_score": self.best_score,
                 "avg_score": avg_score,
