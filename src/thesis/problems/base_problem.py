@@ -36,10 +36,14 @@ class BaseProblem(ABC):
         -------
             Target score for early stopping, or None if no early stopping desired.
         """
+        # Return self.goal_score if it exists, else None
+        if hasattr(self, "goal_score"):
+            return self.goal_score  # pyright: ignore[reportAttributeAccessIssue]
         return None
 
     def should_stop_early(self, best_score: float) -> tuple[bool, str]:
         """Check if optimization should stop early based on the current best score.
+        By default, this occurs when the best known score equals goal_score
 
         Args:
             best_score: Current best score achieved

@@ -5,6 +5,7 @@ import torch
 from .base_problem import BaseProblem
 from .edge_utils import edge_vector_to_adjacency_matrix
 
+from typing import override
 
 class StronglyRegularGraphs(BaseProblem):
     """Optimization problem for finding strongly regular graphs.
@@ -19,7 +20,7 @@ class StronglyRegularGraphs(BaseProblem):
         self.k = k
         self.lambda_param = lambda_param
         self.mu = mu
-
+    @override
     def reward(self, x: torch.Tensor) -> torch.Tensor:
         r"""Compute the negative squared Frobenius norm of the constraint residual.
 
@@ -38,23 +39,9 @@ class StronglyRegularGraphs(BaseProblem):
                or a 3D tensor of shape (batch_size, n, n) representing adjacency matrices.
         """
         batch_size = x.shape[0]
-        edges = (self.n * (self.n - 1)) // 2  # Number of edges in upper triangular matrix
 
-        # Handle different input formats
-        if x.dim() == 2:
-            # Edge vector format: (batch_size, edges) - convert to adjacency matrix
-            assert x.shape[1] == edges, f"Expected edge vector with {edges} edges, got {x.shape}"
-            A = edge_vector_to_adjacency_matrix(x, self.n)
-        elif x.dim() == 3:
-            # Matrix format: (batch_size, n, n)
-            assert x.shape[1:] == (self.n, self.n), (
-                f"Expected shape (*, {self.n}, {self.n}), got {x.shape}"
-            )
-            A = x
-        else:
-            raise ValueError(
-                f"Expected 2D (edge vector) or 3D (adjacency matrix) tensor, got {x.dim()}D"
-            )
+        A = self._ensure_adjacency_matrix(x)
+        
         A2 = A @ A
         mu_lambda_A = (self.mu - self.lambda_param) * A
         I = torch.eye(self.n, device=A.device, dtype=A.dtype).expand(batch_size, -1, -1)  # noqa: E741
@@ -67,52 +54,53 @@ class StronglyRegularGraphs(BaseProblem):
         # Return negative of squared Frobenius norm (higher is better, perfect SRG = 0)
         # dim=(1, 2) specifies the row and column dimension of the matrix
         return -(torch.frobenius_norm(residual, dim=(1, 2)) ** 2)
-
+    @override
     def is_valid_solution(self, solution: torch.Tensor) -> torch.Tensor:
         """Check if solutions represent valid adjacency matrices.
 
         Args:
             solution: Either a 2D tensor of shape (batch_size, edges) representing edge vectors,
                      or a 3D tensor of shape (batch_size, n, n) representing adjacency matrices.
+    
+        Returns
+        -------
+            Boolean tensor of shape (batch_size, 1): True if valid solution, False otherwise
         """
-        btatch_size = solution.shape[0]
-        edges = (self.n * (self.n - 1)) // 2  # Number of edges in upper triangular matrix
-
-        # Handle different input formats
-        if solution.dim() == 2:
-            # Edge vector format: (batch_size, edges) - convert to adjacency matrix
-            assert solution.shape[1] == edges, (
-                f"Expected edge vector with {edges} edges, got {solution.shape}"
-            )
-            A = edge_vector_to_adjacency_matrix(solution, self.n)
-        elif solution.dim() == 3:
-            # Matrix format: (batch_size, n, n)
-            assert solution.shape[1:] == (self.n, self.n), (
-                f"Expected shape (*, {self.n}, {self.n}), got {solution.shape}"
-            )
-            A = solution
-        else:
-            raise ValueError(
-                f"Expected 2D (edge vector) or 3D (adjacency matrix) tensor, got {solution.dim()}D"
-            )
-
+        A = self._ensure_adjacency_matrix(solution)
+        
         # Check diagonal is zero
-        diagonal_zero = (torch.diagonal(A, dim1=1, dim2=2) == 0).all(dim=1)
+        diagonal_is_zero = (torch.diagonal(A, dim1=1, dim2=2) == 0).all(dim=1)
 
-        # Check symmetry (element-wise for each matrix in batch)
-        symmetric = torch.isclose(A, A.transpose(-1, -2), atol=1e-6).all(dim=(1, 2))
+        is_symmetric = (A == A.transpose(-1, -2)).all(dim=(1, 2))
 
         # Check binary values (0 or 1)
-        binary_values = ((A == 0) | (A == 1)).all(dim=(1, 2))
+        is_binary = ((A == 0) | (A == 1)).all(dim=(1, 2))
 
-        return diagonal_zero & symmetric & binary_values
+        return diagonal_is_zero & is_symmetric & is_binary
 
+    def _ensure_adjacency_matrix(self, x: torch.Tensor) -> torch.Tensor:
+        if x.dim() == 2:
+            # Edge vector format: (batch_size, edges) - convert to adjacency matrix
+            assert x.shape[1] == self.edges(), (
+                f"Expected edge vector with {self.edges()} edges, got {x.shape}"
+            )
+            adj_matrix = edge_vector_to_adjacency_matrix(x, self.n)
+        elif x.dim() == 3:
+            # Matrix format: (batch_size, n, n)
+            assert x.shape[1:] == (self.n, self.n), (
+                f"Expected shape (*, {self.n}, {self.n}), got {x.shape}"
+            )
+            adj_matrix = x
+        else:
+            raise ValueError(
+                f"Expected 2D (edge vector) or 3D (adjacency matrix) tensor, got {x.dim()}D"
+            )
+        return adj_matrix
+    
+    def edges(self) -> int:
+        return (self.n * (self.n - 1)) // 2
+    
+    @override
     def get_goal_score(self) -> float:
         """Return the goal score for SRG (perfect SRG has score 0)."""
         return 0.0
-
-    def should_stop_early(self, best_score: float) -> tuple[bool, str]:
-        """Check if optimization should stop early (inclusive comparison for SRG)."""
-        if best_score >= 0.0:
-            return True, f"Perfect SRG found: {best_score:.6f} >= 0.0"
-        return False, ""

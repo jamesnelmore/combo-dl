@@ -27,7 +27,7 @@
   },
   // General editor settings
   "editor.rulers": [
-    88
+    99
   ],
   "editor.trimAutoWhitespace": true,
   // File associations

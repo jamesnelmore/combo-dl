@@ -110,27 +110,30 @@ class ExperimentLogger:
                 dynamic_ncols=True,
             )
 
-    def log_metrics(self, metrics: dict[str, Any], step: int | None = None) -> None:
-        """Log metrics to both console (via progress bar) and WandB."""
-        self._log_metrics_wandb(metrics, step)
-        self._log_metrics_progress_bar(metrics, step)
+    def log_metrics(self, metrics: dict[str, Any], current_iteration: int) -> None:
+        """Log metrics to both console (via progress bar) and WandB.
 
-        if self.use_wandb and self.wandb_run:
-            self.wandb_run.log(metrics, step=step)
+        Args:
+            metrics: dictionary of metrics to log
+            current_iteration: current iteration/step number (absolute, not incremental)
+        """
+        self._log_metrics_wandb(metrics, current_iteration)
+        self._log_metrics_progress_bar(metrics, current_iteration)
 
-    def _log_metrics_wandb(self, metrics: dict[str, Any], step) -> None:
+    def _log_metrics_wandb(self, metrics: dict[str, Any], current_iteration: int) -> None:
         if not self.use_wandb:
-            return
+            return # TODO add proper linting for docstrings
+            # TODO fix issues with autoformatting
+            # TODO add check that errors for functions without type signatures
         assert self.wandb_run is not None
-        self.wandb_run.log(metrics, step)
+        self.wandb_run.log(metrics, step=current_iteration)
 
     def _log_metrics_progress_bar(
-        self, metrics: dict[str, Any], step_increment: int | None = None
+        self, metrics: dict[str, Any], current_iteration: int
     ) -> None:
         if not self.use_progress_bar:
             return
         if self.progress_bar is None:
-            # If we don't have total iterations yet, set up without it
             total_iter = getattr(self, "total_iterations", None)
             self._setup_progress_bar(list(metrics.keys()), total_iter)
             assert self.progress_bar is not None
@@ -157,11 +160,9 @@ class ExperimentLogger:
             else:
                 formatted_metrics[key] = value
 
-        # Update progress bar to current step
-        if step_increment is not None:
-            self.progress_bar.n = step_increment + 1  # +1 because step is 0-indexed
-        else:
-            self.progress_bar.update(1)
+        # Update progress bar to current iteration
+        self.progress_bar.n = current_iteration # TODO see if this needs a +1
+    
         self.progress_bar.set_postfix(formatted_metrics)
         self.progress_bar.refresh()
 

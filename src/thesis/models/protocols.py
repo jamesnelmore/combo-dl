@@ -8,7 +8,7 @@ from torch import Tensor, nn
 class SupportsSampling(Protocol):
     """Protocol for Models that can be sampled from."""
 
-    def sample(self, batch_size: int) -> Tensor:
+    def sample(self, batch_size: int, *args, **kwargs) -> Tensor:
         """Sample one batch from the Model."""
         ...
 
