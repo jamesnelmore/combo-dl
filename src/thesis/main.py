@@ -13,6 +13,8 @@ from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 import torch
 
+# TODO add slurm defaults for each HPC job submission
+
 
 def get_device(device_config: str) -> str:
     """Get the appropriate device based on config and availability."""

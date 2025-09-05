@@ -23,6 +23,7 @@ dependencies = [
 dev = [
     "pyright>=1.1.404",
     "ruff>=0.12.10",
+    "pytest>=8.0.0",
 ]
 
 [build-system]
@@ -105,3 +106,20 @@ reportUnsafeMultipleInheritance = "warning"
 
 # Use library code for better type analysis
 useLibraryCodeForTypes = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+pythonpath = ["src"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "-v",
+]
+filterwarnings = [
+    "error",
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning",
+]
