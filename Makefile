@@ -6,20 +6,19 @@ help:  ## Show this help message
 install-dev:  ## Install development dependencies
 	uv sync --extra dev
 
-lint:  ## Run Ruff linting (check only)
+lint:  ## Run Ruff linting and yamllint (check only)
 	uv run ruff check .
+	uv run yamllint config/ config/hydra/
 
-format:  ## Run Ruff formatting
+format:  ## Run Ruff formatting and yamllint check
 	uv run ruff format .
 
 check-types:  ## Run PyRight type checking
 	uv run pyright
 
-lint-fix:  ## Run Ruff linting with auto-fix
+lint-fix:  ## Run Ruff linting with auto-fix and yamllint check
 	uv run ruff check --fix .
-
-lint-all:  ## Run all linting, formatting, and type checking
-	uv run python scripts.py
+	uv run yamllint config/ config/hydra/
 
 run:  ## Run experiment with config name (make run CONFIG=wagner_corollary_2_1)
 	@if [ -z "$(CONFIG)" ]; then \

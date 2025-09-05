@@ -23,6 +23,8 @@ logger:
   save_code: true
 
 hydra:
+  job:
+    name: ${oc.select:experiment_name,main}
   run:
     dir: hydra_outputs/${oc.select:experiment_name,random_run}/${now:%Y-%m-%d_%H-%M-%S}
   sweep:

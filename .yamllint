@@ -1,0 +1,97 @@
+extends: default
+
+rules:
+  # Line length
+  line-length:
+    max: 99
+    level: warning
+
+  # Indentation
+  indentation:
+    spaces: 2
+    indent-sequences: true
+    check-multi-line-strings: false
+
+  # Comments
+  comments:
+    min-spaces-from-content: 1
+
+  # Document start
+  document-start:
+    present: false
+
+  # Trailing spaces
+  trailing-spaces:
+    level: error
+
+  # Truthy values (allow yes/no for Hydra configs)
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no', 'on', 'off']
+    check-keys: false
+
+  # Brackets
+  brackets:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+    min-spaces-inside-empty: 0
+    max-spaces-inside-empty: 0
+
+  # Braces
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+    min-spaces-inside-empty: 0
+    max-spaces-inside-empty: 0
+
+  # Commas
+  commas:
+    max-spaces-before: 0
+    min-spaces-after: 1
+
+  # Colons
+  colons:
+    max-spaces-before: 0
+    min-spaces-after: 1
+
+  # Hyphens
+  hyphens:
+    max-spaces-after: 1
+
+  # Key duplicates
+  key-duplicates:
+    level: error
+
+  # Key ordering
+  key-ordering: disable
+
+  # Octal values
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: true
+
+  # Quoted strings
+  quoted-strings:
+    quote-type: single
+    check-keys: false
+    required: false
+
+  # Empty lines
+  empty-lines:
+    max: 2
+    max-start: 0
+    max-end: 1
+
+  # Empty values
+  empty-values:
+    forbid-in-block-mappings: true
+    forbid-in-flow-mappings: true
+
+  # Flow style
+  flow-style: disable
+
+  # Hash
+  hash:
+    min-spaces-before: 1
+
+  # Comments indentation
+  comments-indentation: disable

@@ -61,7 +61,7 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         self.best_score = float("-inf")
         self.best_construction = None
         self.samples_seen = 0
-        
+
         # Early stopping tracking
         self.steps_since_best = 0
         self.best_score_iteration = 0
@@ -93,14 +93,14 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
             final_metrics = metrics
             num_elites = metrics["num_elites"]
             del metrics["num_elites"]
-            
+
             # Update early stopping tracking
             if metrics["found_new_best"]:
                 self.steps_since_best = 0
                 self.best_score_iteration = iteration
             else:
                 self.steps_since_best += 1
-            
+
             # Always update progress bar, but only log detailed metrics at log_frequency
             if iteration % self.log_frequency == 0:
                 self.logger.log_metrics(metrics, iteration)
@@ -136,8 +136,12 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
 
             # Early stopping condition: no improvement for patience steps
             if self.steps_since_best >= self.early_stopping_patience:
-                self.logger.log_info(f"Early stopping at iteration {iteration}: no improvement for {self.early_stopping_patience} steps")
-                self.logger.log_info(f"Best score {self.best_score} was achieved at iteration {self.best_score_iteration}")
+                self.logger.log_info(
+                    f"Early stopping at iteration {iteration}: no improvement for {self.early_stopping_patience} steps"
+                )
+                self.logger.log_info(
+                    f"Best score {self.best_score} was achieved at iteration {self.best_score_iteration}"
+                )
                 early_stopped = True
                 break
 
@@ -149,7 +153,9 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         return {
             "best_score": self.best_score,
             # Move to cpu because Hydra cannot deserialize a CUDA object on the login node
-            "best_construction": self.best_construction.cpu() if self.best_construction is not None else None,
+            "best_construction": self.best_construction.cpu()
+            if self.best_construction is not None
+            else None,
             "num_elites": num_elites,
             "final_metrics": final_metrics,
             "early_stopped": early_stopped,
@@ -246,7 +252,9 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
             .repeat_interleave(num_edges)
             .to(target_device)  # Defined elementwise: T[i] = elite_constructions[i][pos_tensor[i]]
         )
-        actions_tensor = constructions[construction_indices, pos_tensor].to(target_device, dtype=torch.long)
+        actions_tensor = constructions[construction_indices, pos_tensor].to(
+            target_device, dtype=torch.long
+        )
 
         dataset = TensorDataset(obs_tensor, pos_tensor, actions_tensor)
         dataloader = DataLoader(dataset, batch_size=output_batch_size, shuffle=True)

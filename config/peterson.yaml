@@ -2,16 +2,15 @@ defaults:
   - base_config
   - _self_
 
-experiment_name: null  # Use random wandb name
-n: 17
-k: 8
-lambda_param: 3
-mu: 4
+experiment_name: "peterson graph wagner model"
+n: 10
+k: 3
+lambda_param: 0
+mu: 1
 
-# Experiment organization - what is this testing?
 logger:
   group: "strongly_regular_graphs"
-  tags: ["n=${n}", "paley-graph"]           
+  tags: ["n=${n}", "peterson_graph"]           
   notes: "Searching for a (${n}, ${k}, ${lambda_param}, ${mu})-SRG"
 
 problem:

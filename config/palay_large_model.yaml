@@ -1,4 +1,4 @@
-experiment_name: palay_larger_model
+experiment_name: palay_large_model
 defaults:
   - base_config
   - override /hydra/launcher: HPC_2HRS_GPU
