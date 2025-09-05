@@ -44,14 +44,14 @@ run-slurm:  ## Submit experiment to Slurm (make run-slurm CONFIG=palay_large_mod
 		ls config/*.yaml | grep -v base_config.yaml | sed 's/config\///g' | sed 's/\.yaml//g' | sed 's/^/  - /'; \
 		exit 1; \
 	fi
-	PYTHONPATH=./src uv run python -m thesis.main --config-name $(CONFIG) hydra/launcher=slurm
+	PYTHONPATH=./src uv run python -m thesis.main --config-name $(CONFIG)
 
 run-slurm-with-args:  ## Submit experiment to Slurm with additional args (make run-slurm-with-args CONFIG=palay_large_model ARGS="seed=999")
 	@if [ -z "$(CONFIG)" ]; then \
 		echo "Error: CONFIG is required. Usage: make run-slurm-with-args CONFIG=experiment_name ARGS=\"key=value\""; \
 		exit 1; \
 	fi
-	PYTHONPATH=./src uv run python -m thesis.main --config-name $(CONFIG) hydra/launcher=slurm $(ARGS)
+	PYTHONPATH=./src uv run python -m thesis.main --config-name $(CONFIG) $(ARGS)
 
 list-configs:  ## List available experiment configurations
 	@echo "Available experiment configurations:"

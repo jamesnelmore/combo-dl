@@ -6,7 +6,7 @@ import torch
 
 from .base_problem import BaseProblem
 from .edge_utils import edge_vector_to_adjacency_matrix
-
+# TODO frob norm is deprecated
 
 class StronglyRegularGraphs(BaseProblem):
     """Optimization problem for finding strongly regular graphs.

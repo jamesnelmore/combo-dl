@@ -222,7 +222,7 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
             .repeat_interleave(num_edges)
             .to(target_device)  # Defined elementwise: T[i] = elite_constructions[i][pos_tensor[i]]
         )
-        actions_tensor = constructions[construction_indices, pos_tensor].to(target_device)
+        actions_tensor = constructions[construction_indices, pos_tensor].to(target_device, dtype=torch.long)
 
         dataset = TensorDataset(obs_tensor, pos_tensor, actions_tensor)
         dataloader = DataLoader(dataset, batch_size=output_batch_size, shuffle=True)
