@@ -13,7 +13,7 @@ logger:
   use_progress_bar: true
   project: undergraduate-thesis
   entity: null
-  wandb_mode: online
+  wandb_mode: online # "online", "offline", "disabled"
   api_key: null
   # Experiment organization
   group: null  # For grouping related experiments (e.g., "wagner_corollary_2_1", "ablation_study")

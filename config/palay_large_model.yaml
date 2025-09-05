@@ -1,0 +1,37 @@
+defaults:
+  - base_config
+  - launcher: slurm
+  - _self_
+
+experiment_name: palay_large_model  # Use random wandb name
+n: 17 
+k: 8
+lambda_param: 3
+mu: 4
+
+# Experiment organization - what is this testing?
+logger:
+  wandb_mode: "disabled"
+  group: "strongly_regular_graphs"
+  tags: ["n=${n}", "paley-graph", "slurm"]           
+  notes: "Searching for a (${n}, ${k}, ${lambda_param}, ${mu})-SRG"
+
+problem:
+  _target_: thesis.problems.StronglyRegularGraphs
+  n: ${n}
+  k: ${k}
+  lambda_param: ${lambda_param}
+  mu: ${mu}
+
+model:
+  _target_: thesis.models.FFModel
+  n: ${n}
+  hidden_layer_sizes: [512, 256, 128, 64, 16]
+
+algorithm:
+  _target_: thesis.algorithms.deep_cross_entropy.WagnerDeepCrossEntropy
+  iterations: 5000
+  batch_size: 8096
+  learning_rate: 0.001
+  elite_proportion: 0.1
+

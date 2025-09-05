@@ -1,4 +1,4 @@
-.PHONY: help lint format check-types lint-fix lint-all install-dev clean run
+.PHONY: help lint format check-types lint-fix lint-all install-dev clean run run-slurm run-slurm-with-args
 
 help:  ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
@@ -36,6 +36,22 @@ run-with-args:  ## Run experiment with additional args (make run-with-args CONFI
 		exit 1; \
 	fi
 	PYTHONPATH=./src uv run python -m thesis.main --config-name $(CONFIG) $(ARGS)
+
+run-slurm:  ## Submit experiment to Slurm (make run-slurm CONFIG=palay_large_model)
+	@if [ -z "$(CONFIG)" ]; then \
+		echo "Error: CONFIG is required. Usage: make run-slurm CONFIG=experiment_name"; \
+		echo "Available configs:"; \
+		ls config/*.yaml | grep -v base_config.yaml | sed 's/config\///g' | sed 's/\.yaml//g' | sed 's/^/  - /'; \
+		exit 1; \
+	fi
+	PYTHONPATH=./src uv run python -m thesis.main --config-name $(CONFIG) hydra/launcher=slurm
+
+run-slurm-with-args:  ## Submit experiment to Slurm with additional args (make run-slurm-with-args CONFIG=palay_large_model ARGS="seed=999")
+	@if [ -z "$(CONFIG)" ]; then \
+		echo "Error: CONFIG is required. Usage: make run-slurm-with-args CONFIG=experiment_name ARGS=\"key=value\""; \
+		exit 1; \
+	fi
+	PYTHONPATH=./src uv run python -m thesis.main --config-name $(CONFIG) hydra/launcher=slurm $(ARGS)
 
 list-configs:  ## List available experiment configurations
 	@echo "Available experiment configurations:"
