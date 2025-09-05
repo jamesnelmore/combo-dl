@@ -33,6 +33,7 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         logger: ExperimentLogger | None = None,  # pyright: ignore[reportRedeclaration]
         log_frequency: int = 1,
         model_save_frequency: int = 1000,
+        early_stopping_patience: int = 300,
     ):
         if logger is None:
             date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -49,6 +50,7 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         self.elite_proportion = elite_proportion
         self.log_frequency = log_frequency
         self.model_save_frequency = model_save_frequency
+        self.early_stopping_patience = early_stopping_patience
         self.device = device
         self.model.to(self.device)
 
@@ -59,6 +61,10 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         self.best_score = float("-inf")
         self.best_construction = None
         self.samples_seen = 0
+        
+        # Early stopping tracking
+        self.steps_since_best = 0
+        self.best_score_iteration = 0
 
     @override
     def optimize(self, **kwargs) -> dict[str, Any]:
@@ -87,6 +93,14 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
             final_metrics = metrics
             num_elites = metrics["num_elites"]
             del metrics["num_elites"]
+            
+            # Update early stopping tracking
+            if metrics["found_new_best"]:
+                self.steps_since_best = 0
+                self.best_score_iteration = iteration
+            else:
+                self.steps_since_best += 1
+            
             # Always update progress bar, but only log detailed metrics at log_frequency
             if iteration % self.log_frequency == 0:
                 self.logger.log_metrics(metrics, iteration)
@@ -120,6 +134,13 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
                 early_stopped = True
                 break
 
+            # Early stopping condition: no improvement for patience steps
+            if self.steps_since_best >= self.early_stopping_patience:
+                self.logger.log_info(f"Early stopping at iteration {iteration}: no improvement for {self.early_stopping_patience} steps")
+                self.logger.log_info(f"Best score {self.best_score} was achieved at iteration {self.best_score_iteration}")
+                early_stopped = True
+                break
+
             # Early stopping condition (optional)
             if num_elites == 0:
                 self.logger.log_info(f"Warning: No elites selected at iteration {iteration}")
@@ -133,6 +154,8 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
             "early_stopped": early_stopped,
             "iterations": iteration,
             "samples_seen": self.samples_seen,
+            "best_score_iteration": self.best_score_iteration,
+            "steps_since_best": self.steps_since_best,
         }
 
     def run_iteration(self) -> dict[str, float]:

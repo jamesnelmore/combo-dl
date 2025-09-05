@@ -34,4 +34,5 @@ algorithm:
   batch_size: 32384
   learning_rate: 0.001
   elite_proportion: 0.1
+  early_stopping_patience: 300
 
