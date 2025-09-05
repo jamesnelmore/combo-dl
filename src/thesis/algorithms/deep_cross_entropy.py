@@ -148,7 +148,8 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
 
         return {
             "best_score": self.best_score,
-            "best_construction": self.best_construction,
+            # Move to cpu because Hydra cannot deserialize a CUDA object on the login node
+            "best_construction": self.best_construction.cpu() if self.best_construction is not None else None,
             "num_elites": num_elites,
             "final_metrics": final_metrics,
             "early_stopped": early_stopped,

@@ -1,7 +1,9 @@
-logs/
-best_model/
+# Hydra and HPC outputs
+multirun/
 hydra_outputs/
 wandb/
+slurm_logs/
+.submitit/
 # Python-generated files
 __pycache__/
 *.py[oc]

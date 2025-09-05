@@ -1,7 +1,7 @@
 experiment_name: palay_larger_model
 defaults:
   - base_config
-  - override /hydra/launcher: submitit_slurm
+  - override /hydra/launcher: HPC_2HRS_GPU
   - _self_
 
 n: 17 
@@ -26,7 +26,7 @@ problem:
 model:
   _target_: thesis.models.FFModel
   n: ${n}
-  hidden_layer_sizes: [512, 512, 512, 512, 256, 128, 64, 16]
+  hidden_layer_sizes: [512, 256, 128, 64, 16]
 
 algorithm:
   _target_: thesis.algorithms.deep_cross_entropy.WagnerDeepCrossEntropy
