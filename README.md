@@ -27,18 +27,19 @@ This project uses modern Python development tools:
 - **uv**: Fast Python package manager
 - **Hydra**: Configuration management
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed setup and usage instructions.
+Development tools are configured in `pyproject.toml` and can be run via the `Makefile`.
 
 ## Project Structure
 
 ```
-├── algorithms/          # Optimization algorithms
-├── config/             # Hydra configuration files
-├── experiment_logger/  # Logging utilities
-├── models/            # Neural network models
-├── problems/          # Problem definitions
-├── main.py           # Main entry point
-└── pyproject.toml    # Project configuration
+├── src/thesis/          
+│   ├── algorithms/        # Optimization algorithms
+│   ├── experiment_logger/ # Logging utilities
+│   ├── models/            # Neural network models
+│   ├── problems/          # Problem definitions
+│   └── main.py            # Main entry point
+├── config/                # Hydra experiment configuration files
+├── tests/                 # Test files
 ```
 
 ## Configuration
