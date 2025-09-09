@@ -1,58 +1,26 @@
-# Thesis: Graph Optimization using Deep Learning
+![Project Status](https://img.shields.io/badge/status-early%20development-yellow) ![License](https://img.shields.io/badge/license-MIT-blue) ![Python](https://img.shields.io/badge/python-3.13+-blue)
 
-This project implements graph optimization algorithms using deep learning techniques, with a focus on eigenvalue problems and matching theory.
+# Graph Optimization Via Deep Learning
+> **Warning:** This project is in early development. Features, APIs, and results may change without notice.
 
-## Quick Start
+This project uses deep reinforcement learning to solve combinatorial optimization problems in graph theory.
+It currently focuses on finding novel [Strongly Regular Graphs](https://en.wikipedia.org/wiki/Strongly_regular_graph),
+but the methods and code used are intentionally general and adaptable to a wide variety of other combinatorial optimization problems.
 
-```bash
-# Install dependencies
-uv sync
-
-# Install development tools
-uv sync --extra dev
-
-# Run experiments
-python main.py
-
-# Run development checks
-make lint-all
-```
-
-## Development
-
-This project uses modern Python development tools:
-
-- **Ruff**: Fast linting and formatting (replaces black, isort, flake8)
-- **PyRight**: Static type checking
-- **uv**: Fast Python package manager
-- **Hydra**: Configuration management
-
-Development tools are configured in `pyproject.toml` and can be run via the `Makefile`.
+## Contributions
+This project is part of an undergraduate honors thesis and is currently not accepting third-party contributions.
+This will likely change after thesis submission.
 
 ## Project Structure
-
 ```
+├── config/                # Hydra experiment configuration files
 ├── src/thesis/          
 │   ├── algorithms/        # Optimization algorithms
 │   ├── experiment_logger/ # Logging utilities
 │   ├── models/            # Neural network models
 │   ├── problems/          # Problem definitions
 │   └── main.py            # Main entry point
-├── config/                # Hydra experiment configuration files
 ├── tests/                 # Test files
 ```
-
-## Configuration
-
-The project uses Hydra for configuration management. Default configs are in `config/`, and you can override parameters:
-
-```bash
-# Use different model size
-python main.py model.n=25
-
-# Use different algorithm
-python main.py algorithm=ppo
-
-# Run multiple experiments
-python main.py --multirun seed=1,2,3
-```
+Algorithms, models, and problem statements are implemented in their respective directories.
+Experiments are configured and run with [Hydra](https://hydra.cc) for reproducibility and logged with [Weights and Biases](https://wandb.ai/site/).
