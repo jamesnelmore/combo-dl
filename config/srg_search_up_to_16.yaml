@@ -1,7 +1,7 @@
 experiment_name: "srg_${srg_params.0}_${srg_params.1}_${srg_params.2}_${srg_params.3}"
 defaults:
   - base_config
-  - override /hydra/launcher: HPC_2HRS_GPU
+  # - override /hydra/launcher: HPC_2HRS_GPU
   - _self_
 
 # Multirun configuration for all SRG parameter sets up to 16 vertices
