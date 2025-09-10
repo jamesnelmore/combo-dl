@@ -2,25 +2,27 @@ defaults:
   - base_config
   - _self_
 
-experiment_name: "peterson graph wagner model"
-# n: 10
-# k: 3
-# lambda_param: 0
-# mu: 1
-srg_params: [10,3,0,1]
+# SRG parameters: [n, k, lambda, mu]
+# Override this when running experiments
+srg_params: [10, 3, 0, 1]  # Default to Peterson graph parameters
+
+# Extract individual parameters for convenience
+n: ${srg_params.0}
+k: ${srg_params.1}
+lambda_param: ${srg_params.2}
+mu: ${srg_params.3}
+
+# Dynamic experiment name based on SRG parameters
+experiment_name: "srg_${n}_${k}_${lambda_param}_${mu}_ff"
 
 logger:
   group: "strongly_regular_graphs"
-  tags: ["n=${n}", "peterson_graph"]           
+  tags: ["n=${n}", "k=${k}", "lambda=${lambda_param}", "mu=${mu}"]
   notes: "Searching for a (${n}, ${k}, ${lambda_param}, ${mu})-SRG"
 
 problem:
   _target_: thesis.problems.StronglyRegularGraphs
   srg_params: ${srg_params}
-  # n: ${n}
-  # k: ${k}
-  # lambda_param: ${lambda_param}
-  # mu: ${mu}
 
 model:
   _target_: thesis.models.wagner_model.WagnerModel
@@ -32,4 +34,3 @@ algorithm:
   batch_size: 8192
   learning_rate: 0.001
   elite_proportion: 0.1
-
