@@ -18,11 +18,41 @@ class StronglyRegularGraphs(BaseProblem):
     pair of non-adjacent vertices has μ common neighbors.
     """
 
-    def __init__(self, n: int, k: int, lambda_param: int, mu: int):
-        self.n = n
-        self.k = k
-        self.lambda_param = lambda_param
-        self.mu = mu
+    n: int
+    k: int
+    lambda_param: int
+    mu: int
+
+    def __init__(
+        self,
+        n: int | None = None,
+        k: int | None = None,
+        lambda_param: int | None = None,
+        mu: int | None = None,
+        srg_params: tuple[int, int, int, int] | list[int] | None = None,
+    ):
+        """Initialize SRG problem with either individual parameters or tuple.
+
+        Args:
+            n: Number of vertices
+            k: Degree of each vertex
+            lambda_param: Number of common neighbors for adjacent vertices
+            mu: Number of common neighbors for non-adjacent vertices
+            srg_params: Tuple of (n, k, lambda_param, mu) - alternative to individual params
+        """
+        if srg_params is not None:
+            if n is not None or k is not None or lambda_param is not None or mu is not None:
+                raise ValueError("Cannot specify both individual parameters and srg_params tuple")
+            self.n, self.k, self.lambda_param, self.mu = srg_params
+        else:
+            if n is None or k is None or lambda_param is None or mu is None:
+                raise ValueError(
+                    "Must specify either all individual parameters or srg_params tuple"
+                )
+            self.n = n
+            self.k = k
+            self.lambda_param = lambda_param
+            self.mu = mu
 
     @override
     def reward(self, x: torch.Tensor) -> torch.Tensor:
