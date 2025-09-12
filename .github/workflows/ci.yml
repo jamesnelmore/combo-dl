@@ -29,17 +29,7 @@ jobs:
     - name: Install dependencies
       run: |
         uv sync --group dev
-
-    - name: Lint with Ruff
-      run: |
-        uv run ruff check .
-        uv run ruff format --check .
-
-    - name: Check types with PyRight
-      run: |
-        uv run pyright
-
-
+        
     - name: Run tests
       run: |
         uv run pytest tests/ -v
@@ -92,3 +82,36 @@ jobs:
         
         print('All configuration files loaded successfully!')
         "
+
+  # Code quality checks (warnings and formatting)
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.13"
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+
+    - name: Install dependencies
+      run: |
+        uv sync --group dev
+
+    - name: Check for linting issues
+      run: |
+        uv run ruff check 
+
+    - name: Check for type issues
+      run: |
+        uv run pyright
+    
+    - name: Check for formatting issues
+      run: |
+        uv run ruff format --check .
+
