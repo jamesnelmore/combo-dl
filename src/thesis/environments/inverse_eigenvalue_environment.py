@@ -55,7 +55,7 @@ class InverseEigenvalue(gym.Env):
     def _get_info(self) -> dict:
         return {}
 
-    def reset(self, seed: int | None = None, options: dict | None = None) -> tuple[dict, dict]:
+    def reset(self, seed: int | None = None, options: dict | None = None) -> tuple[dict, dict]:  # pyright: ignore[reportIncompatibleMethodOverride, reportImplicitOverride]
         """return: obs, info"""
         super().reset(seed=seed)
 
@@ -69,7 +69,7 @@ class InverseEigenvalue(gym.Env):
 
         return obs, info
 
-    def step(self, action: int) -> tuple[dict, float, bool, bool, dict]:
+    def step(self, action: int) -> tuple[dict, float, bool, bool, dict]:  # pyright: ignore[reportImplicitOverride]
         """returns: obs, reward, terminated, truncated, info"""
         # assert action.shape == (2,)
         # Do action
