@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.13"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+
+    - name: Install dependencies
+      run: |
+        uv sync --group dev
+
+    - name: Lint with Ruff
+      run: |
+        uv run ruff check .
+        uv run ruff format --check .
+
+    - name: Check types with PyRight
+      run: |
+        uv run pyright
+
+
+    - name: Run tests
+      run: |
+        uv run pytest tests/ -v
+
+    - name: Test basic imports
+      run: |
+        uv run python -c "import thesis; print('Basic import test passed')"
+
+  # Test configuration loading
+  test-config:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.13"
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+
+    - name: Install dependencies
+      run: |
+        uv sync --group dev
+
+    - name: Test Hydra configuration loading
+      run: |
+        # Test that all config files can be loaded
+        uv run python -c "
+        import hydra
+        from omegaconf import OmegaConf
+        import os
+        
+        config_dir = 'config'
+        config_files = [f for f in os.listdir(config_dir) if f.endswith('.yaml') and f != 'base_config.yaml']
+        
+        for config_file in config_files:
+            config_path = os.path.join(config_dir, config_file)
+            print(f'Testing config: {config_file}')
+            try:
+                with hydra.initialize(config_path=config_dir):
+                    cfg = hydra.compose(config_name=config_file.split('.')[0])
+                    print(f'✓ {config_file} loaded successfully')
+            except Exception as e:
+                print(f'✗ {config_file} failed to load: {e}')
+                exit(1)
+        
+        print('All configuration files loaded successfully!')
+        "

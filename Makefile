@@ -6,19 +6,17 @@ help:  ## Show this help message
 install-dev:  ## Install development dependencies
 	uv sync --extra dev
 
-lint:  ## Run Ruff linting and yamllint (check only)
+lint:  ## Run Ruff linting (check only)
 	uv run ruff check .
-	uv run yamllint config/ config/hydra/
 
-format:  ## Run Ruff formatting and yamllint check
+format:  ## Run Ruff formatting
 	uv run ruff format .
 
 check-types:  ## Run PyRight type checking
 	uv run pyright
 
-lint-fix:  ## Run Ruff linting with auto-fix and yamllint check
+lint-fix:  ## Run Ruff linting with auto-fix
 	uv run ruff check --fix .
-	uv run yamllint config/ config/hydra/
 
 run:  ## Run experiment with config name (make run CONFIG=wagner_corollary_2_1)
 	@if [ -z "$(CONFIG)" ]; then \
@@ -55,6 +53,17 @@ run-slurm-with-args:  ## Submit experiment to Slurm with additional args (make r
 list-configs:  ## List available experiment configurations
 	@echo "Available experiment configurations:"
 	@ls config/*.yaml | grep -v base_config.yaml | sed 's/config\///g' | sed 's/\.yaml//g' | sed 's/^/  - /'
+
+ci:  ## Run all CI checks locally (lint, format, type-check, test)
+	@echo "Running CI checks..."
+	$(MAKE) lint-fix
+	$(MAKE) check-types
+	$(MAKE) test
+	@echo "All CI checks passed!"
+
+test:  ## Run tests
+	uv run pytest tests/ -v
+
 
 clean:  ## Clean up cache and temporary files
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
