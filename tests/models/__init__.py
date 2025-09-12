@@ -1,1 +1,1 @@
-"""Tests for thesis models."""
+"""Tests for models."""

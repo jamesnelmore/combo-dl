@@ -1,5 +1,5 @@
 [project]
-name = "thesis"
+name = "Combo DL"
 version = "0.1.0"
 description = "Graph optimization using deep learning"
 readme = "README.md"

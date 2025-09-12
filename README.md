@@ -1,6 +1,6 @@
 ![Project Status](https://img.shields.io/badge/status-early%20development-yellow) ![License](https://img.shields.io/badge/license-MIT-blue) ![Python](https://img.shields.io/badge/python-3.13+-blue)
 
-# Graph Optimization Via Deep Learning
+# Combo DL: Graph Optimization Via Deep Learning
 > [!WARNING]
 > This project is in early development. Features, APIs, and results may change without notice.
 
@@ -15,7 +15,7 @@ This will likely change after thesis submission.
 ## Project Structure
 ```
 ├── config/                # Hydra experiment configuration files
-├── src/thesis/          
+├── src/combo_dl/          
 │   ├── algorithms/        # Optimization algorithms
 │   ├── experiment_logger/ # Logging utilities
 │   ├── models/            # Neural network models

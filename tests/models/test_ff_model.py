@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from thesis.models.ff_model import FFModel
+from combo_dl.models.ff_model import FFModel
 
 
 class TestFFModel:
