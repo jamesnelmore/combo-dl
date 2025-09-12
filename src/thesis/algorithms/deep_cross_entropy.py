@@ -21,6 +21,7 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
 
     model: SamplingModel
 
+    # TODO: Consider refactoring constructor to use a configuration object
     def __init__(
         self,
         model: SamplingModel,

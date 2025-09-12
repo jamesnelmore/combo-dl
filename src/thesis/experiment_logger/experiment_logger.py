@@ -156,13 +156,12 @@ class ExperimentLogger:
             else:
                 formatted_metrics[key] = value
 
-        # Update progress bar to current iteration
-        self.progress_bar.n = current_iteration  # TODO see if this needs a +1
+        self.progress_bar.n = current_iteration
 
         self.progress_bar.set_postfix(formatted_metrics)
         self.progress_bar.refresh()
 
-    def log_info(self, message: str) -> None:
+    def log_info(self, message: str) -> None:  # noqa: PLR6301
         """Log info message to console."""
         print(f"[INFO] {message}")
 
