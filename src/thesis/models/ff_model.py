@@ -39,22 +39,21 @@ class FFModel(SamplingModel):
         if hidden_layer_sizes is None:
             hidden_layer_sizes = [128, 64, 64]  # From Wagner 2021
 
-        dropout_p = 0.1
         model_layers = []
         model_layers.append(("input_layer", nn.Linear(2 * self.edges, hidden_layer_sizes[0])))
         model_layers.append(("layernorm_input", nn.LayerNorm(hidden_layer_sizes[0])))
         model_layers.append(("activation_input", activation()))
-        model_layers.append(("dropout_input", nn.Dropout(dropout_p)))
+        model_layers.append(("dropout_input", nn.Dropout(dropout_probability)))
 
         prev_layer_size = hidden_layer_sizes[0]
         for i, layer_size in enumerate(hidden_layer_sizes[1:]):
             model_layers.append((f"hidden_{i}", nn.Linear(prev_layer_size, layer_size)))
             model_layers.append((f"layernorm_{i}", nn.LayerNorm(layer_size)))
             model_layers.append((f"activation_{i}", activation()))
-            model_layers.append((f"dropout_{i}", nn.Dropout(dropout_p)))
+            model_layers.append((f"dropout_{i}", nn.Dropout(dropout_probability)))
             prev_layer_size = layer_size
 
-        model_layers.append(("output", nn.Linear(prev_layer_size, 2)))
+        model_layers.append(("output", nn.Linear(prev_layer_size, output_size)))
 
         self.layers = nn.Sequential(OrderedDict(model_layers))
 
