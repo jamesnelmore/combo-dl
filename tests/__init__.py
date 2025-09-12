@@ -1,1 +1,1 @@
-"""Tests for thesis project."""
+"""Unit and integration tests."""

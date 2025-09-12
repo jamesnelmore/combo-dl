@@ -25,6 +25,7 @@ dev = [
     "pyright>=1.1.404",
     "ruff>=0.12.10",
     "pytest>=8.0.0",
+    "pytest-cov>=7.0.0",
 ]
 
 [build-system]
@@ -89,8 +90,20 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]  # Allow unused imports in __init__.py
-"**/test_*.py" = ["ARG001", "ARG002"]  # Allow unused arguments in tests
+# Allow unused imports in __init__.py files (common for re-exports)
+"__init__.py" = ["F401"]
+
+# Test file specific ignores
+"**/test_*.py" = [
+    "ARG001",  # Unused function argument
+    "ARG002",  # Unused method argument
+    "D100",    # Missing docstring in public module
+    "D101",    # Missing docstring in public class
+    "D102",    # Missing docstring in public method
+    "D103",    # Missing docstring in public function
+    "PLR6301", # Method could be a function
+    "PLC2701", # Private name import
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["thesis"]

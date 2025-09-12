@@ -18,10 +18,13 @@ class TestFFModel:
         assert model.edges == (n**2 - n) // 2  # Should be 6 for n=4
         assert isinstance(model.layers, torch.nn.Sequential)
 
-    def test_model_initialization_with_custom_layers(self) -> None:
-        """Test FFModel initialization with custom hidden layer sizes."""
+    @pytest.mark.parametrize(
+        "hidden_layers",
+        [[], [16], [32, 16], [64, 32, 16], [128, 64, 32, 16], [64] * 100],
+    )
+    def test_model_initialization_with_custom_layers(self, hidden_layers) -> None:
+        """Test FFModel initialization with various custom hidden layer sizes."""
         n = 5
-        hidden_layers = [64, 32]
         model = FFModel(n=n, hidden_layer_sizes=hidden_layers)
 
         assert model.n == n
@@ -65,7 +68,7 @@ class TestFFModel:
 
         assert samples.shape == (batch_size, model.edges)
         assert torch.all((samples == 0) | (samples == 1)), "Samples should be binary (0 or 1)"
-        assert samples.dtype in [torch.float32, torch.long, torch.int64]
+        assert samples.dtype in {torch.float32, torch.long, torch.int64}
 
     def test_sampling_preserves_training_mode(self) -> None:
         """Test that sampling preserves the model's training mode."""

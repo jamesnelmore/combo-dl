@@ -33,3 +33,4 @@ jupyter_notebook_config.json
 __marimo__
 
 .DS_Store
+.coverage
