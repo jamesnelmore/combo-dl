@@ -16,11 +16,20 @@ class FFModel(SamplingModel):
     Regularized with dropout and layer normalization
     """
 
-    def __init__(self, n: int, hidden_layer_sizes: list[int] | None = None):
-        """Create WagnerModel object.
+    def __init__(
+        self,
+        n: int,
+        hidden_layer_sizes: list[int] | None = None,
+        output_size: int = 2,
+        dropout_probability: float = 0.1,
+    ):
+        """Create FFModel object.
 
         Args:
             n: number of vertices in the graph.
+            hidden_layer_sizes: List of hidden layer sizes.
+            output_size: Size of final layer
+            dropout_probability: probability of a dropout at each layer during training
         """
         super().__init__()
         self.n = n

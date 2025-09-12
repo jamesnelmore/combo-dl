@@ -39,8 +39,7 @@ class WagnerCorollary21(BaseProblem):
             x: Tensor of shape (batch_size, edges) where each entry is 0 or 1
                representing whether an edge is present in the graph
 
-        Returns
-        -------
+        Returns:
             Tensor of shape (batch_size,) with scores for each construction
             Higher scores are better (negative of eigenvalue + matching)
         """
@@ -54,7 +53,12 @@ class WagnerCorollary21(BaseProblem):
 
     @override
     def should_stop_early(self, best_score: float) -> tuple[bool, str]:
-        """Check if optimization should stop early (exclusive comparison for Wagner)."""
+        """Check if optimization should stop early (exclusive comparison for Wagner).
+
+        Returns:
+        tuple[bool, str]
+            Tuple of (should_stop, reason_message)
+        """
         if best_score > self.goal_score:
             return (
                 True,
@@ -69,8 +73,7 @@ class WagnerCorollary21(BaseProblem):
         Args:
             solution: Tensor of shape (batch_size, edges) where each entry should be 0 or 1
 
-        Returns
-        -------
+        Returns:
             Tensor of shape (batch_size,) with boolean values indicating validity
         """
         # Check that the tensor has the correct shape

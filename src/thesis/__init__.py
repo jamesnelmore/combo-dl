@@ -1,5 +1,4 @@
-"""
-Thesis project for graph optimization using deep learning.
+"""Thesis project for graph optimization using deep learning.
 
 This package contains modules for:
 - Algorithms: Deep cross-entropy and other optimization algorithms

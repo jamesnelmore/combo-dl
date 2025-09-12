@@ -27,15 +27,13 @@ class BaseAlgorithm(ABC):
 
     @abstractmethod
     def optimize(self, **kwargs) -> dict[str, Any]:
-        """
-        Train the model to solve the problem.
+        """Train the model to solve the problem.
 
         Args:
             progress_callback: Optional callback function that receives (iteration, metrics)
             **kwargs: Algorithm-specific parameters
 
-        Returns
-        -------
+        Returns:
             Dictionary containing optimization results, typically including:
                 - best_score: The best score achieved during optimization
                 - best_construction: The best solution found (if applicable)

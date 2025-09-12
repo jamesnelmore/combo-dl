@@ -71,13 +71,9 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         """Run the full Deep Cross-Entropy optimization.
 
         Args:
-            None.
+            **kwargs: Not used, only for API compatibility
 
-        Kwargs:
-            Not used, only for API compatability
-
-        Returns
-        -------
+        Returns:
             Dictionary of optimization results
         """
         if kwargs != {}:
@@ -137,10 +133,12 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
             # Early stopping condition: no improvement for patience steps
             if self.steps_since_best >= self.early_stopping_patience:
                 self.logger.log_info(
-                    f"Early stopping at iteration {iteration}: no improvement for {self.early_stopping_patience} steps"
+                    f"Early stopping at iteration {iteration}: "
+                    f"no improvement for {self.early_stopping_patience} steps"
                 )
                 self.logger.log_info(
-                    f"Best score {self.best_score} was achieved at iteration {self.best_score_iteration}"
+                    f"Best score {self.best_score} was achieved at "
+                    f"iteration {self.best_score_iteration}"
                 )
                 early_stopped = True
                 break
@@ -166,7 +164,11 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         }
 
     def run_iteration(self) -> dict[str, float]:
-        """Run one DCE iteration and return metrics."""
+        """Run one DCE iteration and return metrics.
+
+        Returns:
+            Training metrics
+        """
         constructions = self.model.sample(self.batch_size)
         batch_scores = self.problem.reward(constructions)
 
@@ -218,7 +220,11 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         constructions: torch.Tensor,
         batch_scores: torch.Tensor,
     ) -> torch.Tensor:
-        """Select top elite constructions based on scores (highest for maximization)."""
+        """Select top elite constructions based on scores (highest for maximization).
+
+        Returns:
+            Top self.elite_proportion of constructions
+        """
         batch_size = len(batch_scores)
         return_count = int(batch_size * self.elite_proportion)
         # descending for maximization
@@ -233,6 +239,9 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         For each construction, mask it past i with 0s. Then the state is the masked
         construction, the position is i + 1, and the action is what was at i + 1
         before the mask.
+
+        Returns:
+            Input constructions converted to training examples and packaged into a dataloader
         """
         if output_batch_size is None:
             output_batch_size = self.batch_size
@@ -265,7 +274,11 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         self,
         train_loader: DataLoader,
     ) -> dict[str, float]:
-        """Perform one training step and return metrics."""
+        """Perform one training step and return metrics.
+
+        Returns:
+            Training metrics
+        """
         self.model.train()
 
         train_loss = 0.0

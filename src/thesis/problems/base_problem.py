@@ -10,14 +10,12 @@ class BaseProblem(ABC):
 
     @abstractmethod
     def reward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Compute the score for each solution in the batch. Higher is better.
+        """Compute the score for each solution in the batch. Higher is better.
 
         Args:
             x: Tensor of shape (batch_size, *)
 
-        Returns
-        -------
+        Returns:
             Tensor of shape (batch_size, *) with rewards
 
         """
@@ -31,8 +29,7 @@ class BaseProblem(ABC):
     def get_goal_score(self) -> float | None:
         """Get the target score for early stopping, if any.
 
-        Returns
-        -------
+        Returns:
             Target score for early stopping, or None if no early stopping desired.
         """
         # Return self.goal_score if it exists, else None
@@ -48,8 +45,7 @@ class BaseProblem(ABC):
         Args:
             best_score: Current best score achieved
 
-        Returns
-        -------
+        Returns:
             Tuple of (should_stop, reason_message)
         """
         goal_score = self.get_goal_score()

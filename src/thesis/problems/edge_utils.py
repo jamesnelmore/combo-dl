@@ -19,8 +19,7 @@ def edge_vector_to_adjacency_matrix(edge_vector: torch.Tensor, n: int) -> torch.
                     Each element should be 0 or 1 representing edge presence
         n: Number of vertices in the graph
 
-    Returns
-    -------
+    Returns:
         Tensor of shape (batch_size, n, n) representing symmetric adjacency matrices
         with zeros on the diagonal
 
@@ -66,8 +65,7 @@ def adjacency_matrix_to_edge_vector(adj_matrix: torch.Tensor) -> torch.Tensor:
     Args:
         adj_matrix: Tensor of shape (batch_size, n, n) representing symmetric adjacency matrices
 
-    Returns
-    -------
+    Returns:
         Tensor of shape (batch_size, edges) where edges = n*(n-1)/2
 
     Example:
@@ -101,8 +99,7 @@ def get_edge_count(n: int) -> int:
     Args:
         n: Number of vertices
 
-    Returns
-    -------
+    Returns:
         Number of edges = n*(n-1)/2
     """
     return (n * (n - 1)) // 2

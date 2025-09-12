@@ -1,5 +1,4 @@
-"""
-Simple main entry point using minimal Hydra configuration.
+"""Simple main entry point using minimal Hydra configuration.
 
 Usage:
     python main.py                              # Use default config
@@ -17,7 +16,14 @@ import torch
 
 
 def get_device(device_config: str) -> str:
-    """Get the appropriate device based on config and availability."""
+    """Get the appropriate device based on config and availability.
+
+    Args:
+        device_config: Device configuration string ("auto", "cpu", "cuda", "mps")
+
+    Returns:
+        The appropriate device string based on availability
+    """
     if device_config == "auto":
         if torch.cuda.is_available():
             return "cuda"
@@ -36,6 +42,12 @@ def main(cfg: DictConfig) -> dict:
     2. Creates model, problem, algorithm, and logger from config
     3. Runs the optimization
     4. Returns results
+
+    Args:
+        cfg: Hydra configuration dictionary
+
+    Returns:
+        Dictionary containing optimization results
     """
     # Logger
     logger = instantiate(cfg.logger)

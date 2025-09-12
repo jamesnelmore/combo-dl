@@ -6,6 +6,5 @@ from .wagner_corollary_2_1 import WagnerCorollary21
 
 __all__ = ["BaseProblem", "StronglyRegularGraphs", "WagnerCorollary21"]
 
-# TODO add testing
-# TODO add smoke testing
-# TODO set up CI
+# TODO: Add comprehensive unit tests for all problem classes
+# TODO: Add smoke tests to verify basic functionality without full optimization runs

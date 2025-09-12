@@ -39,6 +39,10 @@ class StronglyRegularGraphs(BaseProblem):
             lambda_param: Number of common neighbors for adjacent vertices
             mu: Number of common neighbors for non-adjacent vertices
             srg_params: Tuple of (n, k, lambda_param, mu) - alternative to individual params
+
+        Raises:
+            ValueError: If neither individual parameters nor srg_params tuple is provided,
+                       or if both are provided simultaneously
         """
         if srg_params is not None:
             if n is not None or k is not None or lambda_param is not None or mu is not None:
@@ -71,6 +75,10 @@ class StronglyRegularGraphs(BaseProblem):
         Args:
             x: Either a 2D tensor of shape (batch_size, edges) representing edge vectors,
                or a 3D tensor of shape (batch_size, n, n) representing adjacency matrices.
+
+        Returns:
+            Tensor of shape (batch_size,) with negative squared Frobenius norms.
+            Higher values indicate better SRG compliance.
         """
         batch_size = x.shape[0]
 
@@ -97,8 +105,7 @@ class StronglyRegularGraphs(BaseProblem):
             solution: Either a 2D tensor of shape (batch_size, edges) representing edge vectors,
                      or a 3D tensor of shape (batch_size, n, n) representing adjacency matrices.
 
-        Returns
-        -------
+        Returns:
             Boolean tensor of shape (batch_size, 1): True if valid solution, False otherwise
         """
         A = self._ensure_adjacency_matrix(solution)
@@ -133,10 +140,18 @@ class StronglyRegularGraphs(BaseProblem):
         return adj_matrix
 
     def edges(self) -> int:
-        """Get number of edges for the current graph size."""
+        """Get number of edges for the current graph size.
+
+        Returns:
+            Number of edges in a complete graph with n vertices
+        """
         return (self.n * (self.n - 1)) // 2
 
     @override
     def get_goal_score(self) -> float:
-        """Return the goal score for SRG (perfect SRG has score 0)."""
+        """Return the goal score for SRG (perfect SRG has score 0).
+
+        Returns:
+            Goal score for SRG optimization (0.0 for perfect SRG)
+        """
         return 0.0

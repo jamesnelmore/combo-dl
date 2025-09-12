@@ -41,6 +41,7 @@ where = ["src"]
 line-length = 99
 target-version = "py313"
 src = ["src"]
+preview = true  # Enable preview features for DOC rules
 exclude = [
     "old/**",
     "config_backup/**",
@@ -67,6 +68,7 @@ select = [
     "PL",  # pylint
     "RUF", # ruff-specific rules
     "D",   # pydocstyle - docstring conventions
+    "DOC", # flake8-docstrings
 ]
 
 ignore = [
@@ -74,9 +76,16 @@ ignore = [
     "PLR0915", # Too many statements
     "PLR2004", # Magic value used in comparison
     "ARG002",  # Unused method argument
-    "PTH123",  # `open()` should be replaced by `Path.open()`
+
     "N806",    # Variable names should be lowercase
-    "RET504"   # Unnecessary assign
+    "RET504",  # Unnecessary assign
+    # Docstring exceptions for private methods and __init__
+    "D100",    # Missing docstring in public module
+    "D101",    # Missing docstring in public class (allow for simple classes)
+    "D102",    # Missing docstring in public method (allow for __init__)
+    "D104",    # Missing docstring in public package
+    "D105",    # Missing docstring in magic method
+    "D107",    # Missing docstring in __init__
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -89,7 +98,7 @@ force-sort-within-sections = true
 split-on-trailing-comma = true
 
 [tool.ruff.lint.pydocstyle]
-convention = "numpy"
+convention = "google"
 
 [tool.ruff.format]
 quote-style = "double"

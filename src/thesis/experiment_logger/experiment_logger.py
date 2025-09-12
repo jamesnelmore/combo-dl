@@ -85,8 +85,7 @@ class ExperimentLogger:
     def configure_progress_bar(
         self, postfix_metrics: list[str] | None = None, total_iterations: int | None = None
     ) -> None:
-        """
-        Configure progress bar with algorithm-specific metrics and iteration count.
+        """Configure progress bar with algorithm-specific metrics and iteration count.
 
         This can be called multiple times to reconfigure the progress bar
         with different metrics or iteration counts as needed.
@@ -122,9 +121,8 @@ class ExperimentLogger:
 
     def _log_metrics_wandb(self, metrics: dict[str, Any], current_iteration: int) -> None:
         if not self.use_wandb:
-            return  # TODO add proper linting for docstrings
-            # TODO fix issues with autoformatting
-            # TODO add check that errors for functions without type signatures
+            return
+            # TODO: Add type checking enforcement for functions without type signatures
         assert self.wandb_run is not None
         self.wandb_run.log(metrics, step=current_iteration)
 
@@ -262,7 +260,11 @@ class ExperimentLogger:
         self.log_info(f"Experiment {status}")
 
     def __enter__(self):
-        """Context manager entry - logger is ready to use."""
+        """Context manager entry - logger is ready to use.
+
+        Returns:
+            self: The logger instance
+        """
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
