@@ -50,7 +50,7 @@ def edge_vector_to_adjacency_matrix(edge_vector: torch.Tensor, n: int) -> torch.
     adj_matrices[:, triu_indices[0], triu_indices[1]] = edge_vector
 
     # Make symmetric by copying upper triangular to lower triangular
-    adj_matrices = adj_matrices + adj_matrices.transpose(-1, -2)
+    adj_matrices = adj_matrices + adj_matrices.transpose(-1, -2)  # noqa: PLR6104 To avoid shared memory issues
 
     return adj_matrices
 
@@ -76,7 +76,7 @@ def adjacency_matrix_to_edge_vector(adj_matrix: torch.Tensor) -> torch.Tensor:
          [e03, e13, e23, 0  ]]
         Returns edge vector [e01, e02, e03, e12, e13, e23]
     """
-    batch_size, n, _ = adj_matrix.shape
+    _, n, _ = adj_matrix.shape
     device = adj_matrix.device
 
     # Validate input is square

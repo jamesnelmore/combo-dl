@@ -5,7 +5,7 @@ from typing import override
 import torch
 
 from .base_problem import BaseProblem
-from .edge_utils import edge_vector_to_adjacency_matrix
+from .canonical_edge_mapping import edge_vector_to_adjacency_matrix
 
 
 class StronglyRegularGraphs(BaseProblem):

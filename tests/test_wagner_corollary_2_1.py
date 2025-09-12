@@ -3,7 +3,8 @@
 import networkx as nx
 import torch
 
-from thesis.problems.edge_utils import edge_vector_to_adjacency_matrix
+from thesis.problems.canonical_edge_mapping import edge_vector_to_adjacency_matrix
+from thesis.problems.graph_utils import compute_maximum_matching
 from thesis.problems.wagner_corollary_2_1 import WagnerCorollary21
 
 
@@ -15,7 +16,7 @@ class TestMaximumMatching:
         n = 4
         # Empty graph: all zeros
         adj_matrix = torch.zeros(1, n, n)
-        matching_number = WagnerCorollary21._compute_maximum_matching(adj_matrix)
+        matching_number = compute_maximum_matching(adj_matrix)
 
         assert matching_number.shape == (1,)
         assert matching_number[0] == 0
@@ -26,7 +27,7 @@ class TestMaximumMatching:
         # Complete graph: all ones except diagonal
         adj_matrix = torch.ones(1, n, n)
         adj_matrix[0].fill_diagonal_(0)
-        matching_number = WagnerCorollary21._compute_maximum_matching(adj_matrix)
+        matching_number = compute_maximum_matching(adj_matrix)
 
         # For complete graph K_n, maximum matching is floor(n/2)
         expected = n // 2
@@ -41,7 +42,7 @@ class TestMaximumMatching:
             adj_matrix[0, i, i + 1] = 1
             adj_matrix[0, i + 1, i] = 1
 
-        matching_number = WagnerCorollary21._compute_maximum_matching(adj_matrix)
+        matching_number = compute_maximum_matching(adj_matrix)
 
         # For path P_n, maximum matching is floor(n/2)
         expected = n // 2
@@ -56,7 +57,7 @@ class TestMaximumMatching:
             adj_matrix[0, i, (i + 1) % n] = 1
             adj_matrix[0, (i + 1) % n, i] = 1
 
-        matching_number = WagnerCorollary21._compute_maximum_matching(adj_matrix)
+        matching_number = compute_maximum_matching(adj_matrix)
 
         # For cycle C_n, maximum matching is floor(n/2)
         expected = n // 2
@@ -71,7 +72,7 @@ class TestMaximumMatching:
             adj_matrix[0, 0, i] = 1
             adj_matrix[0, i, 0] = 1
 
-        matching_number = WagnerCorollary21._compute_maximum_matching(adj_matrix)
+        matching_number = compute_maximum_matching(adj_matrix)
 
         # For star graph, maximum matching is 1 (can only match one edge)
         assert matching_number[0] == 1
@@ -92,7 +93,7 @@ class TestMaximumMatching:
         adj_matrix[0, 4, 5] = adj_matrix[0, 5, 4] = 1
         adj_matrix[0, 5, 3] = adj_matrix[0, 3, 5] = 1
 
-        matching_number = WagnerCorollary21._compute_maximum_matching(adj_matrix)
+        matching_number = compute_maximum_matching(adj_matrix)
 
         # Each triangle has maximum matching of 1, total is 2
         assert matching_number[0] == 2
@@ -101,7 +102,7 @@ class TestMaximumMatching:
         """Test maximum matching for single vertex graph."""
         n = 1
         adj_matrix = torch.zeros(1, n, n)
-        matching_number = WagnerCorollary21._compute_maximum_matching(adj_matrix)
+        matching_number = compute_maximum_matching(adj_matrix)
 
         # Single vertex has no edges, so matching is 0
         assert matching_number[0] == 0
@@ -110,7 +111,7 @@ class TestMaximumMatching:
         """Test maximum matching for two disconnected vertices."""
         n = 2
         adj_matrix = torch.zeros(1, n, n)
-        matching_number = WagnerCorollary21._compute_maximum_matching(adj_matrix)
+        matching_number = compute_maximum_matching(adj_matrix)
 
         # No edges, so matching is 0
         assert matching_number[0] == 0
@@ -120,7 +121,7 @@ class TestMaximumMatching:
         n = 2
         adj_matrix = torch.zeros(1, n, n)
         adj_matrix[0, 0, 1] = adj_matrix[0, 1, 0] = 1
-        matching_number = WagnerCorollary21._compute_maximum_matching(adj_matrix)
+        matching_number = compute_maximum_matching(adj_matrix)
 
         # One edge, so matching is 1
         assert matching_number[0] == 1
@@ -143,7 +144,7 @@ class TestMaximumMatching:
             adj_matrices[2, i, i + 1] = 1
             adj_matrices[2, i + 1, i] = 1
 
-        matching_numbers = WagnerCorollary21._compute_maximum_matching(adj_matrices)
+        matching_numbers = compute_maximum_matching(adj_matrices)
 
         assert matching_numbers.shape == (batch_size,)
         assert matching_numbers[0] == 0  # Empty graph
@@ -162,7 +163,7 @@ class TestMaximumMatching:
             adj_matrix[0, 0, 1] = adj_matrix[0, 1, 0] = 1
             adj_matrix[1, 1, 2] = adj_matrix[1, 2, 1] = 1
 
-            matching_number = WagnerCorollary21._compute_maximum_matching(adj_matrix)
+            matching_number = compute_maximum_matching(adj_matrix)
 
             assert matching_number.shape == (batch_size,)
             assert matching_number.dtype == torch.int32
@@ -175,13 +176,13 @@ class TestMaximumMatching:
 
         # Test on CPU
         cpu_matrix = adj_matrix.cpu()
-        cpu_matching = WagnerCorollary21._compute_maximum_matching(cpu_matrix)
+        cpu_matching = compute_maximum_matching(cpu_matrix)
         assert cpu_matching.device.type == "cpu"
 
         # Test on MPS if available
         if torch.backends.mps.is_available():
             mps_matrix = adj_matrix.to("mps")
-            mps_matching = WagnerCorollary21._compute_maximum_matching(mps_matrix)
+            mps_matching = compute_maximum_matching(mps_matrix)
             assert mps_matching.device.type == "mps"
 
     def test_networkx_consistency(self) -> None:
@@ -195,7 +196,7 @@ class TestMaximumMatching:
             adj_matrix[0, i + 1, i] = 1
 
         # Our implementation
-        our_result = WagnerCorollary21._compute_maximum_matching(adj_matrix)
+        our_result = compute_maximum_matching(adj_matrix)
 
         # Direct NetworkX computation
         G = nx.from_numpy_array(adj_matrix[0].numpy())
@@ -215,7 +216,7 @@ class TestMaximumMatching:
         adj_matrix = edge_vector_to_adjacency_matrix(edge_vector, n)
 
         # Compute maximum matching
-        matching_number = WagnerCorollary21._compute_maximum_matching(adj_matrix)
+        matching_number = compute_maximum_matching(adj_matrix)
 
         # Complete graph K_4 should have maximum matching of 2
         assert matching_number[0] == 2
@@ -243,7 +244,7 @@ class TestMaximumMatching:
                     adj_matrix[0, i, i + 1] = 1
                     adj_matrix[0, i + 1, i] = 1
 
-            matching_number = WagnerCorollary21._compute_maximum_matching(adj_matrix)
+            matching_number = compute_maximum_matching(adj_matrix)
             assert matching_number[0] == expected, f"Failed for {graph_type} graph with n={n}"
 
 
