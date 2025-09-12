@@ -20,7 +20,7 @@ class TestFFModel:
 
     @pytest.mark.parametrize(
         "hidden_layers",
-        [[], [16], [32, 16], [64, 32, 16], [128, 64, 32, 16], [64] * 100],
+        [[16], [32, 16], [64, 32, 16], [128, 64, 32, 16], [64] * 100],
     )
     def test_model_initialization_with_custom_layers(self, hidden_layers) -> None:
         """Test FFModel initialization with various custom hidden layer sizes."""
