@@ -34,3 +34,6 @@ __marimo__
 
 .DS_Store
 .coverage
+
+# VS Code
+.vscode/
