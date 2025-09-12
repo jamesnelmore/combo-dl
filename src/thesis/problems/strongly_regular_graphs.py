@@ -7,8 +7,6 @@ import torch
 from .base_problem import BaseProblem
 from .edge_utils import edge_vector_to_adjacency_matrix
 
-# TODO frob norm is deprecated
-
 
 class StronglyRegularGraphs(BaseProblem):
     """Optimization problem for finding strongly regular graphs.
@@ -94,8 +92,7 @@ class StronglyRegularGraphs(BaseProblem):
         residual = A2 + mu_lambda_A + mu_k_I - mu_J
 
         # Return negative of squared Frobenius norm (higher is better, perfect SRG = 0)
-        # dim=(1, 2) specifies the row and column dimension of the matrix
-        return -(torch.frobenius_norm(residual, dim=(1, 2)) ** 2)
+        return -(torch.linalg.norm(residual, ord="fro", dim=(1, 2)) ** 2)
 
     @override
     def is_valid_solution(self, solution: torch.Tensor) -> torch.Tensor:
