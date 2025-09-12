@@ -122,7 +122,6 @@ class ExperimentLogger:
     def _log_metrics_wandb(self, metrics: dict[str, Any], current_iteration: int) -> None:
         if not self.use_wandb:
             return
-            # TODO: Add type checking enforcement for functions without type signatures
         assert self.wandb_run is not None
         self.wandb_run.log(metrics, step=current_iteration)
 

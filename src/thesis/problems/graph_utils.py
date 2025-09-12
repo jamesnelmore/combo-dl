@@ -19,8 +19,6 @@ def compute_largest_eigenvalue(adj_matrix: torch.Tensor) -> torch.Tensor:
     Returns:
         Largest eigenvalue as tensor of shape (batch_size,)
     """
-    # TODO: Find faster binary eigenvalue algorithm, such as power iteration.
-    #  Current implementation converts to float and moves to CPU, which is inefficient.
     original_device = adj_matrix.device
 
     # Convert to float and move to CPU (eigenval computation not supported on MPS)

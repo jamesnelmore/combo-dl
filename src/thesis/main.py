@@ -12,7 +12,9 @@ from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 import torch
 
-# TODO add slurm defaults for each HPC job submission
+# TODO: Add SLURM job defaults configuration for HPC environments
+# This would include common SLURM parameters like time limits, memory, GPU requirements
+# Consider creating a hydra config group for SLURM-specific settings
 
 
 def get_device(device_config: str) -> str:
