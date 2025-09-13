@@ -21,15 +21,15 @@ logger:
   notes: "Searching for a (${n}, ${k}, ${lambda_param}, ${mu})-SRG"
 
 problem:
-  _target_: thesis.problems.StronglyRegularGraphs
+  _target_: combo_dl.problems.StronglyRegularGraphs
   srg_params: ${srg_params}
 
 model:
-  _target_: thesis.models.wagner_model.WagnerModel
+  _target_: combo_dl.models.wagner_model.WagnerModel
   n: ${n}
 
 algorithm:
-  _target_: thesis.algorithms.deep_cross_entropy.WagnerDeepCrossEntropy
+  _target_: combo_dl.algorithms.deep_cross_entropy.WagnerDeepCrossEntropy
   iterations: 1000
   batch_size: 8192
   learning_rate: 0.001

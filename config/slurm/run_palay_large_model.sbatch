@@ -26,4 +26,4 @@ export CUDA_VISIBLE_DEVICES=0
 cd ${PWD}
 
 # Run the experiment
-python src/thesis/main.py --config-name palay_large_model
+python src/combo_dl/main.py --config-name palay_large_model

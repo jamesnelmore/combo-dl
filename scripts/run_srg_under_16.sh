@@ -37,7 +37,7 @@ for i in "${!PARAM_SETS[@]}"; do
     echo "----------------------------------------"
     
     # Run the job
-    python -m thesis.main \
+    python -m combo_dl.main \
         --config-name="$CONFIG_NAME" \
         "srg_params=$params"
     

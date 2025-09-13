@@ -3,9 +3,9 @@
 import networkx as nx
 import torch
 
-from thesis.problems.canonical_edge_mapping import edge_vector_to_adjacency_matrix
-from thesis.problems.graph_utils import compute_maximum_matching
-from thesis.problems.wagner_corollary_2_1 import WagnerCorollary21
+from combo_dl.problems.canonical_edge_mapping import edge_vector_to_adjacency_matrix
+from combo_dl.problems.graph_utils import compute_maximum_matching
+from combo_dl.problems.wagner_corollary_2_1 import WagnerCorollary21
 
 
 class TestMaximumMatching:

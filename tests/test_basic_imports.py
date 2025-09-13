@@ -2,19 +2,19 @@
 
 import torch
 
-import thesis
-from thesis.algorithms import WagnerDeepCrossEntropy
-from thesis.experiment_logger import ExperimentLogger
-from thesis.models import FFModel
-from thesis.problems import StronglyRegularGraphs, WagnerCorollary21
+import combo_dl
+from combo_dl.algorithms import WagnerDeepCrossEntropy
+from combo_dl.experiment_logger import ExperimentLogger
+from combo_dl.models import FFModel
+from combo_dl.problems import StronglyRegularGraphs, WagnerCorollary21
 
 
 class TestBasicImports:
     """Test that all major components can be imported and instantiated."""
 
-    def test_import_thesis_package(self) -> None:
+    def test_import_combo_dl_package(self) -> None:
         """Test that the main package can be imported."""
-        assert hasattr(thesis, "__version__") or True  # Version may not be defined
+        assert hasattr(combo_dl, "__version__") or True  # Version may not be defined
 
     def test_problem_classes_can_be_created(self) -> None:
         """Test that problem classes can be instantiated."""

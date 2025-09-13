@@ -12,15 +12,15 @@ logger:
   notes: "Testing Wagner Corollary 2.1 with n=${n} and original model from the paper"
 
 problem:
-  _target_: thesis.problems.wagner_corollary_2_1.WagnerCorollary21
+  _target_: combo_dl.problems.wagner_corollary_2_1.WagnerCorollary21
   n: ${n}
 
 model:
-  _target_: thesis.models.wagner_model.WagnerModel
+  _target_: combo_dl.models.wagner_model.WagnerModel
   n: ${n}
 
 algorithm:
-  _target_: thesis.algorithms.deep_cross_entropy.WagnerDeepCrossEntropy
+  _target_: combo_dl.algorithms.deep_cross_entropy.WagnerDeepCrossEntropy
   iterations: 500
   batch_size: 32
   learning_rate: 0.001

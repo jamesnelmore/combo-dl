@@ -26,16 +26,16 @@ logger:
   notes: "Search for (${srg_params.0},${srg_params.1},${srg_params.2},${srg_params.3})-SRG from Andries Brouwer's table"
 
 problem:
-  _target_: thesis.problems.StronglyRegularGraphs
+  _target_: combo_dl.problems.StronglyRegularGraphs
   srg_params: ${srg_params}
 
 model:
-  _target_: thesis.models.FFModel
+  _target_: combo_dl.models.FFModel
   n: ${srg_params.0}
   hidden_layer_sizes: [512, 128, 128, 128, 64, 16]
 
 algorithm:
-  _target_: thesis.algorithms.deep_cross_entropy.WagnerDeepCrossEntropy
+  _target_: combo_dl.algorithms.deep_cross_entropy.WagnerDeepCrossEntropy
   iterations: 10
   batch_size: 8192
   learning_rate: 0.001

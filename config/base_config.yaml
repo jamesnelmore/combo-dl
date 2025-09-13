@@ -8,10 +8,10 @@ device: auto  # auto, cpu, cuda, mps
 experiment_name: null
 
 logger:
-  _target_: thesis.experiment_logger.ExperimentLogger
+  _target_: combo_dl.experiment_logger.ExperimentLogger
   experiment_name: ${experiment_name}
   use_progress_bar: true
-  project: undergraduate-thesis
+  project: combo-dl
   entity: null
   wandb_mode: online # "online", "offline", "disabled"
   api_key: null

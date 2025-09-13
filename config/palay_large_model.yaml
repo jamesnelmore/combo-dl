@@ -17,19 +17,19 @@ logger:
   notes: "Searching for a (${n}, ${k}, ${lambda_param}, ${mu})-SRG"
 
 problem:
-  _target_: thesis.problems.StronglyRegularGraphs
+  _target_: combo_dl.problems.StronglyRegularGraphs
   n: ${n}
   k: ${k}
   lambda_param: ${lambda_param}
   mu: ${mu}
 
 model:
-  _target_: thesis.models.FFModel
+  _target_: combo_dl.models.FFModel
   n: ${n}
   hidden_layer_sizes: [512, 256, 128, 64, 16]
 
 algorithm:
-  _target_: thesis.algorithms.deep_cross_entropy.WagnerDeepCrossEntropy
+  _target_: combo_dl.algorithms.deep_cross_entropy.WagnerDeepCrossEntropy
   iterations: 5000
   batch_size: 32384
   learning_rate: 0.001

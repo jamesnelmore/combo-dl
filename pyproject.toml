@@ -1,5 +1,5 @@
 [project]
-name = "Combo DL"
+name = "combo-dl"
 version = "0.1.0"
 description = "Graph optimization using deep learning"
 readme = "README.md"
@@ -106,7 +106,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["thesis"]
+known-first-party = ["combo_dl"]
 force-sort-within-sections = true
 split-on-trailing-comma = true
 
@@ -120,7 +120,7 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [tool.pyright]
-include = ["src/thesis/"]
+include = ["src/combo_dl/"]
 exclude = ["**/__pycache__", "**/.venv", "**/venv"]
 pythonVersion = "3.13"
 typeCheckingMode = "basic"

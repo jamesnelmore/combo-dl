@@ -30,7 +30,7 @@ class ExperimentLogger:
     def __init__(
         self,
         experiment_name: str | None = None,
-        project: str = "undergrad-thesis",
+        project: str = "combo-dl",
         wandb_mode: Literal["online", "offline", "disabled"] = "online",
         api_key: str | None = None,
         use_progress_bar: bool = True,
