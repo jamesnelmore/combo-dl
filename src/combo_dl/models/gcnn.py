@@ -1,4 +1,7 @@
+from typing import override
+
 import torch
+from torch import nn
 from torch.nn import functional
 from torch_geometric import nn as gnn
 from torch_geometric.nn import GATConv
@@ -32,6 +35,7 @@ class GCNN(nn.Module):
         # Separate PyTorch layer for final classification
         self.classifier = torch.nn.Linear(channel_sizes[-1], num_classes)
 
+    @override
     def forward(self, data) -> torch.Tensor:
         """Forward pass through the GCNN.
 
