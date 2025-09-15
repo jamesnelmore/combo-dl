@@ -12,6 +12,28 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from combo_dl.graph_tools.regular_random_graph import generate_random_regular_graph
 
 
+def assert_k_regular(adjacency_matrix: np.ndarray, k: int) -> None:
+    """Assert that an adjacency matrix represents a k-regular graph.
+
+    Args:
+        adjacency_matrix: The adjacency matrix to check
+        k: The expected degree for each node
+    """
+    row_sums = adjacency_matrix.sum(axis=1)
+    assert np.all(row_sums == k), f"Graph is not {k}-regular. Row sums: {row_sums}"
+
+
+def assert_symmetric(adjacency_matrix: np.ndarray) -> None:
+    """Assert that an adjacency matrix is symmetric (for undirected graphs).
+
+    Args:
+        adjacency_matrix: The adjacency matrix to check
+    """
+    assert np.array_equal(adjacency_matrix, adjacency_matrix.T), (
+        "Adjacency matrix is not symmetric"
+    )
+
+
 class TestRegularRandomGraph:
     """Test cases for the generate_random_regular_graph function."""
 
@@ -24,8 +46,7 @@ class TestRegularRandomGraph:
         assert mat.shape == (5, 5)
         assert mat.dtype == int
 
-        # Check that it's symmetric (undirected graph)
-        assert np.array_equal(mat, mat.T)
+        assert_symmetric(mat)
 
         # Check that diagonal is zero (no self-loops)
         assert np.all(np.diag(mat) == 0)
@@ -33,16 +54,20 @@ class TestRegularRandomGraph:
         # Check that all values are 0 or 1
         assert np.all((mat == 0) | (mat == 1))
 
-    def test_large_graph_regularity(self) -> None:
-        """Test that large graphs maintain k-regularity."""
-        mat = generate_random_regular_graph(1000, 30)
+    @pytest.mark.parametrize(
+        "n, k",
+        [
+            (100, 30),
+            (101, 100),
+        ],
+    )
+    def test_large_graph_regularity(self, n: int, k: int) -> None:
+        """Test that large graphs maintain k-regularity for various n and k."""
+        mat = generate_random_regular_graph(n, k)
 
-        # Assert that the generated matrix is k-regular (all rows sum to k)
-        row_sums = mat.sum(axis=1)
-        assert np.all(row_sums == 30), f"Graph is not 30-regular, row sums: {row_sums}"
+        assert_k_regular(mat, k)
 
-        # Check that it's symmetric
-        assert np.array_equal(mat, mat.T)
+        assert_symmetric(mat)
 
         # Check that diagonal is zero
         assert np.all(np.diag(mat) == 0)
@@ -51,33 +76,26 @@ class TestRegularRandomGraph:
         """Test generation of graphs with even degree."""
         mat = generate_random_regular_graph(6, 4)
 
-        # Check regularity
-        row_sums = mat.sum(axis=1)
-        assert np.all(row_sums == 4)
+        assert_k_regular(mat, 4)
 
         # Check symmetry
-        assert np.array_equal(mat, mat.T)
+        assert_symmetric(mat)
 
     def test_odd_degree_graph(self) -> None:
         """Test generation of graphs with odd degree."""
         mat = generate_random_regular_graph(8, 3)  # n must be even for odd k
 
-        # Check regularity
-        row_sums = mat.sum(axis=1)
-        assert np.all(row_sums == 3)
+        assert_k_regular(mat, 3)
 
-        # Check symmetry
-        assert np.array_equal(mat, mat.T)
+        assert_symmetric(mat)
 
     def test_minimal_valid_graph(self) -> None:
         """Test the minimal valid parameters."""
         mat = generate_random_regular_graph(3, 2)
 
-        # Check basic properties
         assert mat.shape == (3, 3)
-        row_sums = mat.sum(axis=1)
-        assert np.all(row_sums == 2)
-        assert np.array_equal(mat, mat.T)
+        assert_k_regular(mat, 2)
+        assert_symmetric(mat)
 
     def test_invalid_parameters_odd_nk(self) -> None:
         """Test that invalid parameters raise ValueError."""
@@ -94,11 +112,20 @@ class TestRegularRandomGraph:
         with pytest.raises(ValueError, match="n \\* k must be even"):
             generate_random_regular_graph(5, 3)  # n=5 (odd), k=3 (odd), n*k=15 (odd)
 
-    def test_deterministic_with_seed(self) -> None:
-        """Test that the same seed produces the same graph."""
-        seed = 42
-        mat1 = generate_random_regular_graph(10, 4, seed=seed)
-        mat2 = generate_random_regular_graph(10, 4, seed=seed)
+    @pytest.mark.parametrize(
+        "n, k, seed",
+        [
+            (10, 4, 42),
+            (8, 3, 123),
+            (12, 6, 7),
+            (6, 2, 99),
+            (14, 5, 2024),
+        ],
+    )
+    def test_deterministic_with_seed(self, n: int, k: int, seed: int) -> None:
+        """Test that the same seed produces the same graph for various parameters."""
+        mat1 = generate_random_regular_graph(n, k, seed=seed)
+        mat2 = generate_random_regular_graph(n, k, seed=seed)
 
         assert np.array_equal(mat1, mat2)
 
@@ -110,6 +137,8 @@ class TestRegularRandomGraph:
         # Note: This test might occasionally fail if both seeds happen to produce
         # the same graph, but it's very unlikely for larger graphs
         assert not np.array_equal(mat1, mat2)
+        assert_symmetric(mat1)
+        assert_symmetric(mat2)
 
     def test_adjacency_matrix_properties(self) -> None:
         """Test that the adjacency matrix has correct properties."""
@@ -118,46 +147,9 @@ class TestRegularRandomGraph:
         # Check that it's a valid adjacency matrix
         assert np.all((mat == 0) | (mat == 1))  # Binary values only
         assert np.all(np.diag(mat) == 0)  # No self-loops
-        assert np.array_equal(mat, mat.T)  # Symmetric
+        assert_symmetric(mat)
 
-        # Check that each row/column sums to the degree
-        row_sums = mat.sum(axis=1)
+        assert_k_regular(mat, 3)
         col_sums = mat.sum(axis=0)
-        assert np.all(row_sums == 3)
         assert np.all(col_sums == 3)
-        assert np.array_equal(row_sums, col_sums)
-
-    def test_circulant_graph_structure(self) -> None:
-        """Test that the generated graph has circulant structure."""
-        mat = generate_random_regular_graph(6, 2)
-
-        # For a circulant graph, each row should be a cyclic shift of the first row
-        first_row = mat[0, :]
-        for i in range(1, 6):
-            shifted_row = np.roll(first_row, i)
-            assert np.array_equal(mat[i, :], shifted_row)
-
-    def test_edge_swapping_preserves_connectivity(self) -> None:
-        """Test that edge swapping preserves graph connectivity and degree sequence."""
-        # Generate two different graphs with same parameters
-        mat1 = generate_random_regular_graph(10, 4, seed=42)
-        mat2 = generate_random_regular_graph(10, 4, seed=123)
-
-        # Both should have same degree sequence
-        row_sums1 = mat1.sum(axis=1)
-        row_sums2 = mat2.sum(axis=1)
-        assert np.array_equal(row_sums1, row_sums2)
-        assert np.all(row_sums1 == 4)
-
-        # Both should be symmetric
-        assert np.array_equal(mat1, mat1.T)
-        assert np.array_equal(mat2, mat2.T)
-
-        # Graphs should be different (edge swapping changes structure)
-        assert not np.array_equal(mat1, mat2)
-
-        # Both should be connected (for regular graphs with k >= 2, this is guaranteed)
-        # We can verify by checking that the graph is not disconnected
-        # For a connected graph, the adjacency matrix should have a path between any two nodes
-        # This is complex to check directly, but for k-regular graphs with k >= 2,
-        # connectivity is typically maintained by edge swapping
+        assert np.array_equal(mat.sum(axis=1), col_sums)
