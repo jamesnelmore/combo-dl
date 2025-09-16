@@ -4,4 +4,6 @@ This module contains Gymnasium environments for various graph optimization probl
 Currently includes environments for inverse eigenvalue problems and graph construction.
 """
 
-__all__ = []
+from .edge_swap_env import RegularEdgeSwapEnv
+
+__all__ = ["RegularEdgeSwapEnv"]

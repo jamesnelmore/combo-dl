@@ -64,8 +64,10 @@ def _swap_edges(edge_list: np.ndarray, n: int, seed: int | None = None) -> np.nd
     return edge_list
 
 
-def generate_random_regular_graph(n: int, k: int, seed: int | None = None) -> np.ndarray:
-    """Generate a k-regular random graph with n nodes using circulant graph and edge swapping.
+def gen_random_regular_graph(
+    n: int, k: int, seed: int | None = None
+) -> tuple[np.ndarray, np.ndarray]:
+    """Generate a k-regular random graph by generating a circulant graph and swapping edges.
 
     Args:
         n: Number of nodes in the graph
@@ -73,7 +75,7 @@ def generate_random_regular_graph(n: int, k: int, seed: int | None = None) -> np
         seed: Random seed for reproducibility (optional)
 
     Returns:
-        Adjacency matrix of the generated graph as numpy array
+        Adjacency matrix, edge list
 
     Raises:
         ValueError: If k-regularity is infeasible for the given parameter set
@@ -91,7 +93,7 @@ def generate_random_regular_graph(n: int, k: int, seed: int | None = None) -> np
         offsets = [*list(range(1, r + 1)), m]
 
     circulant: nx.Graph = nx.circulant_graph(n, offsets)
-    edge_list = np.array(list(circulant.edges()))
+    edge_list = np.array(list(circulant.edges()), dtype=np.int32)
 
     final_edge_list = _swap_edges(edge_list, n, seed)
     A = np.zeros(shape=(n, n), dtype=int)
@@ -101,7 +103,7 @@ def generate_random_regular_graph(n: int, k: int, seed: int | None = None) -> np
     A[final_edge_list[:, 0], final_edge_list[:, 1]] = 1
     A[final_edge_list[:, 1], final_edge_list[:, 0]] = 1
 
-    return A
+    return A, final_edge_list
 
 
 if __name__ == "__main__":

@@ -16,6 +16,7 @@ class StronglyRegularGraphs(BaseProblem):
     pair of non-adjacent vertices has μ common neighbors.
     """
 
+    # TODO add feasibility checks in initialization
     n: int
     k: int
     lambda_param: int

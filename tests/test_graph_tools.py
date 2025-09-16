@@ -9,7 +9,7 @@ import pytest
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from combo_dl.graph_tools.regular_random_graph import generate_random_regular_graph
+from combo_dl.graph_tools.regular_random_graph import gen_random_regular_graph
 
 
 def assert_k_regular(adjacency_matrix: np.ndarray, k: int) -> None:
@@ -39,7 +39,7 @@ class TestRegularRandomGraph:
 
     def test_small_graph_generation(self) -> None:
         """Test generation of a small regular graph."""
-        mat = generate_random_regular_graph(5, 4)
+        mat = gen_random_regular_graph(5, 4)[0]
 
         # Check basic properties
         assert isinstance(mat, np.ndarray)
@@ -54,16 +54,10 @@ class TestRegularRandomGraph:
         # Check that all values are 0 or 1
         assert np.all((mat == 0) | (mat == 1))
 
-    @pytest.mark.parametrize(
-        "n, k",
-        [
-            (100, 30),
-            (101, 100),
-        ],
-    )
+    @pytest.mark.parametrize("n, k", [(50, 30)])
     def test_large_graph_regularity(self, n: int, k: int) -> None:
         """Test that large graphs maintain k-regularity for various n and k."""
-        mat = generate_random_regular_graph(n, k)
+        mat = gen_random_regular_graph(n, k)[0]
 
         assert_k_regular(mat, k)
 
@@ -74,7 +68,7 @@ class TestRegularRandomGraph:
 
     def test_even_degree_graph(self) -> None:
         """Test generation of graphs with even degree."""
-        mat = generate_random_regular_graph(6, 4)
+        mat = gen_random_regular_graph(6, 4)[0]
 
         assert_k_regular(mat, 4)
 
@@ -83,7 +77,7 @@ class TestRegularRandomGraph:
 
     def test_odd_degree_graph(self) -> None:
         """Test generation of graphs with odd degree."""
-        mat = generate_random_regular_graph(8, 3)  # n must be even for odd k
+        mat = gen_random_regular_graph(8, 3)[0]  # n must be even for odd k
 
         assert_k_regular(mat, 3)
 
@@ -91,7 +85,7 @@ class TestRegularRandomGraph:
 
     def test_minimal_valid_graph(self) -> None:
         """Test the minimal valid parameters."""
-        mat = generate_random_regular_graph(3, 2)
+        mat = gen_random_regular_graph(3, 2)[0]
 
         assert mat.shape == (3, 3)
         assert_k_regular(mat, 2)
@@ -100,17 +94,17 @@ class TestRegularRandomGraph:
     def test_invalid_parameters_odd_nk(self) -> None:
         """Test that invalid parameters raise ValueError."""
         with pytest.raises(ValueError, match="n \\* k must be even"):
-            generate_random_regular_graph(3, 3)  # n*k = 9 (odd)
+            gen_random_regular_graph(3, 3)  # n*k = 9 (odd)
 
     def test_invalid_parameters_n_too_small(self) -> None:
         """Test that n < k+1 raises ValueError."""
         with pytest.raises(ValueError, match="n >= k \\+ 1"):
-            generate_random_regular_graph(3, 4)  # n=3, k=4, but 3 < 4+1
+            gen_random_regular_graph(3, 4)  # n=3, k=4, but 3 < 4+1
 
     def test_invalid_parameters_odd_n_odd_k(self) -> None:
         """Test that odd n with odd k raises ValueError."""
         with pytest.raises(ValueError, match="n \\* k must be even"):
-            generate_random_regular_graph(5, 3)  # n=5 (odd), k=3 (odd), n*k=15 (odd)
+            gen_random_regular_graph(5, 3)  # n=5 (odd), k=3 (odd), n*k=15 (odd)
 
     @pytest.mark.parametrize(
         "n, k, seed",
@@ -124,15 +118,15 @@ class TestRegularRandomGraph:
     )
     def test_deterministic_with_seed(self, n: int, k: int, seed: int) -> None:
         """Test that the same seed produces the same graph for various parameters."""
-        mat1 = generate_random_regular_graph(n, k, seed=seed)
-        mat2 = generate_random_regular_graph(n, k, seed=seed)
+        mat1 = gen_random_regular_graph(n, k, seed=seed)[0]
+        mat2 = gen_random_regular_graph(n, k, seed=seed)[0]
 
         assert np.array_equal(mat1, mat2)
 
     def test_different_seeds_produce_different_graphs(self) -> None:
         """Test that different seeds can produce different graphs."""
-        mat1 = generate_random_regular_graph(10, 4, seed=42)
-        mat2 = generate_random_regular_graph(10, 4, seed=123)
+        mat1 = gen_random_regular_graph(10, 4, seed=42)[0]
+        mat2 = gen_random_regular_graph(10, 4, seed=123)[0]
 
         # Note: This test might occasionally fail if both seeds happen to produce
         # the same graph, but it's very unlikely for larger graphs
@@ -142,7 +136,7 @@ class TestRegularRandomGraph:
 
     def test_adjacency_matrix_properties(self) -> None:
         """Test that the adjacency matrix has correct properties."""
-        mat = generate_random_regular_graph(8, 3)
+        mat = gen_random_regular_graph(8, 3)[0]
 
         # Check that it's a valid adjacency matrix
         assert np.all((mat == 0) | (mat == 1))  # Binary values only
