@@ -529,7 +529,7 @@ class TestStableBaselinesIntegration:
 
             # Verify action shape is correct
             assert action.shape == (2, 2), f"Expected action shape (2, 2), got {action.shape}"
-            assert action.dtype == np.int32 or action.dtype == np.int64, (
+            assert action.dtype in {np.int32, np.int64}, (
                 f"Expected integer action type, got {action.dtype}"
             )
 
