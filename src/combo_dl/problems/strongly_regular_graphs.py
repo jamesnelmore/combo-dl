@@ -153,3 +153,13 @@ class StronglyRegularGraphs(BaseProblem):
             Goal score for SRG optimization (0.0 for perfect SRG)
         """
         return 0.0
+
+    @classmethod
+    def peterson_graph_problem(cls) -> "StronglyRegularGraphs":
+        """Returns a problem to find a (10, 3, 0, 1) SRG."""
+        return StronglyRegularGraphs(10, 3, 0, 1)
+
+    @classmethod
+    def paley_17_graph_problem(cls) -> "StronglyRegularGraphs":
+        """Returns a problem to find a (17, 8, 3, 4) SRG."""
+        return StronglyRegularGraphs(17, 8, 3, 4)

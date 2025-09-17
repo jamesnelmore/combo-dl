@@ -9,8 +9,25 @@ import pytest
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from combo_dl.environments.edge_swap_env import RegularEdgeSwapEnv, _mask_actions
+from combo_dl.environments.edge_swap_env import (
+    RegularEdgeSwapEnv,
+    _mask_actions,
+    _perform_cross_swap_inplace,
+    _perform_parallel_swap_inplace,
+)
 from combo_dl.problems import StronglyRegularGraphs
+
+
+def assert_arrays_equal_with_debug(actual, expected, name="array"):
+    """Assert arrays are equal with detailed debug output."""
+    if not np.array_equal(actual, expected):
+        print(f"\n{name} mismatch:")
+        print(f"Expected:\n{expected}")
+        print(f"Actual:\n{actual}")
+        print(f"Diff:\n{expected - actual}")
+        print(f"Shape - Expected: {expected.shape}, Actual: {actual.shape}")
+        print(f"Data types - Expected: {expected.dtype}, Actual: {actual.dtype}")
+    np.testing.assert_array_equal(actual, expected)
 
 
 @pytest.fixture
@@ -86,14 +103,14 @@ class TestRegularEdgeSwapEnv:
         test_actions = np.ones_like(adj)
         test_actions = _mask_actions(test_actions, edge_list, adj)
 
-        # Pretty print the mask for debugging
-        print("Mask after _mask_actions:")
-        print(test_actions[0])  # mask is (1, 4, 4), print the first batch
+        # Debug output if assertion fails
+        if not np.array_equal(test_actions, correct_actions):
+            print("\nMask mismatch:")
+            print(f"Expected:\n{correct_actions[0]}")
+            print(f"Actual:\n{test_actions[0]}")
+            print(f"Diff:\n{correct_actions[0] - test_actions[0]}")
 
-        print("Expected mask")
-        print(correct_actions[0])
-
-        assert np.array_equal(test_actions, correct_actions)
+        np.testing.assert_array_equal(test_actions, correct_actions)
 
     def test_mask_action_ai(self, peterson_env):
         """Test that action masking correctly identifies invalid edge swaps."""
@@ -123,3 +140,67 @@ class TestRegularEdgeSwapEnv:
         # - Upper (i<j): parallel swap (x,y),(u,v) -> (x,u),(y,v)
         # - Lower (i>j): cross swap (x,y),(u,v) -> (x,v),(y,u)
         # So symmetry doesn't hold - they're different operations
+
+    def test_parallel_edge_swap(self):
+        # fmt: off
+        two_cycle_edge_list = np.array(
+            [[0, 1],
+             [1, 2],
+             [2, 3],
+             [0, 3]])
+        two_cycle_adj = np.array(
+            [[0, 1, 0, 1],
+             [1, 0, 1, 0],
+             [0, 1, 0, 1],
+             [1, 0, 1, 0]])
+
+        expected_edge_list = np.array(
+            [[0, 2],
+             [1, 2],
+             [1, 3],
+             [0, 3]])
+        expected_adj = np.array(
+            [[0, 0, 1, 1],
+             [0, 0, 1, 1],
+             [1, 1, 0, 0],
+             [1, 1, 0, 0]])
+        # fmt: on
+
+        i, j = 0, 2  # Parallel swap (0,1), (2,3) -> (0,2), (1,3)
+        _perform_parallel_swap_inplace(i, j, two_cycle_adj, two_cycle_edge_list)
+
+        np.testing.assert_array_equal(two_cycle_edge_list, expected_edge_list)
+        print("Edge lists are identical")
+        np.testing.assert_array_equal(two_cycle_adj, expected_adj)
+
+    def test_cross_edge_swap(self):
+        # fmt: off
+        two_cycle_edge_list = np.array(
+            [[0, 1],
+             [1, 2],
+             [2, 3],
+             [0, 3]])
+        two_cycle_adj = np.array(
+            [[0, 1, 0, 1],
+             [1, 0, 1, 0],
+             [0, 1, 0, 1],
+             [1, 0, 1, 0]])
+
+        expected_edge_list = np.array(
+            [[0, 1],
+             [1, 3],
+             [2, 3],
+             [0, 2]])
+        expected_adj = np.array(
+            [[0, 1, 1, 0],
+             [1, 0, 0, 1],
+             [1, 0, 0, 1],
+             [0, 1, 1, 0]])
+        # fmt: on
+
+        i, j = 1, 3  # Cross swap (1, 2), (0, 3) -> (1, 3), (0, 2)
+        _perform_cross_swap_inplace(i, j, two_cycle_adj, two_cycle_edge_list)
+
+        np.testing.assert_array_equal(two_cycle_edge_list, expected_edge_list)
+        print("Edge lists are identical")
+        np.testing.assert_array_equal(two_cycle_adj, expected_adj)

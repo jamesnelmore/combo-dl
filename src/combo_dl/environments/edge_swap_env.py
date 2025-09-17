@@ -45,6 +45,12 @@ class RegularEdgeSwapEnv(gym.Env):
         })
         self.node_indices = torch.arange(n)
 
+        # Conceptually the action space is 2 edges and whether to cross swap or parallel swap them.
+        # Each swap type is commutative, so this could be represented by the upper and lower triangles
+        # of a num_edges x num_edges matrix, where a self swap is always illegal so the diagonal doesn't matter,
+        # or something else.
+        self.action_space = gym.spaces.MultiDiscrete([self.num_edges, self.num_edges])
+
     @override
     def reset(self, seed: int | None = None, options: dict | None = None) -> tuple[dict, dict]:  # pyright: ignore[reportIncompatibleMethodOverride]
         super().reset(seed=seed)
@@ -62,6 +68,10 @@ class RegularEdgeSwapEnv(gym.Env):
     def _get_info(self) -> dict:  # noqa: PLR6301 | Will get real info eventually
         return {}
 
+    def _should_terminate(self) -> bool: ...  # TODO
+
+    def _should_truncate(self) -> bool: ...  # TODO
+
     def _calculate_reward(self) -> float:
         adj_torch = torch.from_numpy(self.adj).unsqueeze(0)
         return float(self.problem.reward(adj_torch).item())
@@ -70,6 +80,99 @@ class RegularEdgeSwapEnv(gym.Env):
 
     def _mask_actions(self, actions: np.ndarray) -> np.ndarray:
         return _mask_actions(actions, self.edge_list, self.adj)
+
+    @override
+    def step(self, action: np.ndarray) -> tuple[dict, float, bool, bool, dict]:
+        """Execute one swap on the current graph.
+
+        Args:
+            action: Integer of shape (2,) containing [i,j] where:
+                - i, j are edge indices
+                - If i > j, perform parallel swap
+                - If i < j, perform cross swap
+                - If i == j, invalid action/null swap
+
+        Returns:
+            observation, reward, terminated, truncated, info
+        """
+        i, j = int(action[0]), int(action[1])  # TODO handle invalid shape
+        if i == j:
+            reward = -1.0
+            # TODO info about failed action
+
+        if i > j:
+            success = _perform_parallel_swap_inplace(i, j, self.adj, self.edge_list)
+        else:
+            success = _perform_cross_swap_inplace(i, j, self.adj, self.edge_list)
+
+        reward = float(self.problem.reward(torch.from_numpy(self.adj).unsqueeze(0))[0])
+
+        return (
+            self._get_obs(),
+            reward,
+            self._should_terminate(),
+            self._should_truncate(),
+            self._get_info(),
+        )
+
+
+def _perform_parallel_swap_inplace(i: int, j: int, adj: np.ndarray, edges: np.ndarray) -> None:
+    r"""Performs a parallel edge swap on the adjacency matrix adj and edge list edges.
+
+    A parallel edge swap is defined as
+    .. math::
+        (x, y), (u, v) \\rightarrow (x, u), (y, v)
+
+    This function does no checks to ensure the swap does not create a loop or duplicate edge.
+
+    Args:
+        i: index of first edge to swap
+        j: index of second edge to swap
+        adj: adjacency matrix to mutate
+        edges: edge list to mutate
+    """
+    # Swap edge list
+    # (x,y), (u,v) -> (x, u), (y,v)
+
+    x, y = edges[i, 0], edges[i, 1]
+    u, v = edges[j, 0], edges[j, 1]
+
+    edges[i] = np.array([min(x, u), max(x, u)])  # (x,y) -> (x,y) [properly sorted]
+    edges[j] = np.array([min(y, v), max(y, v)])  # (u,v) -> (y,v) [properly sorted]
+
+    # Swap Adjacency Matrix
+    adj[x, y] = adj[y, x] = 0
+    adj[u, v] = adj[v, u] = 0
+    adj[x, u] = adj[u, x] = 1
+    adj[y, v] = adj[v, y] = 1
+
+
+def _perform_cross_swap_inplace(i: int, j: int, adj: np.ndarray, edges: np.ndarray) -> None:
+    r"""Performs a cross edge swap on the adjacency matrix adj and edge list edges.
+
+    A cross edge swap is defined as
+    .. math::
+        (x, y), (u, v) \\rightarrow (x, v), (y, u)
+
+    This function does no checks to ensure the swap does not create a loop or duplicate edge.
+
+    Args:
+        i: index of first edge to swap
+        j: index of second edge to swap
+        adj: adjacency matrix to mutate
+        edges: edge list to mutate
+    """
+    x, y = edges[i, 0], edges[i, 1]
+    u, v = edges[j, 0], edges[j, 1]
+
+    edges[i] = np.array([min(x, v), max(x, v)])  # (x,y) -> (x,v) [properly sorted]
+    edges[j] = np.array([min(y, u), max(y, u)])  # (u,v) -> (y,u) [properly sorted]
+
+    # Swap Adjacency Matrix
+    adj[x, y] = adj[y, x] = 0
+    adj[u, v] = adj[v, u] = 0
+    adj[x, v] = adj[v, x] = 1
+    adj[y, u] = adj[u, y] = 1
 
 
 def _edge_exists(adj: np.ndarray, edge: np.ndarray) -> bool:
