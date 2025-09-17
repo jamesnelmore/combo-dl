@@ -83,11 +83,16 @@ class StronglyRegularGraphs(BaseProblem):
 
         A = self._ensure_adjacency_matrix(x)
 
-        A2 = A @ A
-        mu_lambda_A = (self.mu - self.lambda_param) * A
-        I = torch.eye(self.n, device=A.device, dtype=A.dtype).expand(batch_size, -1, -1)  # noqa: E741
+        # Convert to float only for numerical operations
+        A_float = A.float()
+
+        A2 = A_float @ A_float
+        mu_lambda_A = (self.mu - self.lambda_param) * A_float
+        I = torch.eye(self.n, device=A.device, dtype=torch.float32).expand(batch_size, -1, -1)  # noqa: E741
         mu_k_I = (self.mu - self.k) * I
-        mu_J = self.mu * torch.ones(batch_size, self.n, self.n, device=x.device, dtype=x.dtype)
+        mu_J = self.mu * torch.ones(
+            batch_size, self.n, self.n, device=x.device, dtype=torch.float32
+        )
 
         # A^2 + (μ - λ)A + (μ - k)I - μJ
         residual = A2 + mu_lambda_A + mu_k_I - mu_J

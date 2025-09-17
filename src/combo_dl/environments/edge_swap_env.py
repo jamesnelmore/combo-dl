@@ -15,7 +15,18 @@ from combo_dl.problems import BaseProblem
 
 
 class RegularEdgeSwapEnv(gym.Env):
-    def __init__(self, problem: BaseProblem, n: int, k: int):
+    def __init__(self, problem: BaseProblem, n: int, k: int, max_steps: int | None = None):
+        """Initialize RegularEdgeSwapEnv for k-regular graphs.
+
+        Args:
+            problem: The optimization problem to solve
+            n: Number of vertices in the graph
+            k: Degree of each vertex (regularity)
+            max_steps: Maximum number of steps per episode. Defaults to 2*n*k
+
+        Raises:
+            ValueError: If n or k are invalid, or if n*k is odd, or if n < k+1
+        """
         super().__init__()
         self.problem = problem
 
@@ -30,6 +41,19 @@ class RegularEdgeSwapEnv(gym.Env):
             raise ValueError("n must be greater than or equal to k + 1")
         self.k = k
         self.num_edges = (n * k) // 2
+
+        # Termination and truncation parameters
+        self.max_steps = max_steps or (n * k * 2)  # Default: 2x the number of edges
+        self.convergence_window = min(50, self.max_steps // 10)
+        self.convergence_threshold = 1e-6
+        self.stagnation_threshold = self.max_steps // 2
+
+        # Episode state tracking
+        self.step_count = 0
+        self._reward_history = []
+        self._best_reward_seen = float("-inf")
+        self._last_improvement_step = 0
+        self._termination_reason = None
 
         self.observation_space = gym.spaces.Dict({
             "edge_list": gym.spaces.Box(
@@ -57,6 +81,13 @@ class RegularEdgeSwapEnv(gym.Env):
 
         self.adj, self.edge_list = gen_random_regular_graph(self.n, self.k, seed=seed)
 
+        # Reset episode state
+        self.step_count = 0
+        self._reward_history = []
+        self._best_reward_seen = float("-inf")
+        self._last_improvement_step = 0
+        self._termination_reason = None
+
         obs = self._get_obs()
         info = self._get_info()
 
@@ -65,12 +96,65 @@ class RegularEdgeSwapEnv(gym.Env):
     def _get_obs(self) -> dict:
         return {"edge_list": self.edge_list, "node_features": self.node_indices}
 
-    def _get_info(self) -> dict:  # noqa: PLR6301 | Will get real info eventually
-        return {}
+    # TODO add logging
 
-    def _should_terminate(self) -> bool: ...  # TODO
+    def _get_info(self) -> dict:
+        """Get episode information including termination reason if available.
 
-    def _should_truncate(self) -> bool: ...  # TODO
+        Returns:
+            Dictionary containing episode information
+        """
+        info = {
+            "step_count": self.step_count,
+            "best_reward_seen": self._best_reward_seen,
+            "last_improvement_step": self._last_improvement_step,
+        }
+
+        # Add termination reason if available
+        if hasattr(self, "_termination_reason"):
+            info["termination_reason"] = self._termination_reason
+
+        return info
+
+    def _should_terminate(self) -> bool:
+        """Check if episode should terminate due to goal achievement or convergence.
+
+        Returns:
+            True if episode should terminate naturally, False otherwise
+        """
+        # Check goal achievement using should_stop_early
+        # Use the best reward seen rather than current reward for termination
+        should_stop, reason = self.problem.should_stop_early(self._best_reward_seen)
+        if should_stop:
+            self._termination_reason = reason
+            return True
+
+        # Check convergence (reward stability)
+        if len(self._reward_history) >= self.convergence_window:
+            recent_rewards = self._reward_history[-self.convergence_window :]
+            if len(recent_rewards) > 1:  # Need at least 2 values to compute variance
+                reward_variance = np.var(recent_rewards)
+                if reward_variance < self.convergence_threshold:
+                    self._termination_reason = (
+                        f"Converged: reward variance {reward_variance:.6f} < "
+                        f"{self.convergence_threshold}"
+                    )
+                    return True
+
+        return False
+
+    def _should_truncate(self) -> bool:
+        """Check if episode should be truncated due to length limits or stagnation.
+
+        Returns:
+            True if episode should be truncated, False otherwise
+        """
+        # Maximum episode length
+        if self.step_count >= self.max_steps:
+            return True
+
+        # Stagnation detection (no improvement for too long)
+        return self.step_count - self._last_improvement_step >= self.stagnation_threshold
 
     def _calculate_reward(self) -> float:
         adj_torch = torch.from_numpy(self.adj).unsqueeze(0)
@@ -96,22 +180,41 @@ class RegularEdgeSwapEnv(gym.Env):
             observation, reward, terminated, truncated, info
         """
         i, j = int(action[0]), int(action[1])  # TODO handle invalid shape
+
+        # Track step count
+        self.step_count += 1
+
         if i == j:
             reward = -1.0
             # TODO info about failed action
-
-        if i > j:
-            success = _perform_parallel_swap_inplace(i, j, self.adj, self.edge_list)
         else:
-            success = _perform_cross_swap_inplace(i, j, self.adj, self.edge_list)
+            # Perform the swap
+            if i > j:
+                _perform_parallel_swap_inplace(i, j, self.adj, self.edge_list)
+            else:
+                _perform_cross_swap_inplace(i, j, self.adj, self.edge_list)
 
-        reward = float(self.problem.reward(torch.from_numpy(self.adj).unsqueeze(0))[0])
+            # Calculate reward
+            reward = self._calculate_reward()
+
+            # Track reward history and improvements
+            self._reward_history.append(reward)
+            if reward > self._best_reward_seen:
+                self._best_reward_seen = reward
+                self._last_improvement_step = self.step_count
+
+            # Keep reward history bounded
+            if len(self._reward_history) > self.convergence_window * 2:
+                self._reward_history = self._reward_history[-self.convergence_window :]
+
+        terminated = self._should_terminate()
+        truncated = self._should_truncate()
 
         return (
             self._get_obs(),
             reward,
-            self._should_terminate(),
-            self._should_truncate(),
+            terminated,
+            truncated,
             self._get_info(),
         )
 
@@ -179,6 +282,7 @@ def _edge_exists(adj: np.ndarray, edge: np.ndarray) -> bool:
     """Check if an edge exists using the adjacency matrix.
 
     Args:
+        adj: Adjacency matrix to check against
         edge: Edge to check [u, v]
 
     Returns:
