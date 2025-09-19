@@ -1,34 +1,35 @@
-from typing import override
+from typing import TypedDict, override
 
+import gymnasium as gym
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 import torch
 from torch import nn
-from torch.nn import functional
 from torch_geometric import nn as gnn
-from torch_geometric.data import Data
+from torch_geometric.data import Data as PyGData
 from torch_geometric.nn import GATConv
+
+
+class GraphObservation(TypedDict):
+    node_features: torch.Tensor
+    edge_list: torch.Tensor  # TODO or should it be numpy???
 
 
 class GCNN(nn.Module):
     """Graph Convolutional Neural Network using PyG Sequential model."""
 
-    def __init__(
-        self, channel_sizes: list[int], num_classes: int = 2, input_dim: int | None = None
-    ):
-        """Initialize GCNN with specified channel sizes.
+    output_dim: int
+
+    def __init__(self, input_dim: int, channel_sizes: list[int]):
+        """Initialize GCNN with specified input dimension and channel sizes.
 
         Args:
-            channel_sizes: List of feature dimensions for each layer
-            num_classes: Number of output classes
-            input_dim: Input feature dimension. If None, uses first element of channel_sizes
+            input_dim: Input feature dimension.
+            channel_sizes: List of feature dimensions for each layer.
         """
         super().__init__()
 
-        # Use input_dim if provided, otherwise use first channel size
-        if input_dim is not None:
-            actual_channel_sizes = [input_dim, *channel_sizes]
-        else:
-            actual_channel_sizes = channel_sizes
+        actual_channel_sizes = [input_dim, *channel_sizes]
+        self.output_dim = actual_channel_sizes[-1]
 
         # Build PyG graph layers only
         graph_layers = []
@@ -41,77 +42,52 @@ class GCNN(nn.Module):
             graph_layers.append((torch.nn.Dropout(0.1), "x -> x"))
 
         # PyG Sequential for graph layers only
-        self.graph_model = gnn.Sequential("x, edge_index", graph_layers)
-
-        # Separate PyTorch layer for final classification
-        self.classifier = torch.nn.Linear(actual_channel_sizes[-1], num_classes)
+        self.graph_convolutions = gnn.Sequential("x, edge_index", graph_layers)
 
     @override
-    def forward(self, data) -> torch.Tensor:
+    def forward(self, data: PyGData) -> torch.Tensor:
         """Forward pass through the GCNN.
 
         Args:
             data: PyG Data object containing x (node features) and edge_index
 
         Returns:
-            Log probabilities for each node
+            Extracted node feature
         """
         # Pass through PyG graph layers
-        x = self.graph_model(data.x, data.edge_index)
+        node_embeddings = self.graph_convolutions(data.x, data.edge_index)
 
-        # Pass through PyTorch linear layer
-        x = self.classifier(x)
+        # TODO we'll replace this part with attention heads when trying graph attention layers
+        # Takes the elementwise mean of node features across all nodes
+        graph_embedding = torch.mean(node_embeddings, dim=0, keepdim=True)
 
-        return functional.log_softmax(x, dim=1)
+        return graph_embedding
 
 
 class GCNNFeatureExtractor(BaseFeaturesExtractor):
-    """Feature extractor that converts environment observations to PyG Data."""
+    """Uses a GCNN to extract graph features in stable-baselines."""
 
-    def __init__(
-        self, observation_space, features_dim: int, channel_sizes: list[int], num_classes: int = 2
-    ):
-        """Initialize the GCNN feature extractor.
+    def __init__(self, observation_space: gym.spaces.Dict, gcnn: GCNN, features_dim: int):
+        """Create Graph Convolutional feature extractor.
 
         Args:
-            observation_space: The observation space from the environment
-            features_dim: The dimension of the output features
-            channel_sizes: List of feature dimensions for each GCNN layer
-            num_classes: Number of output classes for the GCNN
+            observation_space: Gymnasium observation space the model will be trained in
+            gcnn: Graph convolutional model the feature extractor is based on
+            features_dim: length of output feature vector. Must equal sb3 expected feature length
         """
         super().__init__(observation_space, features_dim)
-        # Input dimension is 1 since we convert node indices to 1D features
-        self.network = GCNN(channel_sizes, num_classes, input_dim=1)
+        # TODO size checks that observation_space will line up with model and features_dim
+        self.graph_model = gcnn
+
+        self.feature_projection = nn.Linear(gcnn.output_dim, features_dim)
 
     @override
-    def forward(self, observations: dict) -> torch.Tensor:
-        """Convert environment observations to PyG Data and pass through GCNN.
+    # TODO dict might need to have an nparray?
+    def forward(self, observations: GraphObservation) -> torch.Tensor:
+        node_features = observations["node_features"]
+        edge_list = observations["edge_list"]
 
-        Args:
-            observations: Dictionary containing 'edge_list' and 'node_features' TODO add better type hints to dict
+        graph = PyGData(x=node_features, edge_index=edge_list)
 
-        Returns:
-            Graph features extracted by the GCNN
-        """
-        # Extract components from observation dictionary
-        edge_list = observations["edge_list"]  # Shape: (num_edges, 2)
-        node_features = observations["node_features"]  # Shape: (num_nodes,)
-
-        # Convert edge_list to edge_index format (PyG expects shape [2, num_edges])
-        edge_index = (
-            edge_list.t().contiguous()
-        )  # TODO just use [2, num_edges] in the observation space
-
-        # Convert node_features to proper format for PyG
-        # Add feature dimension if needed (node_features might be 1D indices) TODO features should be real valued eventually and so not one hot encoded
-        if node_features.dim() == 1:
-            # One-hot encode node indices or use as features directly
-            x = node_features.unsqueeze(1).float()  # Shape: (num_nodes, 1)
-        else:
-            x = node_features.float()
-
-        # Create PyG Data object
-        data = Data(x=x, edge_index=edge_index)
-
-        # Pass through GCNN
-        return self.network(data)
+        raw_logits = self.graph_model(graph)
+        return self.feature_projection(raw_logits)
