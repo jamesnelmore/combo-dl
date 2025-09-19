@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+import stable_baselines3 as sb3
 import torch
 
 from ..experiment_logger import ExperimentLogger
@@ -14,7 +15,7 @@ class BaseAlgorithm(ABC):
 
     def __init__(
         self,
-        model: torch.nn.Module,
+        model: torch.nn.Module | sb3.PPO,
         problem: BaseProblem,
         logger: ExperimentLogger | None = None,
     ):
