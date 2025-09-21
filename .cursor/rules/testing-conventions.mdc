@@ -1,0 +1,37 @@
+---
+globs: test_*.py,*_test.py
+---
+
+# Testing Conventions
+
+## Test Structure
+- Test files should be in the [tests/](mdc:tests/) directory
+- Use pytest as the test runner (configured in [pyproject.toml](mdc:pyproject.toml))
+- Test classes should be named `Test*` (e.g., `TestBasicImports`)
+- Test methods should be named `test_*`
+
+## Test Organization
+- Group related tests in classes
+- Use descriptive test method names that explain what is being tested
+- Follow the pattern in [test_basic_imports.py](mdc:tests/test_basic_imports.py)
+
+## Test Patterns
+- **Smoke Tests**: Test basic imports and instantiation (see [test_basic_imports.py](mdc:tests/test_basic_imports.py))
+- **Unit Tests**: Test individual components in isolation
+- **Integration Tests**: Test component interactions
+
+## Mocking and Fixtures
+- Use `ExperimentLogger(wandb_mode="disabled")` for testing to avoid W&B dependencies
+- Use minimal configurations for algorithm testing (small batch sizes, few iterations)
+- Mock external dependencies when appropriate
+
+## Test Data
+- Use small, deterministic test cases
+- For graph problems, use small values (n=3, n=4) for testing
+- Verify tensor shapes and data types in assertions
+
+## Assertions
+- Use descriptive assertion messages
+- Test both positive and negative cases
+- Verify return types and shapes for tensor operations
+- Check that models produce expected output shapes

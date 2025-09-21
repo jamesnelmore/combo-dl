@@ -1,0 +1,83 @@
+---
+globs: src/combo_dl/models/*.py
+---
+
+# Model Development Guidelines
+
+## Model Architecture Patterns
+
+### PyTorch Models
+- Inherit from `torch.nn.Module`
+- Use `@override` decorator for method overrides
+- Implement `forward()` method for inference
+- Store architecture parameters as instance variables
+
+### Graph Neural Networks
+- Use PyTorch Geometric for graph operations
+- Implement custom feature extractors for gym environments
+- Use `BaseFeaturesExtractor` from stable-baselines3 for RL integration
+- Handle different graph representations (node features, edge indices)
+
+### Sampling Models
+- Implement `SupportsSampling` protocol for models that can be sampled
+- Use `SamplingModel` base class when appropriate
+- Implement `sample()` method for generating solutions
+
+## Model Patterns
+
+### Constructor Pattern
+```python
+class MyModel(nn.Module):
+    def __init__(self, input_dim: int, hidden_dims: list[int], output_dim: int):
+        super().__init__()
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        # Build architecture
+```
+
+### Forward Pass
+```python
+@override
+def forward(self, x: torch.Tensor) -> torch.Tensor:
+    """Forward pass through the model."""
+    # Implementation here
+    return output
+```
+
+### Sampling (for generative models)
+```python
+def sample(self, batch_size: int, *args, **kwargs) -> torch.Tensor:
+    """Sample solutions from the model."""
+    # Implementation here
+    return samples
+```
+
+## Graph Model Specifics
+
+### Graph Convolutional Networks
+- Use `torch_geometric.nn` for graph layers
+- Implement `GCNN` class for graph convolutions
+- Use `Sequential` for stacking graph layers
+- Handle node features and edge indices
+
+### Feature Extractors
+- Implement `BaseFeaturesExtractor` for gym environments
+- Convert graph observations to model inputs
+- Handle multi-input policies for RL
+
+## Integration Patterns
+
+### With Algorithms
+- Models are instantiated via Hydra configuration
+- Passed to algorithms in constructor
+- Moved to appropriate device (CPU/GPU/MPS)
+
+### With Problems
+- Models generate solutions for problems
+- Problems evaluate solutions using `reward()` and `is_valid_solution()`
+- Use problem constraints in model training
+
+### Device Management
+- Models are moved to device in [main.py](mdc:src/combo_dl/main.py)
+- Use `.to(device)` for device placement
+- Handle device-agnostic operations

@@ -1,0 +1,38 @@
+---
+globs: *.yaml,*.yml
+---
+
+# Hydra Configuration Patterns
+
+## Configuration Structure
+- Main configuration is in [base_config.yaml](mdc:config/base_config.yaml)
+- Use Hydra's `_target_` for object instantiation
+- Use `${oc.select:}` for conditional values
+- Use `${experiment_name}` for dynamic naming
+
+## Configuration Groups
+- **Logger**: Weights & Biases integration with experiment tracking
+- **Model**: Neural network architecture configuration
+- **Problem**: Problem-specific parameters (graph size, constraints)
+- **Algorithm**: Training parameters (learning rate, batch size, iterations)
+
+## Device Configuration
+- Use `device: auto` for automatic device detection
+- Supports: `cpu`, `cuda`, `mps` (Apple Silicon)
+- Device selection logic in [main.py](mdc:src/combo_dl/main.py) `get_device()` function
+
+## Experiment Naming
+- Use `experiment_name: null` for random names
+- Override with specific names for important experiments
+- Hydra job naming: `${oc.select:experiment_name,main}`
+
+## Output Organization
+- Single runs: `hydra_outputs/${experiment_name}/${timestamp}/`
+- Multi-runs: `multirun/${experiment_name}/${timestamp}/`
+- Use meaningful experiment names for organization
+
+## Logger Configuration
+- **WandB Integration**: Configure project, entity, group, tags
+- **Job Types**: Use "train", "eval", "sweep" for workflow stages
+- **Code Saving**: Enable `save_code: true` for reproducibility
+- **Progress Tracking**: Use `use_progress_bar: true` for training visibility

@@ -1,0 +1,40 @@
+---
+alwaysApply: true
+---
+
+# Architecture and Design Patterns
+
+## Project Structure
+This is a deep learning project for graph optimization using reinforcement learning. The main entry point is [main.py](mdc:src/combo_dl/main.py), which uses Hydra for configuration management.
+
+## Core Components
+
+### Base Classes
+- **BaseAlgorithm**: All optimization algorithms inherit from [BaseAlgorithm](mdc:src/combo_dl/algorithms/base_algorithm.py)
+- **BaseProblem**: All problem definitions inherit from [BaseProblem](mdc:src/combo_dl/problems/base_problem.py)
+- **ExperimentLogger**: Centralized logging with Weights & Biases integration
+
+### Key Design Patterns
+1. **Abstract Base Classes**: Use ABC for defining interfaces (algorithms, problems)
+2. **Protocols**: Use `typing.Protocol` for structural typing (see [protocols.py](mdc:src/combo_dl/models/protocols.py))
+3. **Dependency Injection**: Models, problems, and algorithms are instantiated via Hydra config
+4. **Strategy Pattern**: Different algorithms implement the same `optimize()` interface
+
+### Module Organization
+- `algorithms/`: Optimization algorithms (PPO, Deep Cross Entropy, etc.)
+- `models/`: Neural network architectures (GCNN, FF models)
+- `problems/`: Problem definitions (Strongly Regular Graphs, Wagner Corollary)
+- `experiment_logger/`: Logging and experiment tracking
+- `graph_tools/`: Graph generation and manipulation utilities
+
+### Configuration Management
+- Uses Hydra for configuration with YAML files in [config/](mdc:config/)
+- Main config: [base_config.yaml](mdc:config/base_config.yaml)
+- Device selection: auto-detects CUDA/MPS/CPU
+- Experiment logging: Weights & Biases integration
+
+### Neural Network Patterns
+- PyTorch-based models with `torch.nn.Module`
+- PyTorch Geometric for graph neural networks
+- Stable Baselines3 for reinforcement learning algorithms
+- Custom feature extractors for gym environments

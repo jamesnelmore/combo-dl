@@ -1,0 +1,64 @@
+---
+globs: src/combo_dl/algorithms/*.py
+---
+
+# Algorithm Development Guidelines
+
+## Algorithm Interface
+All algorithms must inherit from [BaseAlgorithm](mdc:src/combo_dl/algorithms/base_algorithm.py) and implement:
+
+```python
+@abstractmethod
+def optimize(self, **kwargs) -> dict[str, Any]:
+    """Train the model to solve the problem.
+    
+    Returns:
+        Dictionary containing optimization results with keys:
+        - best_score: The best score achieved during optimization
+        - best_construction: The best solution found (if applicable)
+        - early_stopped: Whether optimization stopped early
+        - iterations: Number of iterations completed
+        - final_metrics: Final iteration metrics
+    """
+```
+
+## Algorithm Patterns
+
+### Constructor Pattern
+- Accept `model`, `problem`, `logger`, and algorithm-specific parameters
+- Set default logger if None provided: `ExperimentLogger(wandb_mode="disabled")`
+- Store all parameters as instance variables
+
+### Optimization Loop
+- Use the problem's `should_stop_early()` method for early stopping
+- Log progress using the logger's methods
+- Return comprehensive results dictionary
+
+### Integration with Problems
+- Use `problem.reward()` for scoring solutions
+- Use `problem.is_valid_solution()` for validation
+- Check `problem.get_goal_score()` for target scores
+
+## Example Algorithm Structure
+```python
+class MyAlgorithm(BaseAlgorithm):
+    def __init__(self, model, problem, logger=None, **kwargs):
+        super().__init__(model, problem, logger)
+        # Set algorithm-specific parameters
+        
+    @override
+    def optimize(self, **kwargs) -> dict[str, Any]:
+        # Implementation here
+        return {
+            "best_score": best_score,
+            "best_construction": best_solution,
+            "early_stopped": early_stopped,
+            "iterations": iterations,
+            "final_metrics": final_metrics
+        }
+```
+
+## Gym Environment Integration
+- Use [GymEnvTrainer](mdc:src/combo_dl/algorithms/gym_env_trainer.py) for RL algorithms
+- Implement custom feature extractors for graph data
+- Use Stable Baselines3 for RL algorithm implementations
