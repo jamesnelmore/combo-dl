@@ -1,3 +1,4 @@
+tensorboard_logs/
 # Hydra and HPC outputs
 multirun/
 hydra_outputs/

@@ -300,7 +300,7 @@ class TestEpisodeCompletion:
 
         # Take invalid action (swap edge with itself)
         action = np.array([0, 0])
-        obs, reward, terminated, truncated, info = small_env.step(action)
+        _obs, reward, terminated, truncated, _info = small_env.step(action)
 
         # Check that step count still increments
         assert small_env.step_count == initial_step_count + 1
@@ -321,7 +321,7 @@ class TestEpisodeCompletion:
             for step in range(small_env.max_steps):
                 # Use a simple action pattern
                 action = np.array([step % small_env.num_edges, (step + 1) % small_env.num_edges])
-                obs, reward, terminated, truncated, info = small_env.step(action)
+                _obs, _reward, _terminated, truncated, info = small_env.step(action)
 
                 if step < small_env.max_steps - 1:
                     # Should not be truncated until max_steps is reached
@@ -336,7 +336,7 @@ class TestEpisodeCompletion:
 
     def test_episode_termination_by_goal_achievement(self, srg_env):
         """Test that episodes terminate when goal is achieved."""
-        obs, info = srg_env.reset(seed=42)
+        _obs, _info = srg_env.reset(seed=42)
 
         # Get the goal score
         goal_score = srg_env.problem.get_goal_score()
@@ -356,7 +356,7 @@ class TestEpisodeCompletion:
 
     def test_episode_termination_by_convergence(self, small_env):
         """Test that episodes terminate when rewards converge."""
-        obs, info = small_env.reset(seed=42)
+        _obs, _info = small_env.reset(seed=42)
 
         # Fill reward history with identical rewards to simulate convergence
         identical_reward = 0.5
@@ -374,7 +374,7 @@ class TestEpisodeCompletion:
 
     def test_stagnation_detection(self, small_env):
         """Test that episodes are truncated when no improvement occurs."""
-        obs, info = small_env.reset(seed=42)
+        _obs, _info = small_env.reset(seed=42)
 
         # Simulate stagnation by setting last improvement far in the past
         small_env._last_improvement_step = 0
@@ -387,7 +387,7 @@ class TestEpisodeCompletion:
         """Test a complete episode from reset to completion."""
         # Reset environment
         obs, info = small_env.reset(seed=42)
-        initial_reward = small_env._calculate_reward()
+        small_env._calculate_reward()
 
         episode_rewards = []
         episode_length = 0
@@ -401,7 +401,7 @@ class TestEpisodeCompletion:
                 edge2 = (edge2 + 1) % small_env.num_edges
 
             action = np.array([edge1, edge2])
-            obs, reward, terminated, truncated, info = small_env.step(action)
+            _obs, reward, terminated, truncated, info = small_env.step(action)
 
             episode_rewards.append(reward)
             episode_length += 1
@@ -427,12 +427,12 @@ class TestEpisodeCompletion:
         # Run first episode
         obs1, info1 = small_env.reset(seed=42)
         action = np.array([0, 1])
-        obs1, reward1, term1, trunc1, info1 = small_env.step(action)
+        obs1, _reward1, _term1, _trunc1, _info1 = small_env.step(action)
 
         # Reset and run second episode
         obs2, info2 = small_env.reset(seed=123)
         action = np.array([0, 1])
-        obs2, reward2, term2, trunc2, info2 = small_env.step(action)
+        obs2, _reward2, _term2, _trunc2, info2 = small_env.step(action)
 
         # Check that episodes are independent
         assert small_env.step_count == 1, "Step count should reset"
@@ -445,7 +445,7 @@ class TestEpisodeCompletion:
 
     def test_termination_reason_tracking(self, small_env):
         """Test that termination reasons are properly tracked."""
-        obs, info = small_env.reset(seed=42)
+        _obs, info = small_env.reset(seed=42)
 
         # Test convergence termination reason
         for _ in range(small_env.convergence_window):
@@ -472,7 +472,7 @@ class TestEpisodeCompletion:
         # Take a few steps
         for i in range(3):
             action = np.array([i % small_env.num_edges, (i + 1) % small_env.num_edges])
-            obs, reward, terminated, truncated, info = small_env.step(action)
+            _obs, _reward, _terminated, _truncated, info = small_env.step(action)
 
         # Check all expected info fields
         expected_fields = ["step_count", "best_reward_seen", "last_improvement_step"]
@@ -615,9 +615,9 @@ class TestStableBaselinesIntegration:
             obs = vec_env.reset()
             episode_reward = 0
 
-            for step in range(10):  # Max 10 steps per episode
+            for _step in range(10):  # Max 10 steps per episode
                 action, _ = model.predict(obs, deterministic=False)
-                obs, rewards, dones, infos = vec_env.step(action)
+                obs, rewards, dones, _infos = vec_env.step(action)
                 episode_reward += rewards[0]
 
                 if dones[0]:

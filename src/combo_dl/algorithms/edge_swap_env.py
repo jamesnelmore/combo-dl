@@ -6,6 +6,7 @@ import torch
 
 from combo_dl.graph_tools import gen_random_regular_graph
 from combo_dl.problems import BaseProblem
+from combo_dl.problems.strongly_regular_graphs import StronglyRegularGraphs
 
 # RegularEdgeSwapEnv for k-regular graphs. Takes a problem and degree k, not an SRG parameter set
 
@@ -217,6 +218,12 @@ class RegularEdgeSwapEnv(gym.Env):
             truncated,
             self._get_info(),
         )
+
+    @classmethod
+    def from_srg_problem(
+        cls, problem: StronglyRegularGraphs, max_steps: int | None = None
+    ) -> "RegularEdgeSwapEnv":
+        return RegularEdgeSwapEnv(problem, problem.n, problem.k, max_steps=max_steps)
 
 
 def _perform_parallel_swap_inplace(i: int, j: int, adj: np.ndarray, edges: np.ndarray) -> None:
