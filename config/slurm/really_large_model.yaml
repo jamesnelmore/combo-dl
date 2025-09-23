@@ -1,0 +1,38 @@
+experiment_name: palay_large_model
+defaults:
+  - base_config
+  - override /hydra/launcher: HPC_2HRS_GPU
+  - _self_
+
+n: 21
+k: 10
+lambda_param: 3
+mu: 6
+
+logger:
+  wandb_mode: "online"
+  use_progress_bar: false
+  group: "strongly_regular_graphs"
+  tags: ["n=${n}", "slurm"]           
+  notes: "Searching for a (${n}, ${k}, ${lambda_param}, ${mu})-SRG"
+
+problem:
+  _target_: combo_dl.problems.StronglyRegularGraphs
+  n: ${n}
+  k: ${k}
+  lambda_param: ${lambda_param}
+  mu: ${mu}
+
+model:
+  _target_: combo_dl.models.FFModel
+  n: ${n}
+  hidden_layer_sizes: [512, 512, 512, 256, 128, 64, 16]
+
+algorithm:
+  _target_: combo_dl.algorithms.deep_cross_entropy.WagnerDeepCrossEntropy
+  iterations: 100000
+  batch_size: 32384
+  learning_rate: 0.001
+  elite_proportion: 0.1
+  early_stopping_patience: 3000
+

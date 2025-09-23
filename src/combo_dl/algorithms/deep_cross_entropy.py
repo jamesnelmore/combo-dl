@@ -173,7 +173,6 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         constructions = self.model.sample(self.batch_size)
         batch_scores = self.problem.reward(constructions)
 
-        # Update samples seen counter
         self.samples_seen += self.batch_size
 
         current_best = torch.max(batch_scores).item()
