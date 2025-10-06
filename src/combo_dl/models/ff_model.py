@@ -69,14 +69,15 @@ class FFModel(SamplingModel):
         return self.layers(input_tensor)
 
     @override
-    def sample(self, batch_size: int) -> torch.Tensor:
+    def sample(self, batch_size: int, sample_length: int | None = None) -> torch.Tensor:
+        sample_length = sample_length or self.edges
         device = next(self.parameters()).device
         was_training = self.training
         self.eval()
         try:
             with torch.no_grad():
-                w = torch.zeros((batch_size, self.edges), device=device)
-                for i in range(self.edges):
+                w = torch.zeros((batch_size, sample_length), device=device)
+                for i in range(sample_length):
                     i_tensor = torch.full((batch_size,), i, dtype=torch.long, device=device)
                     x = self.forward(w, i_tensor)
                     assert x.shape == (batch_size, 2)
@@ -87,3 +88,28 @@ class FFModel(SamplingModel):
             if was_training:
                 self.train()
         return w
+
+
+class PaddedFFModel(FFModel):
+    def __init__(
+        self,
+        n: int,
+        hidden_layer_sizes: list[int] | None = None,
+        output_size: int = 2,
+        dropout_probability: float = 0.1,
+    ):
+        super().__init__(n, hidden_layer_sizes, output_size, dropout_probability)
+
+    @override
+    def forward(self, x: torch.Tensor, i: torch.Tensor) -> torch.Tensor:
+        input_length = x.shape[1]
+
+        if input_length > self.edges:
+            raise ValueError("PaddedFFModel can only accept graphs with up to n vertices.")
+        if input_length == self.edges:
+            padded_x = x
+        else:
+            padded_x = F.pad(x, (0, self.edges - input_length), mode="constant", value=0)
+
+        x = super().forward(padded_x, i)
+        return x[:, :input_length]

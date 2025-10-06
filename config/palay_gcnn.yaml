@@ -1,0 +1,40 @@
+experiment_name: palay_gcnn
+defaults:
+  - base_config
+  - override /hydra/launcher: HPC_2HRS_GPU
+  - _self_
+
+# Palay graph
+n: 17 
+k: 8
+lambda_param: 3
+mu: 4
+
+logger:
+  wandb_mode: "online"
+  use_progress_bar: true
+  group: "strongly_regular_graphs"
+  tags: ["n=${n}", "palay-graph", "gcnn", "slurm"]           
+  notes: "Searching for a (${n}, ${k}, ${lambda_param}, ${mu})-SRG using GCNN sampling model"
+
+problem:
+  _target_: combo_dl.problems.StronglyRegularGraphs
+  n: ${n}
+  k: ${k}
+  lambda_param: ${lambda_param}
+  mu: ${mu}
+
+model:
+  _target_: combo_dl.models.gcnn.GCNNSamplingModel
+  n: ${n}
+  input_dim: 32
+  channel_sizes: [32, 16]
+
+algorithm:
+  _target_: combo_dl.algorithms.deep_cross_entropy.WagnerDeepCrossEntropy
+  iterations: 10000
+  batch_size: 128  
+  learning_rate: 0.0005
+  elite_proportion: 0.2
+  early_stopping_patience: 500
+  model_save_frequency: 1000

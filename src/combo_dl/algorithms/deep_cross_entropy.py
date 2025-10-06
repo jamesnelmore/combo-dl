@@ -35,6 +35,7 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         log_frequency: int = 1,
         model_save_frequency: int = 1000,
         early_stopping_patience: int = 300,
+        curriculum_size: int | None = None,
     ):
         if logger is None:
             date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -43,6 +44,7 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
 
         super().__init__(model, problem, logger)
 
+        self.curriculum_size = curriculum_size
         self.iterations = iterations
         postfix_metrics = ["best_score", "avg_score", "loss", "accuracy"]
         self.logger.configure_progress_bar(postfix_metrics, total_iterations=self.iterations)
@@ -170,7 +172,10 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         Returns:
             Training metrics
         """
-        constructions = self.model.sample(self.batch_size)
+        assert self.curriculum_size == self.problem.n, (
+            f"{self.curriculum_size} != {self.problem.n}"  # TODO remove
+        )
+        constructions = self.model.sample(self.batch_size, sample_length=self.curriculum_size)
         batch_scores = self.problem.reward(constructions)
 
         self.samples_seen += self.batch_size
