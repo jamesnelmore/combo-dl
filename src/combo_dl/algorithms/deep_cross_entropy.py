@@ -1,19 +1,21 @@
 """Deep Cross Entropy Algorithm."""
 
 from datetime import datetime
-from typing import Any, override
+import os
+from pathlib import Path
+from typing import Any, Literal
 
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
+from tqdm import tqdm
+import wandb
 
-from ..experiment_logger import ExperimentLogger
 from ..models.protocols import SamplingModel
-from ..problems.base_problem import BaseProblem
-from .base_algorithm import BaseAlgorithm
+from ..problems.strongly_regular_graphs import StronglyRegularGraphs
 
 
-class WagnerDeepCrossEntropy(BaseAlgorithm):
+class WagnerDeepCrossEntropy:
     """Deep Cross Entropy Algorithm.
 
     Implementation of Deep Cross Entropy from [Wagner 2021](http://arxiv.org/abs/2104.14516).
@@ -25,27 +27,44 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
     def __init__(
         self,
         model: SamplingModel,
-        problem: BaseProblem,
+        problem: StronglyRegularGraphs,
         iterations: int = 10_000,
         batch_size: int = 512,
         learning_rate: float = 0.0001,
         elite_proportion: float = 0.1,
         device: str = "cpu",
-        logger: ExperimentLogger | None = None,  # pyright: ignore[reportRedeclaration]
         log_frequency: int = 1,
-        model_save_frequency: int = 1000,
+        model_save_frequency: int = 100,
         early_stopping_patience: int = 300,
+        checkpoint_dir: str | Path | None = None,
+        experiment_name: str | None = None,
+        wandb_project: str = "combo-dl",
+        wandb_mode: Literal["online", "offline"] = "online",
+        use_progress_bar: bool = True,
     ):
-        if logger is None:
-            date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            experiment_name = f"Deep Cross Entropy {date} {type(problem).__name__}"
-            logger: ExperimentLogger = ExperimentLogger(experiment_name, use_wandb=False)
+        """Initialize Deep Cross Entropy algorithm.
 
-        super().__init__(model, problem, logger)
+        Args:
+            model: The neural network model to train
+            problem: The optimization problem to solve
+            iterations: Maximum number of training iterations
+            batch_size: Number of samples per iteration
+            learning_rate: Learning rate for optimizer
+            elite_proportion: Fraction of samples to use as elites
+            device: Device to run on (cpu, cuda, mps)
+            log_frequency: How often to log detailed metrics
+            model_save_frequency: How often to save model checkpoints
+            early_stopping_patience: Iterations to wait before early stopping
+            checkpoint_dir: Directory to save checkpoints
+            experiment_name: Name for this experiment run
+            wandb_project: WandB project name
+            wandb_mode: WandB logging mode (online/offline)
+            use_progress_bar: Whether to show progress bar
+        """
+        self.model = model
+        self.problem = problem
 
         self.iterations = iterations
-        postfix_metrics = ["best_score", "avg_score", "loss", "accuracy"]
-        self.logger.configure_progress_bar(postfix_metrics, total_iterations=self.iterations)
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.elite_proportion = elite_proportion
@@ -54,6 +73,29 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         self.early_stopping_patience = early_stopping_patience
         self.device = device
         self.model.to(self.device)
+
+        # WandB setup
+        self.wandb_project = wandb_project
+        self.wandb_mode = wandb_mode
+        self.wandb_run = None
+        self.experiment_name = experiment_name
+
+        # Progress bar setup
+        self.use_progress_bar = use_progress_bar
+        self.progress_bar: tqdm | None = None
+
+        # Checkpoint setup
+        if checkpoint_dir is None:
+            checkpoint_dir = Path("checkpoints/")
+        self.checkpoint_dir = Path(checkpoint_dir)
+
+        # Create run-specific checkpoint directory
+        if self.experiment_name is None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+            self.experiment_name = f"dce_{timestamp}"
+
+        self.run_checkpoint_dir = self.checkpoint_dir / self.experiment_name
+        self.run_checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
@@ -67,20 +109,127 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         self.steps_since_best = 0
         self.best_score_iteration = 0
 
-    @override
-    def optimize(self, **kwargs) -> dict[str, Any]:
-        """Run the full Deep Cross-Entropy optimization.
+    def _setup_wandb(self) -> None:
+        """Initialize WandB run."""
+        try:
+            # Handle authentication for HPC environments
+            if os.getenv("WANDB_API_KEY"):
+                wandb.login(key=os.getenv("WANDB_API_KEY"))
+            else:
+                try:
+                    wandb.login()
+                except Exception:
+                    print("Warning: WandB authentication failed. Running in offline mode.")
+                    self.wandb_mode = "offline"
 
-        Args:
-            **kwargs: Not used, only for API compatibility
+            self.wandb_run = wandb.init(
+                project=self.wandb_project,
+                name=self.experiment_name,
+                mode=self.wandb_mode,  # pyright: ignore[reportArgumentType]
+                config={
+                    "iterations": self.iterations,
+                    "batch_size": self.batch_size,
+                    "learning_rate": self.learning_rate,
+                    "elite_proportion": self.elite_proportion,
+                    "device": self.device,
+                    "early_stopping_patience": self.early_stopping_patience,
+                },
+            )
+            # Update experiment name if wandb generated one
+            self.experiment_name = self.wandb_run.name
+        except Exception as e:
+            print(f"Warning: WandB setup failed ({e}), continuing without")
+            self.wandb_run = None
+
+    def _setup_progress_bar(self) -> None:
+        """Setup progress bar for training."""
+        if not self.use_progress_bar:
+            return
+
+        self.progress_bar = tqdm(
+            total=self.iterations,
+            desc=self.experiment_name or "DCE Training",
+            position=0,
+            leave=True,
+            dynamic_ncols=True,
+        )
+
+    def _log_metrics(self, metrics: dict[str, Any], iteration: int) -> None:
+        """Log metrics to WandB and progress bar."""
+        # Log to WandB
+        if self.wandb_run:
+            self.wandb_run.log(metrics, step=iteration)
+
+        if self.use_progress_bar and self.progress_bar:
+            formatted_metrics = {}
+            for key, value in metrics.items():
+                if isinstance(value, float):
+                    if abs(value) < 0.001 or abs(value) > 1000:
+                        formatted_metrics[key] = f"{value:.2e}"
+                    else:
+                        formatted_metrics[key] = f"{value:.4f}"
+                elif isinstance(value, bool):
+                    formatted_metrics[key] = int(value)
+                else:
+                    formatted_metrics[key] = value
+
+            self.progress_bar.n = iteration
+            self.progress_bar.set_postfix(formatted_metrics)
+            self.progress_bar.refresh()
+
+    def _save_checkpoint(self, iteration: int, metrics: dict[str, Any]) -> None:
+        """Save model checkpoint and best construction."""
+        # Get problem parameters
+        problem_config = {
+            "n": self.problem.n,
+            "k": self.problem.k,
+            "lambda": self.problem.lambda_param,
+            "mu": self.problem.mu,
+        }
+
+        checkpoint = {
+            "iteration": iteration,
+            "model_state_dict": self.model.state_dict(),
+            "optimizer_state_dict": self.optimizer.state_dict(),
+            "best_score": self.best_score,
+            "best_construction": (
+                self.best_construction.cpu() if self.best_construction is not None else None
+            ),
+            "metrics": metrics,
+            "config": {
+                "iterations": self.iterations,
+                "batch_size": self.batch_size,
+                "learning_rate": self.learning_rate,
+                "elite_proportion": self.elite_proportion,
+                "device": self.device,
+                "early_stopping_patience": self.early_stopping_patience,
+                **problem_config,  # Include problem parameters
+            },
+        }
+
+        checkpoint_path = self.run_checkpoint_dir / f"checkpoint_{iteration}.pt"
+        torch.save(checkpoint, checkpoint_path)
+
+        if self.best_construction is not None:
+            torch.save(checkpoint, self.run_checkpoint_dir / f"best_iter{iteration}.pt")
+
+        print(f"  → Saved checkpoint: {checkpoint_path.name}")
+
+    def optimize(self) -> dict[str, Any]:
+        """Run the full Deep Cross-Entropy optimization.
 
         Returns:
             Dictionary of optimization results
         """
-        if kwargs != {}:
-            self.logger.log_info(
-                f"Deep Cross Entropy passed keyword arguments but does not use any.\n{kwargs}"
-            )
+        # Setup logging and progress tracking
+        self._setup_wandb()
+        self._setup_progress_bar()
+
+        print("Starting Deep Cross Entropy optimization")
+        print(f"Experiment: {self.experiment_name}")
+        print(f"Checkpoints: {self.run_checkpoint_dir}")
+        print(f"Device: {self.device}")
+        print()
 
         early_stopped = False
         final_metrics = None
@@ -98,46 +247,44 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
             else:
                 self.steps_since_best += 1
 
-            # Always update progress bar, but only log detailed metrics at log_frequency
+            # Log metrics
             if iteration % self.log_frequency == 0:
-                self.logger.log_metrics(metrics, iteration)
+                self._log_metrics(metrics, iteration)
             else:
                 # Still update progress bar with minimal info
                 minimal_metrics = {
                     "best_score": metrics["best_score"],
                     "samples_seen": metrics["samples_seen"],
                 }
-                self.logger.log_metrics(minimal_metrics, iteration)
+                self._log_metrics(minimal_metrics, iteration)
 
             # Log best construction when it improves
-            if metrics["found_new_best"] and self.best_construction is not None:
-                self.logger.log_construction(
-                    self.best_construction,
-                    self.best_score,
-                    step=iteration,
-                    metadata={"iteration": iteration},
-                )
+            if metrics["found_new_best"] and self.best_construction is not None and self.wandb_run:
+                # Log construction score as metric
+                construction_metrics = {"construction_score": self.best_score}
+                if metrics.get("iteration"):
+                    construction_metrics["construction_iteration"] = iteration
+                self.wandb_run.log(construction_metrics, step=iteration)
 
+            # Save checkpoint
             if iteration > 0 and iteration % self.model_save_frequency == 0:
-                self.logger.log_model(
-                    self.model, model_name=f"{self.logger.experiment_name}_step_{iteration}"
-                )
+                self._save_checkpoint(iteration, metrics)
 
             # Check if problem wants to stop early
             should_stop, stop_reason = self.problem.should_stop_early(metrics["best_score"])
             if should_stop:
-                self.logger.log_info(f"Early stopping at iteration {iteration}")
-                self.logger.log_info(stop_reason)
+                print(f"Early stopping at iteration {iteration}")
+                print(stop_reason)
                 early_stopped = True
                 break
 
             # Early stopping condition: no improvement for patience steps
             if self.steps_since_best >= self.early_stopping_patience:
-                self.logger.log_info(
+                print(
                     f"Early stopping at iteration {iteration}: "
                     f"no improvement for {self.early_stopping_patience} steps"
                 )
-                self.logger.log_info(
+                print(
                     f"Best score {self.best_score} was achieved at "
                     f"iteration {self.best_score_iteration}"
                 )
@@ -146,8 +293,19 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
 
             # Early stopping condition (optional)
             if num_elites == 0:
-                self.logger.log_info(f"Warning: No elites selected at iteration {iteration}")
+                print(f"Warning: No elites selected at iteration {iteration}")
                 break
+
+        # Save final checkpoint
+        if final_metrics:
+            self._save_checkpoint(iteration, final_metrics)
+
+        print()
+        print("=" * 50)
+        print("Training complete!")
+        print(f"Best score: {self.best_score:.2f}")
+        print(f"Checkpoints saved to: {self.run_checkpoint_dir}")
+        print()
 
         return {
             "best_score": self.best_score,
@@ -188,7 +346,7 @@ class WagnerDeepCrossEntropy(BaseAlgorithm):
         elites = self.select_elites(constructions, batch_scores)
 
         if len(elites) == 0:
-            self.logger.log_info("Zero elites passed. This should not occur. Stopping run.")
+            print("Zero elites passed. This should not occur. Stopping run.")
             return {
                 "best_score": self.best_score,
                 "avg_score": avg_score,

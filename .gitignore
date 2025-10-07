@@ -1,4 +1,5 @@
 tensorboard_logs/
+checkpoints/
 # Hydra and HPC outputs
 multirun/
 hydra_outputs/
