@@ -4,8 +4,9 @@ from typing import override
 
 import torch
 
+from combo_dl.graph_tools import edge_vector_to_adjacency_matrix
+
 from .base_problem import BaseProblem
-from .canonical_edge_mapping import edge_vector_to_adjacency_matrix
 
 
 class StronglyRegularGraphs(BaseProblem):
