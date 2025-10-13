@@ -8,11 +8,11 @@ authors = [
     {name = "James Elmore", email = "email@jameselmore.org"},
 ]
 dependencies = [
-    "gymnasium>=1.2.0",
+    "gymnasium>=1.2.1",
     "hydra-core>=1.3.2",
     "hydra-submitit-launcher>=1.2.0",
     "ipykernel>=6.30.1",
-    "networkx>=3.0",
+    "networkx>=3.5",
     "numpy>=2.3.2",
     "omegaconf>=2.3.0",
     "pyright>=1.1.405",
