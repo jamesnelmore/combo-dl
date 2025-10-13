@@ -1,15 +1,11 @@
 """Problem class for SRG problem."""
 
-from typing import override
-
 import torch
 
-from combo_dl.graph_tools import edge_vector_to_adjacency_matrix
-
-from .base_problem import BaseProblem
+from combo_dl.graph_utils import edge_vec_to_adj
 
 
-class StronglyRegularGraphs(BaseProblem):
+class StronglyRegularGraphs:
     """Optimization problem for finding strongly regular graphs.
 
     A (n,k,λ,μ)-strongly regular graph is a k-regular graph with n vertices
@@ -58,7 +54,6 @@ class StronglyRegularGraphs(BaseProblem):
             self.lambda_param = lambda_param
             self.mu = mu
 
-    @override
     def reward(self, x: torch.Tensor) -> torch.Tensor:
         r"""Compute the negative squared Frobenius norm of the constraint residual.
 
@@ -101,7 +96,6 @@ class StronglyRegularGraphs(BaseProblem):
         # Return negative of squared Frobenius norm (higher is better, perfect SRG = 0)
         return -(torch.linalg.norm(residual, ord="fro", dim=(1, 2)) ** 2)
 
-    @override
     def is_valid_solution(self, solution: torch.Tensor) -> torch.Tensor:
         """Check if solutions represent valid adjacency matrices.
 
@@ -130,7 +124,7 @@ class StronglyRegularGraphs(BaseProblem):
             assert x.shape[1] == self.edges(), (
                 f"Expected edge vector with {self.edges()} edges, got {x.shape}"
             )
-            adj_matrix = edge_vector_to_adjacency_matrix(x, self.n)
+            adj_matrix = edge_vec_to_adj(x, self.n)
         elif x.dim() == 3:
             # Matrix format: (batch_size, n, n)
             assert x.shape[1:] == (self.n, self.n), (
@@ -151,14 +145,23 @@ class StronglyRegularGraphs(BaseProblem):
         """
         return (self.n * (self.n - 1)) // 2
 
-    @override
-    def get_goal_score(self) -> float:
+    @staticmethod
+    def get_goal_score() -> float:
         """Return the goal score for SRG (perfect SRG has score 0).
 
         Returns:
             Goal score for SRG optimization (0.0 for perfect SRG)
         """
         return 0.0
+
+    @staticmethod
+    def should_stop_early(score: float) -> tuple[bool, str]:
+        """Checks if a given score passes the early stopping threshold.
+
+        Returns:
+            bool, reason
+        """
+        return score >= 0.0, "SRG Found"
 
     @classmethod
     def peterson_graph_problem(cls) -> "StronglyRegularGraphs":

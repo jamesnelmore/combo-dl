@@ -4,9 +4,8 @@ import gymnasium as gym
 import numpy as np
 import torch
 
-from combo_dl.graph_tools import gen_random_regular_graph
-from combo_dl.problems import BaseProblem
-from combo_dl.problems.strongly_regular_graphs import StronglyRegularGraphs
+from combo_dl import StronglyRegularGraphs
+from combo_dl.graph_utils import gen_random_regular_graph
 
 # RegularEdgeSwapEnv for k-regular graphs. Takes a problem and degree k, not an SRG parameter set
 
@@ -16,7 +15,9 @@ from combo_dl.problems.strongly_regular_graphs import StronglyRegularGraphs
 
 
 class RegularEdgeSwapEnv(gym.Env):
-    def __init__(self, problem: BaseProblem, n: int, k: int, max_steps: int | None = None):
+    def __init__(
+        self, problem: StronglyRegularGraphs, n: int, k: int, max_steps: int | None = None
+    ):
         """Initialize RegularEdgeSwapEnv for k-regular graphs.
 
         Args:
@@ -71,9 +72,9 @@ class RegularEdgeSwapEnv(gym.Env):
         self.node_indices = torch.arange(n)
 
         # Conceptually the action space is 2 edges and whether to cross swap or parallel swap them.
-        # Each swap type is commutative, so this could be represented by the upper and lower triangles
-        # of a num_edges x num_edges matrix, where a self swap is always illegal so the diagonal doesn't matter,
-        # or something else.
+        # Each swap type is commutative, so this could be represented by the upper and lower
+        # triangles of a num_edges x num_edges matrix, where a self swap is always illegal so the
+        # diagonal doesn't matter.
         self.action_space = gym.spaces.MultiDiscrete([self.num_edges, self.num_edges])
 
     @override
@@ -223,6 +224,11 @@ class RegularEdgeSwapEnv(gym.Env):
     def from_srg_problem(
         cls, problem: StronglyRegularGraphs, max_steps: int | None = None
     ) -> "RegularEdgeSwapEnv":
+        """Builds a RegularEdgeSwapEnv compatible with a given SRG problem.
+
+        Returns:
+            Compatible edge swap env
+        """
         return RegularEdgeSwapEnv(problem, problem.n, problem.k, max_steps=max_steps)
 
 

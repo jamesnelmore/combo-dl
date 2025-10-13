@@ -1,10 +1,19 @@
-"""Combo DL: Graph optimization using deep learning.
+"""Combo DL: Graph optimization using deep learning."""
 
-This package contains modules for:
-- Algorithms: Deep cross-entropy and other optimization algorithms
-- Models: Neural network models for graph construction
-- Problems: Problem definitions and scoring functions
-- Experiment Logger: Logging and tracking experiment results
-"""
+from . import (
+    graph_utils,
+    models,
+)
+from .deep_cross_entropy import WagnerDeepCrossEntropy
+from .strongly_regular_graphs_problem import StronglyRegularGraphs
+from .wagner_corollary_2_1_problem import WagnerCorollary21
+
+__all__ = [
+    "StronglyRegularGraphs",
+    "WagnerCorollary21",
+    "WagnerDeepCrossEntropy",
+    "graph_utils",
+    "models",
+]
 
 __version__ = "0.1.0"

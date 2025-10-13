@@ -117,10 +117,10 @@ def main():
         max_grad_norm=0.5,  # Slightly looser gradient clipping
         device="cpu",  # Use the determined device
         tensorboard_log="./tensorboard_logs/",  # Enable tensorboard logging
-        policy_kwargs=dict(
-            net_arch=[dict(pi=[256, 256], vf=[256, 256])],  # Larger networks
-            activation_fn=torch.nn.ReLU,
-        ),
+        policy_kwargs={
+            "net_arch": [{"pi": [256, 256], "vf": [256, 256]}],  # Larger networks
+            "activation_fn": torch.nn.ReLU,
+        },
     )
 
     # Create callback for logging and early stopping

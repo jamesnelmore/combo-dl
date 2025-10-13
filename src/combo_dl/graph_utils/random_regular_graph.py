@@ -104,13 +104,3 @@ def gen_random_regular_graph(
     A[final_edge_list[:, 1], final_edge_list[:, 0]] = 1
 
     return A, final_edge_list
-
-
-if __name__ == "__main__":
-    # Manually create and print a sample edge list for a 5-node undirected cycle graph
-    n: int = 5
-    edge_list: np.ndarray = np.array([[i, (i + 1) % n] for i in range(n)], dtype=int)
-
-    print("Sample edge list (5-node cycle):")
-    print(edge_list)
-    _swap_edges(edge_list, n, 42)

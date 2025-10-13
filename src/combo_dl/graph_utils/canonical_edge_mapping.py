@@ -7,7 +7,7 @@ between different graph representations.
 import torch
 
 
-def edge_vector_to_adjacency_matrix(edge_vector: torch.Tensor, n: int) -> torch.Tensor:
+def edge_vec_to_adj(edge_vector: torch.Tensor, n: int) -> torch.Tensor:
     """Convert edge vector to symmetric adjacency matrix using canonical mapping.
 
     This function provides the standard conversion used throughout the project.
@@ -55,7 +55,7 @@ def edge_vector_to_adjacency_matrix(edge_vector: torch.Tensor, n: int) -> torch.
     return adj_matrices
 
 
-def adjacency_matrix_to_edge_vector(adj_matrix: torch.Tensor) -> torch.Tensor:
+def adj_to_edge_vec(adj_matrix: torch.Tensor) -> torch.Tensor:
     """Convert symmetric adjacency matrix to edge vector using canonical mapping.
 
     This function provides the inverse of edge_vector_to_adjacency_matrix.

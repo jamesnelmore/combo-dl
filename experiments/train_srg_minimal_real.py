@@ -2,9 +2,8 @@ from pathlib import Path
 
 import torch
 
-from combo_dl.algorithms import WagnerDeepCrossEntropy
-from combo_dl.models import FFModel
-from combo_dl.problems import StronglyRegularGraphs
+from combo_dl import StronglyRegularGraphs, WagnerDeepCrossEntropy
+from combo_dl.models import MLP
 
 N = 17
 K = 8
@@ -24,7 +23,7 @@ device = (
 
 def main():
     problem = StronglyRegularGraphs(N, K, LAMBDA, MU)
-    model = FFModel(N, hidden_layer_sizes=[64, 32, 16, 8, 4])
+    model = MLP(N, hidden_layer_sizes=[64, 32, 16, 8, 4])
     dce = WagnerDeepCrossEntropy(
         model,
         problem,

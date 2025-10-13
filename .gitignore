@@ -1,41 +1,73 @@
-tensorboard_logs/
-checkpoints/
-# Hydra and HPC outputs
-multirun/
-hydra_outputs/
-wandb/
-slurm_logs/
-.submitit/
-# Python-generated files
+# =============================================================================
+# Python
+# =============================================================================
 __pycache__/
 *.py[oc]
 build/
 dist/
 wheels/
 *.egg-info
+.coverage
 
-# Virtual environments
+# =============================================================================
+# Virtual Environments
+# =============================================================================
 .venv
+venv/
+env/
+ENV/
 
-# Jupyter Notebook
+# =============================================================================
+# Jupyter Notebooks
+# =============================================================================
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
 *.ipynb_checkpoints
-
-# Jupyter Notebook outputs
 .ipynb_output/
 */.ipynb_output/*
 *.ipynb_output
-
-# Jupyter config
 jupyter_notebook_config.py
 jupyter_notebook_config.json
 
-# Marimo
+# Notebook data directories
+notebooks/data/
+
+# =============================================================================
+# ML & Experiment Tracking
+# =============================================================================
+tensorboard_logs/
+checkpoints/
+wandb/
+slurm_logs/
+
+# =============================================================================
+# Hydra Configuration Framework
+# =============================================================================
+multirun/
+hydra_outputs/
+.submitit/
+
+# =============================================================================
+# Alternative Notebook Tools
+# =============================================================================
 __marimo__
 
-.DS_Store
-.coverage
-
-# VS Code
+# =============================================================================
+# Editor & IDE
+# =============================================================================
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# =============================================================================
+# Operating System
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

@@ -11,8 +11,8 @@ from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 import wandb
 
-from ..models.protocols import SamplingModel
-from ..problems.strongly_regular_graphs import StronglyRegularGraphs
+from .models import MLP
+from .strongly_regular_graphs_problem import StronglyRegularGraphs
 
 
 class WagnerDeepCrossEntropy:
@@ -21,12 +21,12 @@ class WagnerDeepCrossEntropy:
     Implementation of Deep Cross Entropy from [Wagner 2021](http://arxiv.org/abs/2104.14516).
     """
 
-    model: SamplingModel
+    model: MLP
 
     # TODO: Consider refactoring constructor to use a configuration object
     def __init__(
         self,
-        model: SamplingModel,
+        model: MLP,
         problem: StronglyRegularGraphs,
         iterations: int = 10_000,
         batch_size: int = 512,

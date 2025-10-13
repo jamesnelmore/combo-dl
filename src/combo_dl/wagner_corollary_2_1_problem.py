@@ -1,17 +1,17 @@
 """Example Corollary shown in Wagner 2021."""
 
 import math
-from typing import override
 
 import torch
 
-from combo_dl.graph_tools import edge_vector_to_adjacency_matrix
+from combo_dl.graph_utils import (
+    compute_largest_eigenvalue,
+    compute_maximum_matching,
+    edge_vec_to_adj,
+)
 
-from .base_problem import BaseProblem
-from .graph_utils import compute_largest_eigenvalue, compute_maximum_matching
 
-
-class WagnerCorollary21(BaseProblem):
+class WagnerCorollary21:
     r"""Corollary 2.1 from [Wagner 2021](http://arxiv.org/abs/2104.14516).
 
     Example problem to demonstrate the DCE method.
@@ -21,16 +21,20 @@ class WagnerCorollary21(BaseProblem):
     """
 
     def __init__(self, n: int):
+        """Creates WagnerCorollary21 class.
+
+        Args:
+        n: number of vertices in target graph
+        """
         self.n = n
         self.edges = (n**2 - n) // 2
-        self.goal_score = -(math.sqrt(n - 1) + 1)  # Negative because we want to maximize
+        self.goal_score = -(math.sqrt(n - 1) + 1)  # Negative to maximize
         print(f"Goal score (-(sqrt({n - 1}) + 1)): {self.goal_score:.6f}")
         print(
             f"Searching for graphs with score > {self.goal_score:.6f} "
             f"(eigenvalue + matching < {-self.goal_score:.6f})"
         )
 
-    @override
     def reward(self, x: torch.Tensor) -> torch.Tensor:
         """Compute the score for each construction in the batch.
 
@@ -44,7 +48,7 @@ class WagnerCorollary21(BaseProblem):
             Tensor of shape (batch_size,) with scores for each construction
             Higher scores are better (negative of eigenvalue + matching)
         """
-        adj_matrix = edge_vector_to_adjacency_matrix(x, self.n)
+        adj_matrix = edge_vec_to_adj(x, self.n)
 
         largest_eigenvalue = compute_largest_eigenvalue(adj_matrix)
         matching_number = compute_maximum_matching(adj_matrix)
@@ -52,7 +56,6 @@ class WagnerCorollary21(BaseProblem):
         # Return negative to make higher scores better
         return -(largest_eigenvalue + matching_number)
 
-    @override
     def should_stop_early(self, best_score: float) -> tuple[bool, str]:
         """Check if optimization should stop early (exclusive comparison for Wagner).
 
@@ -67,7 +70,6 @@ class WagnerCorollary21(BaseProblem):
             )
         return False, ""
 
-    @override
     def is_valid_solution(self, solution: torch.Tensor) -> torch.Tensor:
         """Check if solution is valid (binary values and correct dimension).
 
