@@ -1,0 +1,20 @@
+# Base Hydra configuration for unified directory structure
+# This config is automatically used by all Hydra runs
+
+defaults:
+  - _self_
+
+# Configure Hydra to use unified runs directory
+hydra:
+  run:
+    dir: runs
+  job:
+    chdir: false  # Don't change working directory
+  sweep:
+    dir: runs/sweep_${now:%Y%m%d_%H%M}
+    subdir: ${hydra.job.num}
+
+# Default logging configuration
+logging:
+  wandb_mode: "online"
+  checkpoint_dir: "runs"

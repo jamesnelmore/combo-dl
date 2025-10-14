@@ -154,7 +154,7 @@ if __name__ == "__main__":
 
     print("Starting training...")
     start_time = time.time()
-    model.learn(total_timesteps=1_000_000)  # Reduced from 1M to 100K for testing
+    model.learn(total_timesteps=1_000_000)
     training_time = time.time() - start_time
     print(f"Training completed in {training_time:.1f} seconds")
 

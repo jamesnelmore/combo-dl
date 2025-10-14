@@ -1,15 +1,16 @@
-"""Deep Cross Entropy Algorithm."""
+"""Deep Cross-Entropy Algorithm."""
 
 from datetime import datetime
-import os
+import json
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 import wandb
+import yaml
 
 from .models import MLP
 from .strongly_regular_graphs_problem import StronglyRegularGraphs
@@ -23,7 +24,6 @@ class WagnerDeepCrossEntropy:
 
     model: MLP
 
-    # TODO: Consider refactoring constructor to use a configuration object
     def __init__(
         self,
         model: MLP,
@@ -33,14 +33,13 @@ class WagnerDeepCrossEntropy:
         learning_rate: float = 0.0001,
         elite_proportion: float = 0.1,
         device: str = "cpu",
-        log_frequency: int = 1,
-        model_save_frequency: int = 100,
         early_stopping_patience: int = 300,
-        checkpoint_dir: str | Path | None = None,
+        use_wandb: bool = True,
         experiment_name: str | None = None,
-        wandb_project: str = "combo-dl",
-        wandb_mode: Literal["online", "offline"] = "online",
-        use_progress_bar: bool = True,
+        save_dir: str = "runs",
+        checkpoint_frequency: int = 100,
+        save_best_constructions: bool = True,
+        hydra_cfg: Any | None = None,
     ):
         """Initialize Deep Cross Entropy algorithm.
 
@@ -52,168 +51,150 @@ class WagnerDeepCrossEntropy:
             learning_rate: Learning rate for optimizer
             elite_proportion: Fraction of samples to use as elites
             device: Device to run on (cpu, cuda, mps)
-            log_frequency: How often to log detailed metrics
-            model_save_frequency: How often to save model checkpoints
             early_stopping_patience: Iterations to wait before early stopping
-            checkpoint_dir: Directory to save checkpoints
-            experiment_name: Name for this experiment run
-            wandb_project: WandB project name
-            wandb_mode: WandB logging mode (online/offline)
-            use_progress_bar: Whether to show progress bar
+            use_wandb: Whether to use Weights & Biases logging
+            experiment_name: Custom experiment name (overrides auto-naming)
+            save_dir: Base directory for saving experiments
+            checkpoint_frequency: How often to save model checkpoints
+            save_best_constructions: Whether to save best constructions
+            hydra_cfg: Hydra configuration (if using Hydra)
         """
         self.model = model
+        self.device = device
+        self.model.to(self.device)
+
         self.problem = problem
 
         self.iterations = iterations
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.elite_proportion = elite_proportion
-        self.log_frequency = log_frequency
-        self.model_save_frequency = model_save_frequency
         self.early_stopping_patience = early_stopping_patience
-        self.device = device
-        self.model.to(self.device)
-
-        # WandB setup
-        self.wandb_project = wandb_project
-        self.wandb_mode = wandb_mode
-        self.wandb_run = None
-        self.experiment_name = experiment_name
-
-        # Progress bar setup
-        self.use_progress_bar = use_progress_bar
-        self.progress_bar: tqdm | None = None
-
-        # Checkpoint setup
-        if checkpoint_dir is None:
-            checkpoint_dir = Path("checkpoints/")
-        self.checkpoint_dir = Path(checkpoint_dir)
-
-        # Create run-specific checkpoint directory
-        if self.experiment_name is None:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-            self.experiment_name = f"dce_{timestamp}"
-
-        self.run_checkpoint_dir = self.checkpoint_dir / self.experiment_name
-        self.run_checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        self.checkpoint_frequency = checkpoint_frequency
+        self.save_best_constructions = save_best_constructions
+        self.hydra_cfg = hydra_cfg
 
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
 
         # Optimization State (we want to maximize)
         self.best_score = float("-inf")
-        self.best_construction = None
+        self.best_construction = torch.ones(self.problem.n, device=self.device, dtype=torch.long)
         self.samples_seen = 0
 
         # Early stopping tracking
         self.steps_since_best = 0
         self.best_score_iteration = 0
 
-    def _setup_wandb(self) -> None:
-        """Initialize WandB run."""
-        try:
-            # Handle authentication for HPC environments
-            if os.getenv("WANDB_API_KEY"):
-                wandb.login(key=os.getenv("WANDB_API_KEY"))
-            else:
-                try:
-                    wandb.login()
-                except Exception:
-                    print("Warning: WandB authentication failed. Running in offline mode.")
-                    self.wandb_mode = "offline"
-
+        # Weights and Biases
+        if use_wandb:
+            print("initialized")
             self.wandb_run = wandb.init(
-                project=self.wandb_project,
-                name=self.experiment_name,
-                mode=self.wandb_mode,  # pyright: ignore[reportArgumentType]
+                project="combo-dl",
+                name=experiment_name,
                 config={
-                    "iterations": self.iterations,
-                    "batch_size": self.batch_size,
                     "learning_rate": self.learning_rate,
+                    "batch_size": self.batch_size,
                     "elite_proportion": self.elite_proportion,
-                    "device": self.device,
                     "early_stopping_patience": self.early_stopping_patience,
+                    "max_iterations": self.iterations,
+                    "srg_parameters": {
+                        "n": self.problem.n,
+                        "k": self.problem.k,
+                        "lambda": self.problem.lambda_param,
+                        "mu": self.problem.mu,
+                    },
                 },
             )
-            # Update experiment name if wandb generated one
-            self.experiment_name = self.wandb_run.name
-        except Exception as e:
-            print(f"Warning: WandB setup failed ({e}), continuing without")
+        else:
+            print("didnt")
             self.wandb_run = None
 
-    def _setup_progress_bar(self) -> None:
-        """Setup progress bar for training."""
-        if not self.use_progress_bar:
-            return
+        # Setup experiment directory
+        self.experiment_name = self._get_experiment_name(experiment_name)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.experiment_dir = Path(save_dir) / f"{timestamp}_{self.experiment_name}"
+        self.experiment_dir.mkdir(parents=True, exist_ok=True)
+        (self.experiment_dir / "checkpoints").mkdir(exist_ok=True)
+        (self.experiment_dir / "best_constructions").mkdir(exist_ok=True)
 
-        self.progress_bar = tqdm(
-            total=self.iterations,
-            desc=self.experiment_name or "DCE Training",
-            position=0,
-            leave=True,
-            dynamic_ncols=True,
-        )
+        # Save initial config
+        self._save_config()
 
-    def _log_metrics(self, metrics: dict[str, Any], iteration: int) -> None:
-        """Log metrics to WandB and progress bar."""
-        # Log to WandB
-        if self.wandb_run:
-            self.wandb_run.log(metrics, step=iteration)
+    def _get_experiment_name(self, custom_name: str | None) -> str:
+        """Get experiment name with priority: custom > hydra > wandb > auto.
 
-        if self.use_progress_bar and self.progress_bar:
-            formatted_metrics = {}
-            for key, value in metrics.items():
-                if isinstance(value, float):
-                    if abs(value) < 0.001 or abs(value) > 1000:
-                        formatted_metrics[key] = f"{value:.2e}"
-                    else:
-                        formatted_metrics[key] = f"{value:.4f}"
-                elif isinstance(value, bool):
-                    formatted_metrics[key] = int(value)
-                else:
-                    formatted_metrics[key] = value
+        Returns:
+            Base experiment name (timestamp added to directory name)
+        """
+        if custom_name:
+            return custom_name
 
-            self.progress_bar.n = iteration
-            self.progress_bar.set_postfix(formatted_metrics)
-            self.progress_bar.refresh()
+        if self.hydra_cfg and hasattr(self.hydra_cfg, "experiment_name"):
+            return self.hydra_cfg.experiment_name
 
-    def _save_checkpoint(self, iteration: int, metrics: dict[str, Any]) -> None:
-        """Save model checkpoint and best construction."""
-        # Get problem parameters
-        problem_config = {
-            "n": self.problem.n,
-            "k": self.problem.k,
-            "lambda": self.problem.lambda_param,
-            "mu": self.problem.mu,
-        }
+        if self.wandb_run and self.wandb_run.name:
+            return self.wandb_run.name
 
-        checkpoint = {
-            "iteration": iteration,
-            "model_state_dict": self.model.state_dict(),
-            "optimizer_state_dict": self.optimizer.state_dict(),
-            "best_score": self.best_score,
-            "best_construction": (
-                self.best_construction.cpu() if self.best_construction is not None else None
-            ),
-            "metrics": metrics,
-            "config": {
-                "iterations": self.iterations,
-                "batch_size": self.batch_size,
-                "learning_rate": self.learning_rate,
-                "elite_proportion": self.elite_proportion,
-                "device": self.device,
-                "early_stopping_patience": self.early_stopping_patience,
-                **problem_config,  # Include problem parameters
+        return "experiment"
+
+    def _save_config(self) -> None:
+        """Save configuration files."""
+        if self.hydra_cfg:
+            with (self.experiment_dir / "config.yaml").open("w", encoding="utf-8") as f:
+                yaml.dump(self.hydra_cfg, f, default_flow_style=False)
+
+        config = {
+            "learning_rate": self.learning_rate,
+            "batch_size": self.batch_size,
+            "elite_proportion": self.elite_proportion,
+            "early_stopping_patience": self.early_stopping_patience,
+            "max_iterations": self.iterations,
+            "srg_parameters": {
+                "n": self.problem.n,
+                "k": self.problem.k,
+                "lambda": self.problem.lambda_param,
+                "mu": self.problem.mu,
             },
         }
 
-        checkpoint_path = self.run_checkpoint_dir / f"checkpoint_{iteration}.pt"
-        torch.save(checkpoint, checkpoint_path)
+        with (self.experiment_dir / "experiment_config.json").open("w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2)
 
-        if self.best_construction is not None:
-            torch.save(checkpoint, self.run_checkpoint_dir / f"best_iter{iteration}.pt")
-
+    def _save_checkpoint(self, iteration: int, metrics: dict[str, Any]) -> None:
+        """Save model checkpoint."""
+        checkpoint_path = self.experiment_dir / "checkpoints" / f"checkpoint_{iteration:06d}.pt"
+        torch.save(
+            {
+                "iteration": iteration,
+                "model_state_dict": self.model.state_dict(),
+                "optimizer_state_dict": self.optimizer.state_dict(),
+                "best_score": self.best_score,
+                "best_construction": (
+                    self.best_construction.cpu() if self.best_construction is not None else None
+                ),
+                "metrics": metrics,
+            },
+            checkpoint_path,
+        )
         print(f"  → Saved checkpoint: {checkpoint_path.name}")
+
+    def _save_construction(self, iteration: int) -> None:
+        """Save construction."""
+        construction_path = (
+            self.experiment_dir
+            / "best_constructions"
+            / f"best_iter_{iteration:06d}_score_{self.best_score:.4f}.pt"
+        )
+        torch.save(
+            {
+                "construction": self.best_construction.cpu(),
+                "score": self.best_score,
+                "iteration": iteration,
+            },
+            construction_path,
+        )
+        print(f"  → Saved best construction: {construction_path.name}")
 
     def optimize(self) -> dict[str, Any]:
         """Run the full Deep Cross-Entropy optimization.
@@ -221,106 +202,87 @@ class WagnerDeepCrossEntropy:
         Returns:
             Dictionary of optimization results
         """
-        # Setup logging and progress tracking
-        self._setup_wandb()
-        self._setup_progress_bar()
-
-        print("Starting Deep Cross Entropy optimization")
-        print(f"Experiment: {self.experiment_name}")
-        print(f"Checkpoints: {self.run_checkpoint_dir}")
-        print(f"Device: {self.device}")
-        print()
-
-        early_stopped = False
+        stop_early = False
         final_metrics = None
+        p_bar = tqdm(total=self.iterations)
 
         for iteration in range(self.iterations):
             metrics = self.run_iteration()
             final_metrics = metrics
             num_elites = metrics["num_elites"]
-            del metrics["num_elites"]
 
-            # Update early stopping tracking
             if metrics["found_new_best"]:
                 self.steps_since_best = 0
                 self.best_score_iteration = iteration
+                # Save best construction when found
+                if self.save_best_constructions:
+                    self._save_construction(iteration)
             else:
                 self.steps_since_best += 1
 
-            # Log metrics
-            if iteration % self.log_frequency == 0:
-                self._log_metrics(metrics, iteration)
-            else:
-                # Still update progress bar with minimal info
-                minimal_metrics = {
-                    "best_score": metrics["best_score"],
-                    "samples_seen": metrics["samples_seen"],
-                }
-                self._log_metrics(minimal_metrics, iteration)
+            should_stop, reason = self.problem.should_stop_early(metrics["best_score"])
+            if should_stop:
+                print(f"Stopping early: {reason}")
+                stop_early = True
+                break
+            if num_elites == 0:
+                print("No elites returned. This should not happen. Stopping")
+                stop_early = True
 
-            # Log best construction when it improves
-            if metrics["found_new_best"] and self.best_construction is not None and self.wandb_run:
-                # Log construction score as metric
-                construction_metrics = {"construction_score": self.best_score}
-                if metrics.get("iteration"):
-                    construction_metrics["construction_iteration"] = iteration
-                self.wandb_run.log(construction_metrics, step=iteration)
+            if self.steps_since_best >= self.early_stopping_patience:
+                print(f"No improvement for {self.steps_since_best} steps. Stopping")
+                stop_early = True
+                break
 
-            # Save checkpoint
-            if iteration > 0 and iteration % self.model_save_frequency == 0:
+            # Progress bar
+            p_bar.update(1)
+            p_bar.set_postfix({
+                "best": metrics["best_score"],
+                "avg": metrics["avg_score"],
+                "accuracy": f"{metrics['accuracy']: .3f}",
+                "loss": metrics["loss"],
+                "graphs_seen": metrics["samples_seen"],
+                "steps_since_best": self.steps_since_best,
+            })
+
+            # Log to WandB
+            if self.wandb_run:
+                self.wandb_run.log(metrics)
+
+            # Save checkpoint if needed
+            if iteration % self.checkpoint_frequency == 0:
                 self._save_checkpoint(iteration, metrics)
 
-            # Check if problem wants to stop early
-            should_stop, stop_reason = self.problem.should_stop_early(metrics["best_score"])
-            if should_stop:
-                print(f"Early stopping at iteration {iteration}")
-                print(stop_reason)
-                early_stopped = True
+            if stop_early:
                 break
 
-            # Early stopping condition: no improvement for patience steps
-            if self.steps_since_best >= self.early_stopping_patience:
-                print(
-                    f"Early stopping at iteration {iteration}: "
-                    f"no improvement for {self.early_stopping_patience} steps"
-                )
-                print(
-                    f"Best score {self.best_score} was achieved at "
-                    f"iteration {self.best_score_iteration}"
-                )
-                early_stopped = True
-                break
+        p_bar.close()
 
-            # Early stopping condition (optional)
-            if num_elites == 0:
-                print(f"Warning: No elites selected at iteration {iteration}")
-                break
-
-        # Save final checkpoint
-        if final_metrics:
-            self._save_checkpoint(iteration, final_metrics)
-
-        print()
-        print("=" * 50)
-        print("Training complete!")
-        print(f"Best score: {self.best_score:.2f}")
-        print(f"Checkpoints saved to: {self.run_checkpoint_dir}")
-        print()
-
-        return {
+        final_results = {
             "best_score": self.best_score,
-            # Move to cpu because Hydra cannot deserialize a CUDA object on the login node
-            "best_construction": self.best_construction.cpu()
-            if self.best_construction is not None
-            else None,
+            "best_construction": (
+                self.best_construction.cpu() if self.best_construction is not None else None
+            ),
             "num_elites": num_elites,
             "final_metrics": final_metrics,
-            "early_stopped": early_stopped,
+            "early_stopped": stop_early,
             "iterations": iteration,
             "samples_seen": self.samples_seen,
             "best_score_iteration": self.best_score_iteration,
             "steps_since_best": self.steps_since_best,
         }
+
+        with (self.experiment_dir / "results.json").open("w", encoding="utf-8") as f:
+            json.dump(final_results, f, indent=2, default=str)
+
+        print()
+        print("=" * 50)
+        print("Training complete!")
+        print(f"Best score: {self.best_score:.2f}")
+        print(f"Experiment directory: {self.experiment_dir}")
+        print()
+
+        return final_results
 
     def run_iteration(self) -> dict[str, float]:
         """Run one DCE iteration and return metrics.
@@ -346,7 +308,6 @@ class WagnerDeepCrossEntropy:
         elites = self.select_elites(constructions, batch_scores)
 
         if len(elites) == 0:
-            print("Zero elites passed. This should not occur. Stopping run.")
             return {
                 "best_score": self.best_score,
                 "avg_score": avg_score,

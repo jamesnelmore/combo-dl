@@ -36,7 +36,7 @@ notebooks/data/
 # ML & Experiment Tracking
 # =============================================================================
 tensorboard_logs/
-checkpoints/
+runs/
 wandb/
 slurm_logs/
 
