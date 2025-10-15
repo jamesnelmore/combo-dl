@@ -1,5 +1,7 @@
 """Problem class for SRG problem."""
 
+import math
+
 import torch
 
 from combo_dl.graph_utils import edge_vec_to_adj
@@ -144,6 +146,40 @@ class StronglyRegularGraphs:
             Number of edges in a complete graph with n vertices
         """
         return (self.n * (self.n - 1)) // 2
+
+    def spectrum(self) -> dict:
+        """Returns the expected spectrum of the SRG.
+
+        Strongly regular graphs have 3 distinct eigenvalues, k, r, s.
+        See [Strongly Regular Graphs](https://en.wikipedia.org/wiki/Strongly_regular_graph#Eigenvalues_and_graph_spectrum)
+        """
+        discriminant: float = math.sqrt(
+            (self.lambda_param - self.mu) ** 2 + 4 * (self.k - self.mu)
+        )
+        half_discriminant = 0.5 * discriminant
+        eigval_term1 = 0.5 * (self.lambda_param - self.mu)
+
+        r = eigval_term1 + half_discriminant
+        s = eigval_term1 - half_discriminant
+
+        multiplicity_term1 = 0.5 * (self.n - 1)
+        multiplicity_term2_numerator = 2 * self.k + (self.n - 1) * (self.lambda_param - self.mu)
+        multiplicity_term2_denominator = math.sqrt(
+            (self.lambda_param - self.mu) ** 2 + 4 * (self.k - self.mu)
+        )
+        multiplicity_term2 = multiplicity_term2_numerator / multiplicity_term2_denominator
+
+        r_multiplicity = multiplicity_term1 - multiplicity_term2
+        s_multiplicity = multiplicity_term1 + multiplicity_term2
+
+        assert r_multiplicity.is_integer()
+        assert s_multiplicity.is_integer()
+
+        return {
+            "k": {"value": self.k, "multiplicity": 1},
+            "r": {"value": r, "multiplicity": int(r_multiplicity)},
+            "s": {"value": s, "multiplicity": int(s_multiplicity)},
+        }
 
     @staticmethod
     def get_goal_score() -> float:

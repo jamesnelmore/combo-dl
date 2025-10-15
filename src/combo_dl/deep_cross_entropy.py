@@ -174,6 +174,12 @@ class WagnerDeepCrossEntropy:
                     self.best_construction.cpu() if self.best_construction is not None else None
                 ),
                 "metrics": metrics,
+                "config": {
+                    "n": self.problem.n,
+                    "k": self.problem.k,
+                    "lambda": self.problem.lambda_param,
+                    "mu": self.problem.mu,
+                },
             },
             checkpoint_path,
         )
@@ -191,6 +197,12 @@ class WagnerDeepCrossEntropy:
                 "construction": self.best_construction.cpu(),
                 "score": self.best_score,
                 "iteration": iteration,
+                "config": {
+                    "n": self.problem.n,
+                    "k": self.problem.k,
+                    "lambda": self.problem.lambda_param,
+                    "mu": self.problem.mu,
+                },
             },
             construction_path,
         )
@@ -270,6 +282,12 @@ class WagnerDeepCrossEntropy:
             "samples_seen": self.samples_seen,
             "best_score_iteration": self.best_score_iteration,
             "steps_since_best": self.steps_since_best,
+            "config": {
+                "n": self.problem.n,
+                "k": self.problem.k,
+                "lambda": self.problem.lambda_param,
+                "mu": self.problem.mu,
+            },
         }
 
         with (self.experiment_dir / "results.json").open("w", encoding="utf-8") as f:
