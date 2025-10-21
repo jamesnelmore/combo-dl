@@ -83,6 +83,7 @@ ignore = [
     "PLR0915", # Too many statements
     "PLR0917", # Too many local variables
     "PLR2004", # Magic value used in comparison
+    "PLR6104", # Consider using `x += y` instead of `x = x + y`
     "N806",    # Variable names should be lowercase
     "N812",    # Lowercase imported as non-lowercase
     "RET504",  # Unnecessary assign
@@ -111,13 +112,16 @@ ignore = [
 ]
 
 "experiments/**/*.py" = [
-    "D100",    # Missing docstring in public module
-    "D101",    # Missing docstring in public class
-    "D102",    # Missing docstring in public method
-    "D103",    # Missing docstring in public function
-    "D105",    # Missing docstring in magic method
-    "D107",    # Missing docstring in __init__
-    "DOC201",  # Missing return documentation
+    "D",       # All pydocstyle rules (docstring conventions)
+    "DOC",     # All flake8-docstrings rules
+    "PLR6301", # Method could be a function
+    "PLR6201", # Use set literal for membership
+    "F841",    # Local variable assigned but never used
+]
+
+"notebooks/**/*.py" = [
+    "D",       # All pydocstyle rules (docstring conventions)
+    "DOC",     # All flake8-docstrings rules
     "PLR6301", # Method could be a function
     "PLR6201", # Use set literal for membership
     "F841",    # Local variable assigned but never used
@@ -146,7 +150,7 @@ exclude = [
 ]
 
 [tool.pyright]
-include = ["src/combo_dl/", "notebooks/"]
+include = ["src/combo_dl/", "notebooks/", "experiments/"]
 exclude = ["**/__pycache__", "**/.venv", "**/venv"]
 pythonVersion = "3.13"
 typeCheckingMode = "basic"
@@ -159,9 +163,9 @@ reportUnsafeMultipleInheritance = "warning"
 # Use library code for better type analysis
 useLibraryCodeForTypes = true
 
-# Notebook-specific settings
+# Research/experimental code settings (notebooks and experiments)
 [tool.pyright.notebook]
-# More lenient type checking for notebooks (research code)
+# More lenient type checking for research code
 typeCheckingMode = "basic"
 reportMissingImports = "warning"
 reportAttributeAccessIssue = "warning"
@@ -181,4 +185,6 @@ filterwarnings = [
     "error",
     "ignore::UserWarning",
     "ignore::DeprecationWarning",
+    "ignore::pydantic.warnings.PydanticDeprecatedSince20",
+    "ignore::pydantic._internal._generate_schema.UnsupportedFieldAttributeWarning",
 ]
