@@ -1,0 +1,32 @@
+graph:
+  _target_: combo_dl.strongly_regular_graphs_problem.StronglyRegularGraphs
+  n: 99
+  k: 14
+  lambda_param: 1
+  mu: 2
+
+model:
+  _target_: combo_dl.models.mlp.MLP
+  n: ${graph.n}
+  hidden_layer_sizes: [256, 128, 32, 16, 8, 4]
+  output_size: 2
+  dropout_probability: 0
+  layernorm: true
+  activation_function: "relu"
+
+training:
+  iterations: 50000
+  batch_size: 2048
+  learning_rate: 0.001
+  elite_proportion: 0.1
+  early_stopping_patience: 50000
+
+# Inherit base configuration from hydra.yaml
+defaults:
+  - hydra
+  - _self_
+
+# Override specific logging settings if needed
+logging:
+  wandb_mode: "online"
+  checkpoint_dir: "runs"
