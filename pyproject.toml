@@ -3,7 +3,7 @@ name = "combo-dl"
 version = "0.1.0"
 description = "Graph optimization using deep learning"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.13,<3.14"
 authors = [
     {name = "James Elmore", email = "email@jameselmore.org"},
 ]
@@ -15,7 +15,7 @@ dependencies = [
     "networkx>=3.5",
     "numpy>=2.3.2",
     "omegaconf>=2.3.0",
-    "pyright>=1.1.405",
+    "pydantic>=2.6,<2.9",
     "scipy>=1.16.2",
     "stable-baselines3[extra]>=2.7.0",
     "torch>=2.8.0",

@@ -9,7 +9,6 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
-import wandb
 import yaml
 
 from .models import MLP
@@ -86,8 +85,10 @@ class WagnerDeepCrossEntropy:
         self.steps_since_best = 0
         self.best_score_iteration = 0
 
-        # Weights and Biases
+        # Weights and Biases - lazy import to avoid slow startup
         if use_wandb:
+            import wandb  # noqa: PLC0415
+
             print("initialized")
             self.wandb_run = wandb.init(
                 project="combo-dl",
