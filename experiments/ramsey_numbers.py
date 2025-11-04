@@ -440,8 +440,8 @@ def main():
 
     # Training hyperparameters
     iterations = 10000
-    batch_size = 64
-    learning_rate = 0.001
+    batch_size = 2048
+    learning_rate = 1e-4
     elite_proportion = 0.1
     early_stopping_patience = iterations
 
@@ -493,7 +493,8 @@ def main():
 
     # Initialize Deep Cross Entropy optimizer
     # Create experiment name with Ramsey parameters
-    experiment_name = f"ramsey_n{n}_r{r}_s{s}"
+    experiment_name = f"ramsey_n{n}_r{r}_s{s}_avg_score"
+    
     dce = WagnerDeepCrossEntropy(
         model,
         problem,  # type: ignore[arg-type]
@@ -508,6 +509,16 @@ def main():
         save_best_constructions=True,
         experiment_name=experiment_name,
     )
+    
+    # Create ReduceLROnPlateau scheduler using DCE's optimizer
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        dce.optimizer,
+        mode="max",
+        factor=0.5, 
+        patience=300,  
+        min_lr=1e-6,
+    )
+    dce.scheduler = scheduler
 
     # Run optimization
     dce.optimize()

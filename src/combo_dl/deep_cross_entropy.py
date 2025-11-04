@@ -39,6 +39,7 @@ class WagnerDeepCrossEntropy:
         checkpoint_frequency: int = 100,
         save_best_constructions: bool = True,
         hydra_cfg: Any | None = None,
+        scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
     ):
         """Initialize Deep Cross Entropy algorithm.
 
@@ -57,6 +58,7 @@ class WagnerDeepCrossEntropy:
             checkpoint_frequency: How often to save model checkpoints
             save_best_constructions: Whether to save best constructions
             hydra_cfg: Hydra configuration (if using Hydra)
+            scheduler: Learning rate scheduler instance (optional)
         """
         self.model = model
         self.device = device
@@ -75,6 +77,7 @@ class WagnerDeepCrossEntropy:
 
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+        self.scheduler = scheduler
 
         # Optimization State (we want to maximize)
         self.best_score = float("-inf")
@@ -165,25 +168,25 @@ class WagnerDeepCrossEntropy:
     def _save_checkpoint(self, iteration: int, metrics: dict[str, Any]) -> None:
         """Save model checkpoint."""
         checkpoint_path = self.experiment_dir / "checkpoints" / f"checkpoint_{iteration:06d}.pt"
-        torch.save(
-            {
-                "iteration": iteration,
-                "model_state_dict": self.model.state_dict(),
-                "optimizer_state_dict": self.optimizer.state_dict(),
-                "best_score": self.best_score,
-                "best_construction": (
-                    self.best_construction.cpu() if self.best_construction is not None else None
-                ),
-                "metrics": metrics,
-                "config": {
-                    "n": self.problem.n,
-                    "k": self.problem.k,
-                    "lambda": self.problem.lambda_param,
-                    "mu": self.problem.mu,
-                },
+        checkpoint_dict = {
+            "iteration": iteration,
+            "model_state_dict": self.model.state_dict(),
+            "optimizer_state_dict": self.optimizer.state_dict(),
+            "best_score": self.best_score,
+            "best_construction": (
+                self.best_construction.cpu() if self.best_construction is not None else None
+            ),
+            "metrics": metrics,
+            "config": {
+                "n": self.problem.n,
+                "k": self.problem.k,
+                "lambda": self.problem.lambda_param,
+                "mu": self.problem.mu,
             },
-            checkpoint_path,
-        )
+        }
+        if self.scheduler is not None:
+            checkpoint_dict["scheduler_state_dict"] = self.scheduler.state_dict()
+        torch.save(checkpoint_dict, checkpoint_path)
         print(f"  → Saved checkpoint: {checkpoint_path.name}")
 
     def _save_construction(self, iteration: int) -> None:
@@ -258,9 +261,26 @@ class WagnerDeepCrossEntropy:
                 "steps_since_best": self.steps_since_best,
             })
 
+            # Step learning rate scheduler
+            if self.scheduler is not None:
+                # ReduceLROnPlateau needs a metric value, others just need step()
+                if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                    # Use avg_score (current batch performance) for ReduceLROnPlateau
+                    # This allows scheduler to react to current performance, not just historical best
+                    self.scheduler.step(metrics["avg_score"])
+                else:
+                    self.scheduler.step()
+
             # Log to WandB
             if self.wandb_run:
-                self.wandb_run.log(metrics)
+                log_metrics = metrics.copy()
+                if self.scheduler is not None:
+                    # ReduceLROnPlateau doesn't have get_last_lr(), get from optimizer
+                    if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                        log_metrics["learning_rate"] = self.optimizer.param_groups[0]["lr"]
+                    else:
+                        log_metrics["learning_rate"] = self.scheduler.get_last_lr()[0]
+                self.wandb_run.log(log_metrics)
 
             # Save checkpoint if needed
             if iteration % self.checkpoint_frequency == 0:

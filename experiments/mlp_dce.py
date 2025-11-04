@@ -31,6 +31,12 @@ def main(cfg: DictConfig) -> None:
         checkpoint_frequency=100,
         save_best_constructions=True,
     )
+    
+    # Instantiate scheduler if configured, using DCE's optimizer
+    if hasattr(cfg.training, "scheduler") and cfg.training.scheduler is not None:
+        scheduler_cfg = cfg.training.scheduler.copy()
+        scheduler_cfg.optimizer = dce.optimizer
+        dce.scheduler = instantiate(scheduler_cfg)
     dce.optimize()
 
 
