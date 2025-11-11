@@ -273,14 +273,7 @@ class WagnerDeepCrossEntropy:
 
             # Log to WandB
             if self.wandb_run:
-                log_metrics = metrics.copy()
-                if self.scheduler is not None:
-                    # ReduceLROnPlateau doesn't have get_last_lr(), get from optimizer
-                    if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
-                        log_metrics["learning_rate"] = self.optimizer.param_groups[0]["lr"]
-                    else:
-                        log_metrics["learning_rate"] = self.scheduler.get_last_lr()[0]
-                self.wandb_run.log(log_metrics)
+                self.wandb_run.log(metrics)
 
             # Save checkpoint if needed
             if iteration % self.checkpoint_frequency == 0:
@@ -346,6 +339,9 @@ class WagnerDeepCrossEntropy:
 
         elites = self.select_elites(constructions, batch_scores)
 
+        # Get current learning rate
+        current_lr = self.optimizer.param_groups[0]["lr"]
+
         if len(elites) == 0:
             return {
                 "best_score": self.best_score,
@@ -355,6 +351,7 @@ class WagnerDeepCrossEntropy:
                 "loss": float("nan"),
                 "accuracy": float("nan"),
                 "samples_seen": self.samples_seen,
+                "learning_rate": current_lr,
             }
 
         # Extract training examples and train
@@ -370,6 +367,7 @@ class WagnerDeepCrossEntropy:
             "num_elites": len(elites),
             "found_new_best": found_new_best,
             "samples_seen": self.samples_seen,
+            "learning_rate": current_lr,
             **train_metrics,
         }
 
