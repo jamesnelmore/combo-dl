@@ -60,6 +60,7 @@ class WagnerDeepCrossEntropy:
             save_best_constructions: Whether to save best constructions
             hydra_cfg: Hydra configuration (if using Hydra)
             scheduler: Learning rate scheduler instance (optional)
+            survivor_proportion: Fraction of constructions to keep as survivors each iteration
         """
         self.model = model
         self.device = device
@@ -328,7 +329,6 @@ class WagnerDeepCrossEntropy:
 
         return final_results
 
-    @torch.compile
     def run_iteration(self) -> dict[str, float]:
         """Run one DCE iteration and return metrics.
 

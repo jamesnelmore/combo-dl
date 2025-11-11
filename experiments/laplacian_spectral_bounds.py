@@ -1,10 +1,12 @@
 from collections.abc import Callable
 
+import hydra
+from hydra.utils import instantiate
+from omegaconf import DictConfig, OmegaConf
 import torch
 
 from combo_dl import WagnerDeepCrossEntropy
 from combo_dl.graph_utils import edge_vec_to_adj
-from combo_dl.models.mlp import MLP
 
 
 class LaplacianSpectralBound:
@@ -74,6 +76,12 @@ def bound1(degrees: torch.Tensor, avg_degrees: torch.Tensor) -> torch.Tensor:
     return torch.sqrt(numerator / avg_degrees)
 
 
+def bound3(
+    degrees: torch.Tensor, avg_degrees: torch.Tensor
+) -> torch.Tensor:  # Broken in Ghebleh with n=21
+    return (avg_degrees**2 / (degrees + 1e-8)) + avg_degrees
+
+
 def bound4(degrees: torch.Tensor, avg_degrees: torch.Tensor) -> torch.Tensor:
     return (2 * degrees**2) / avg_degrees
 
@@ -119,28 +127,31 @@ class TestLaplacianSpectralBound:
         assert reward.shape == (5,)
 
 
-def main():
-    """Main function to run Laplacian spectral bound experiment with MLP DCE."""
+BOUND_FUNCTIONS: dict[str, Callable[[torch.Tensor, torch.Tensor], torch.Tensor]] = {
+    "bound1": bound1,
+    "bound4": bound4,
+    "bound5": bound5,
+    "bound31": bound31,
+    "bound3": bound3,
+}
+
+
+@hydra.main(config_path="../configs", config_name="laplacian_spectral_bounds", version_base=None)
+def main(cfg: DictConfig) -> None:
+    """Run Laplacian spectral bound experiment with MLP DCE."""
     print("=" * 60)
     print("Laplacian Spectral Bound Experiment")
     print("=" * 60)
 
-    n = 15
-    bound = bound31
-    iterations = 10000
-    batch_size = 2048
-    learning_rate = 1e-3
-    elite_proportion = 0.1
-    early_stopping_patience = iterations
+    bound_key: str = cfg.problem.bound
+    if bound_key not in BOUND_FUNCTIONS:
+        raise ValueError(
+            f"Unknown bound function '{bound_key}'. Available: {list(BOUND_FUNCTIONS)}"
+        )
+    bound_fn = BOUND_FUNCTIONS[bound_key]
 
-    # Model hyperparameters
-    hidden_layer_sizes = [64, 32, 16, 8, 4]
-    output_size = 2
-    dropout_probability = 0.1
-    layernorm = True
-    activation_function = "relu"
+    n: int = cfg.problem.n
 
-    # Device setup
     device = (
         "mps"
         if torch.backends.mps.is_available()
@@ -149,53 +160,40 @@ def main():
         else "cpu"
     )
 
-    print(f"Graph: n={n}, bound={bound.__name__}")
-    print(f"Training: iterations={iterations}, batch_size={batch_size}")
+    print(f"Graph: n={n}, bound={bound_key}")
+    print(
+        f"Training: iterations={cfg.training.iterations}, "
+        f"batch_size={cfg.training.batch_size}, "
+        f"learning_rate={cfg.training.learning_rate}"
+    )
     print(f"Device: {device}")
     print("=" * 60)
 
-    # Initialize problem
-    problem = LaplacianSpectralBound(bound, n)
+    problem = LaplacianSpectralBound(bound_fn, n)
+    model = instantiate(cfg.model, n=problem.n)
 
-    # Initialize model
-    model = MLP(
-        n=problem.n,
-        hidden_layer_sizes=hidden_layer_sizes,
-        output_size=output_size,
-        dropout_probability=dropout_probability,
-        layernorm=layernorm,
-        activation_function=activation_function,
-    )
-
-    # Initialize Deep Cross Entropy optimizer
-    experiment_name = f"laplacian_spectral_bound_n{n}_bound1"
+    experiment_name: str | None = cfg.get("experiment_name", None)
 
     dce = WagnerDeepCrossEntropy(
         model,
         problem,  # type: ignore[arg-type]
-        iterations=iterations,
-        batch_size=batch_size,
-        learning_rate=learning_rate,
-        elite_proportion=elite_proportion,
-        early_stopping_patience=early_stopping_patience,
+        cfg.training.iterations,
+        cfg.training.batch_size,
+        cfg.training.learning_rate,
+        cfg.training.elite_proportion,
+        early_stopping_patience=cfg.training.early_stopping_patience,
         device=device,
-        hydra_cfg=None,
-        checkpoint_frequency=100,
-        save_best_constructions=True,
+        hydra_cfg=cfg,
+        checkpoint_frequency=cfg.training.checkpoint_frequency,
+        save_best_constructions=cfg.training.save_best_constructions,
         experiment_name=experiment_name,
+        survivor_proportion=cfg.training.survivor_proportion,
     )
 
-    # Create ReduceLROnPlateau scheduler using DCE's optimizer
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        dce.optimizer,
-        mode="max",
-        factor=0.5,
-        patience=300,
-        min_lr=1e-6,
-    )
-    dce.scheduler = scheduler
+    if hasattr(cfg.training, "scheduler") and cfg.training.scheduler is not None:
+        OmegaConf.set_struct(cfg.training.scheduler, False)
+        dce.scheduler = instantiate(cfg.training.scheduler, optimizer=dce.optimizer)
 
-    # Run optimization
     dce.optimize()
 
 

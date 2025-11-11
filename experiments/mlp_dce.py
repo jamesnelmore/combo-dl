@@ -1,6 +1,6 @@
 import hydra
 from hydra.utils import instantiate
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 import torch
 
 from combo_dl import WagnerDeepCrossEntropy
@@ -35,9 +35,8 @@ def main(cfg: DictConfig) -> None:
 
     # Instantiate scheduler if configured, using DCE's optimizer
     if hasattr(cfg.training, "scheduler") and cfg.training.scheduler is not None:
-        scheduler_cfg = cfg.training.scheduler.copy()
-        scheduler_cfg.optimizer = dce.optimizer
-        dce.scheduler = instantiate(scheduler_cfg)
+        OmegaConf.set_struct(cfg.training.scheduler, False)
+        dce.scheduler = instantiate(cfg.training.scheduler, optimizer=dce.optimizer)
     dce.optimize()
 
 
