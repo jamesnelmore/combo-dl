@@ -21,7 +21,7 @@ from combo_dl.graph_utils import edge_vec_to_adj
 from combo_dl.models.mlp import MLP
 
 
-# Bron-Kerbosch algorithm ###########
+# Bron-Kerbosch algorithm 
 def bron_kerbosch_pivot(adj: np.ndarray, R: set[int], P: set[int], X: set[int]) -> int:  # noqa: N803
     """Recursive step of the Bron-Kerbosch pivot algorithm to find maximum clique size.
     Args:
@@ -516,7 +516,7 @@ def main():
         mode="max",
         factor=0.5, 
         patience=300,  
-        min_lr=1e-6,
+        min_lr=1e-8,
     )
     dce.scheduler = scheduler
 
