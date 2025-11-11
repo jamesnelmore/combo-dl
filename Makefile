@@ -1,4 +1,15 @@
-.PHONY: help check-types clean format install-dev lint lint-fix strip-notebooks strip-notebooks-dry
+.PHONY: help check-types clean format install-dev lint lint-fix strip-notebooks strip-notebooks-dry submit
+
+SHELL := /bin/bash
+
+RUN_ARGS ?=
+TIME ?= 02:00:00
+GPUS ?= 0
+MODULE ?=
+
+ifndef MODULE
+$(error MODULE is required. Usage: make submit MODULE=experiments.mlp_dce [TIME=HH:MM:SS] [GPUS=N] [RUN_ARGS='hydra.overrides'])
+endif
 
 help:  ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
@@ -49,3 +60,8 @@ strip-notebooks-dry:  ## Show which notebooks would be stripped (dry run)
 			uv run nbstripout --dry-run "$$notebook" || echo "Invalid notebook: $$notebook"; \
 		fi; \
 	done
+
+# EXAMPLE 
+# make submit MODULE=experiments.mlp_dce GPUS=1 TIME=04:00:00 RUN_ARGS='training.iterations=5000'
+submit:  ## Submit an experiment to Slurm (set MODULE, override GPUS, TIME, RUN_ARGS)
+	TIME=$(TIME) GPUS=$(GPUS) ./scripts/submit_slurm_job.sh $(MODULE) $(RUN_ARGS)
