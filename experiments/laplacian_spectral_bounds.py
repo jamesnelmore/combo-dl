@@ -173,6 +173,7 @@ def main(cfg: DictConfig) -> None:
     model = instantiate(cfg.model, n=problem.n)
 
     experiment_name: str | None = cfg.get("experiment_name", None)
+    torch_compile: bool = bool(cfg.get("torch_compile", False))
 
     dce = WagnerDeepCrossEntropy(
         model,
@@ -188,6 +189,7 @@ def main(cfg: DictConfig) -> None:
         save_best_constructions=cfg.training.save_best_constructions,
         experiment_name=experiment_name,
         survivor_proportion=cfg.training.survivor_proportion,
+        torch_compile=torch_compile,
     )
 
     if hasattr(cfg.training, "scheduler") and cfg.training.scheduler is not None:

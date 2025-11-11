@@ -20,6 +20,12 @@ training:
   learning_rate: 0.001
   elite_proportion: 0.1
   early_stopping_patience: 50000
+  scheduler:
+    _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+    mode: "max"
+    factor: 0.5
+    patience: 300
+    min_lr: 0.000001
 
 # Inherit base configuration from hydra.yaml
 defaults:
@@ -30,3 +36,4 @@ defaults:
 logging:
   wandb_mode: "online"
   checkpoint_dir: "runs"
+torch_compile: true

@@ -27,7 +27,7 @@ training:
     patience: 300
     min_lr: 0.000001
 
-torch_compile: false
+torch_compile: true
 experiment_name: laplacian_bound3
 
 defaults:

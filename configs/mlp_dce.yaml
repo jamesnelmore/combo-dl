@@ -21,6 +21,12 @@ training:
   elite_proportion: 0.1
   early_stopping_patience: 600
   survivor_proportion: 0.02
+  scheduler:
+    _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+    mode: "max"
+    factor: 0.5
+    patience: 300
+    min_lr: 0.000001
 
 # Inherit base configuration from hydra.yaml
 defaults:
@@ -28,7 +34,7 @@ defaults:
   - _self_
 
 experiment_name: null  # Set to a string to name the WandB run and output directory
-torch_compile: False
+torch_compile: true
 
 # Override specific logging settings if needed
 logging:
