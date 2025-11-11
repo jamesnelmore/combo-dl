@@ -30,8 +30,9 @@ def main(cfg: DictConfig) -> None:
         hydra_cfg=cfg,
         checkpoint_frequency=100,
         save_best_constructions=True,
+        survivor_proportion=cfg.training.survivor_proportion,
     )
-    
+
     # Instantiate scheduler if configured, using DCE's optimizer
     if hasattr(cfg.training, "scheduler") and cfg.training.scheduler is not None:
         scheduler_cfg = cfg.training.scheduler.copy()

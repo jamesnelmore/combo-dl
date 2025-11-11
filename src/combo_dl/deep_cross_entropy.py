@@ -40,6 +40,7 @@ class WagnerDeepCrossEntropy:
         save_best_constructions: bool = True,
         hydra_cfg: Any | None = None,
         scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
+        survivor_proportion: float = 0.0,
     ):
         """Initialize Deep Cross Entropy algorithm.
 
@@ -88,6 +89,12 @@ class WagnerDeepCrossEntropy:
         self.steps_since_best = 0
         self.best_score_iteration = 0
 
+        # Survivors
+        self.survivor_proportion = survivor_proportion
+        self.survivor_count = 0
+        self.survivors = None
+        self.survivor_scores = None
+
         # Weights and Biases - lazy import to avoid slow startup
         if use_wandb:
             import wandb  # noqa: PLC0415
@@ -124,6 +131,11 @@ class WagnerDeepCrossEntropy:
 
         # Save initial config
         self._save_config()
+
+    def _edges(self) -> int:
+        if hasattr(self.problem, "edges"):
+            return self.problem.edges()
+        return 0
 
     def _get_experiment_name(self, custom_name: str | None) -> str:
         """Get experiment name with priority: custom > hydra > wandb > auto.
@@ -266,7 +278,7 @@ class WagnerDeepCrossEntropy:
                 # ReduceLROnPlateau needs a metric value, others just need step()
                 if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
                     # Use avg_score (current batch performance) for ReduceLROnPlateau
-                    # This allows scheduler to react to current performance, not just historical best
+                    # Allows scheduler to react to current performance, not just historical best
                     self.scheduler.step(metrics["avg_score"])
                 else:
                     self.scheduler.step()
@@ -316,28 +328,48 @@ class WagnerDeepCrossEntropy:
 
         return final_results
 
+    @torch.compile
     def run_iteration(self) -> dict[str, float]:
         """Run one DCE iteration and return metrics.
 
         Returns:
             Training metrics
         """
-        constructions = self.model.sample(self.batch_size)
-        batch_scores = self.problem.reward(constructions)
+        current_survivor_count = self.survivors.shape[0] if self.survivors is not None else 0
+        samples_to_generate = self.batch_size - current_survivor_count
+        new_samples = self.model.sample(samples_to_generate)
+        new_sample_scores = self.problem.reward(new_samples)
 
-        self.samples_seen += self.batch_size
+        if self.survivors is not None:
+            constructions = torch.cat([self.survivors, new_samples])
+            # scores is None iff survivors is None
+            construction_scores = torch.cat([self.survivor_scores, new_sample_scores])  # pyright: ignore[reportArgumentType]
+        else:
+            constructions = new_samples
+            construction_scores = new_sample_scores
 
-        current_best = torch.max(batch_scores).item()
-        avg_score = torch.mean(batch_scores).item()
+        self.samples_seen += constructions.shape[0]
+
+        current_best = torch.max(construction_scores).item()
+        avg_score = torch.mean(construction_scores).item()
 
         found_new_best = False
         if current_best > self.best_score:
             self.best_score = current_best
-            best_idx = torch.argmax(batch_scores)
+            best_idx = torch.argmax(construction_scores)
             self.best_construction = constructions[best_idx].clone()
             found_new_best = True
 
-        elites = self.select_elites(constructions, batch_scores)
+        elites, elite_indices = self.select_elites(constructions, construction_scores)
+
+        if self.survivor_proportion != 0.0:
+            survivor_count = int(len(constructions) * self.survivor_proportion)
+            survivor_indices = elite_indices[:survivor_count]
+            self.survivors = constructions[survivor_indices]
+            self.survivor_scores = construction_scores[survivor_indices]
+            self.survivor_count = survivor_count
+        else:
+            self.survivor_count = 0
 
         # Get current learning rate
         current_lr = self.optimizer.param_groups[0]["lr"]
@@ -375,17 +407,17 @@ class WagnerDeepCrossEntropy:
         self,
         constructions: torch.Tensor,
         batch_scores: torch.Tensor,
-    ) -> torch.Tensor:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Select top elite constructions based on scores (highest for maximization).
 
         Returns:
-            Top self.elite_proportion of constructions
+            Top self.elite_proportion of constructions, elite indices in construction tensor
         """
         batch_size = len(batch_scores)
         return_count = int(batch_size * self.elite_proportion)
         # descending for maximization
         elite_indices = torch.argsort(batch_scores, descending=True)[:return_count]
-        return constructions[elite_indices]
+        return constructions[elite_indices], elite_indices
 
     def extract_examples(
         self, constructions: torch.Tensor, output_batch_size: int | None = None

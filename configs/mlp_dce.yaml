@@ -1,9 +1,9 @@
 graph:
   _target_: combo_dl.strongly_regular_graphs_problem.StronglyRegularGraphs
-  n: 17
-  k: 8
-  lambda_param: 3
-  mu: 4
+  n: 13
+  k: 6
+  lambda_param: 2
+  mu: 3
 
 model:
   _target_: combo_dl.models.mlp.MLP
@@ -20,6 +20,7 @@ training:
   learning_rate: 0.001
   elite_proportion: 0.1
   early_stopping_patience: 10000
+  survivor_proportion: 0.02
 
 # Inherit base configuration from hydra.yaml
 defaults:
