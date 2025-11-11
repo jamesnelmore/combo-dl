@@ -42,5 +42,5 @@ CMD_STRING=""
 printf -v CMD_STRING '%q ' "${CMD[@]}"
 CMD_STRING="${CMD_STRING% }"
 
-sbatch "${SBATCH_ARGS[@]}" --wrap="cd ${PROJECT_ROOT} && ${CMD_STRING}"
+sbatch "${SBATCH_ARGS[@]}" --wrap="source /etc/profile && module load cuda && cd ${PROJECT_ROOT} && ${CMD_STRING}"
 

@@ -18,6 +18,9 @@ def main(cfg: DictConfig) -> None:
     problem = instantiate(cfg.graph)
     model = instantiate(cfg.model, n=problem.n)
 
+    experiment_name: str | None = cfg.get("experiment_name", None)
+    torch_compile: bool = bool(cfg.get("torch_compile", False))
+
     dce = WagnerDeepCrossEntropy(
         model,
         problem,
@@ -31,6 +34,8 @@ def main(cfg: DictConfig) -> None:
         checkpoint_frequency=100,
         save_best_constructions=True,
         survivor_proportion=cfg.training.survivor_proportion,
+        experiment_name=experiment_name,
+        torch_compile=torch_compile,
     )
 
     # Instantiate scheduler if configured, using DCE's optimizer

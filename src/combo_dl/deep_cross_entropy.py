@@ -3,7 +3,7 @@
 from datetime import datetime
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import torch
 from torch import nn
@@ -41,6 +41,7 @@ class WagnerDeepCrossEntropy:
         hydra_cfg: Any | None = None,
         scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
         survivor_proportion: float = 0.0,
+        torch_compile: bool = False,
     ):
         """Initialize Deep Cross Entropy algorithm.
 
@@ -61,6 +62,7 @@ class WagnerDeepCrossEntropy:
             hydra_cfg: Hydra configuration (if using Hydra)
             scheduler: Learning rate scheduler instance (optional)
             survivor_proportion: Fraction of constructions to keep as survivors each iteration
+            torch_compile: Whether to compile the iteration step with torch.compile
         """
         self.model = model
         self.device = device
@@ -95,6 +97,12 @@ class WagnerDeepCrossEntropy:
         self.survivor_count = 0
         self.survivors = None
         self.survivor_scores = None
+
+        self._run_iteration: Callable[[], dict[str, float]]
+        if torch_compile:
+            self._run_iteration = torch.compile(self._run_iteration_impl)
+        else:
+            self._run_iteration = self._run_iteration_impl
 
         # Weights and Biases - lazy import to avoid slow startup
         if use_wandb:
@@ -330,6 +338,10 @@ class WagnerDeepCrossEntropy:
         return final_results
 
     def run_iteration(self) -> dict[str, float]:
+        """Run one DCE iteration (compiled if configured)."""
+        return self._run_iteration()
+
+    def _run_iteration_impl(self) -> dict[str, float]:
         """Run one DCE iteration and return metrics.
 
         Returns:

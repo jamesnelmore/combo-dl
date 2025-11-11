@@ -27,6 +27,9 @@ defaults:
   - hydra
   - _self_
 
+experiment_name: null  # Set to a string to name the WandB run and output directory
+torch_compile: False
+
 # Override specific logging settings if needed
 logging:
   wandb_mode: "online"
