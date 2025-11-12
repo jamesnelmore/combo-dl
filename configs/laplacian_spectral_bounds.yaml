@@ -14,7 +14,7 @@ model:
 training:
   iterations: 10000
   batch_size: 2048
-  learning_rate: 0.001
+  learning_rate: 0.00001
   elite_proportion: 0.1
   early_stopping_patience: 600
   survivor_proportion: 0.02

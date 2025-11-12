@@ -1,9 +1,10 @@
 """Deep Cross-Entropy Algorithm."""
 
+from collections.abc import Callable
 from datetime import datetime
 import json
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import torch
 from torch import nn
