@@ -48,6 +48,12 @@ class LaplacianSpectralBound:
             eigvals = eigvals.to(laplacian.device)
         else:
             eigvals = torch.linalg.eigvals(laplacian).real
+
+        # Check connectivity: graph is connected iff algebraic connectivity (second smallest eigenval) > 0
+        sorted_eigvals = torch.sort(eigvals, dim=1)[0]
+        algebraic_connectivity = sorted_eigvals[:, 1]  # Second smallest eigenvalue
+        is_connected = algebraic_connectivity > 1e-6  # (batch_size,)
+
         max_eigval = torch.max(eigvals, dim=1, keepdim=True)[0]
 
         neighbor_degree_sums = (adj @ degrees.unsqueeze(-1)).squeeze(-1)  # (batch_size, n)
@@ -56,7 +62,10 @@ class LaplacianSpectralBound:
         vertex_scores = self.bound(degrees, avg_neighbor_degrees)
         bound, _indices = torch.max(vertex_scores, dim=1, keepdim=True)
 
-        return (max_eigval - bound).squeeze(-1)  # Return shape (batch_size,)
+        reward = (max_eigval - bound).squeeze(-1)  # (batch_size,)
+        # Heavily penalize disconnected graphs
+        reward = torch.where(is_connected, reward, torch.full_like(reward, -1000.0))
+        return reward
 
 
 @torch.compile

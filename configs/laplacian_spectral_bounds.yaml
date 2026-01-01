@@ -12,12 +12,12 @@ model:
   activation_function: "relu"
 
 training:
-  iterations: 10000
-  batch_size: 2048
-  learning_rate: 0.00001
-  elite_proportion: 0.1
-  early_stopping_patience: 600
-  survivor_proportion: 0.02
+  iterations: 50000
+  batch_size: 4096
+  learning_rate: 0.0001
+  elite_proportion: 0.15
+  early_stopping_patience: 2000
+  survivor_proportion: 0.05
   checkpoint_frequency: 100
   save_best_constructions: true
   scheduler:
@@ -37,4 +37,3 @@ defaults:
 logging:
   wandb_mode: "online"
   checkpoint_dir: "runs"
-
