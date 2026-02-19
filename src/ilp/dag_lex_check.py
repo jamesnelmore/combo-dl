@@ -5,7 +5,6 @@ adjacency matrix under some simultaneous row-column permutation.
 
 from itertools import permutations
 import multiprocessing as mp
-import os
 import time
 import numpy as np
 from tqdm import tqdm
@@ -88,20 +87,22 @@ def main() -> None:
     total = 1 << num_edges
     num_workers = mp.cpu_count()
 
-    # Build (start, end) pairs — tiny to pickle, no list-of-masks needed
-    ranges = [(s, min(s + CHUNK_SIZE, total)) for s in range(0, total, CHUNK_SIZE)]
-    num_chunks = len(ranges)
+    # Use more chunks than workers so tqdm updates frequently
+    num_chunks = max(num_workers * 32, 256)
+    chunk_size = max(1, total // num_chunks)
+    ranges = [(s, min(s + chunk_size, total)) for s in range(0, total, chunk_size)]
+    num_chunks = len(ranges)  # actual count after rounding
 
     print(f"N={N}, edges={num_edges}, total masks={total:,}")
-    print(f"Workers: {num_workers}, chunks: {num_chunks:,}, chunk size: {CHUNK_SIZE:,}")
-    print()
+    print(f"Workers: {num_workers}, chunks: {num_chunks:,}, chunk size: {chunk_size:,}")
+    print(flush=True)
 
     total_dags = 0
     counterexamples: list[np.ndarray] = []
     start_time = time.time()
 
     with mp.Pool(processes=num_workers) as pool:
-        results = pool.imap_unordered(process_chunk, ranges, chunksize=2)
+        results = pool.imap_unordered(process_chunk, ranges, chunksize=1)
         for i, (dag_count, ces) in enumerate(
             tqdm(results, total=num_chunks, desc="Chunks", ncols=80, unit="chunk"), 1
         ):
@@ -110,12 +111,14 @@ def main() -> None:
 
             if i % max(1, num_chunks // 20) == 0:
                 elapsed = time.time() - start_time
-                rate = i * CHUNK_SIZE / elapsed
-                eta = (total - i * CHUNK_SIZE) / rate if rate > 0 else 0
+                masks_done = i * chunk_size
+                rate = masks_done / elapsed
+                eta = (total - masks_done) / rate if rate > 0 else 0
                 tqdm.write(
                     f"  [{i}/{num_chunks}] DAGs so far: {total_dags:,} | "
                     f"counterexamples: {len(counterexamples)} | "
-                    f"{rate/1e6:.2f}M masks/s | ETA {eta:.0f}s"
+                    f"{rate/1e6:.2f}M masks/s | ETA {eta:.0f}s",
+                    file=__import__('sys').stderr,
                 )
 
     elapsed = time.time() - start_time
