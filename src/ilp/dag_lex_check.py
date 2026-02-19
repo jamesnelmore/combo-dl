@@ -15,8 +15,6 @@ N = 6
 all_edges = [(i, j) for i in range(N) for j in range(N) if i != j]
 num_edges = len(all_edges)  # 30 for N=6
 
-CHUNK_SIZE = 1 << 14  # 16384 masks per chunk
-
 
 def has_cycle(adj: np.ndarray) -> bool:
     """Check if directed graph has a cycle using DFS."""
@@ -87,11 +85,10 @@ def main() -> None:
     total = 1 << num_edges
     num_workers = mp.cpu_count()
 
-    # Use more chunks than workers so tqdm updates frequently
-    num_chunks = max(num_workers * 32, 256)
-    chunk_size = max(1, total // num_chunks)
+    # Fixed chunk size so tqdm updates frequently regardless of core count
+    chunk_size = 1 << 14  # 16,384 masks per chunk (~fast enough to return often)
     ranges = [(s, min(s + chunk_size, total)) for s in range(0, total, chunk_size)]
-    num_chunks = len(ranges)  # actual count after rounding
+    num_chunks = len(ranges)
 
     print(f"N={N}, edges={num_edges}, total masks={total:,}")
     print(f"Workers: {num_workers}, chunks: {num_chunks:,}, chunk size: {chunk_size:,}")
