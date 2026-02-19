@@ -2,7 +2,7 @@ import pulp as pl
 from pulp import LpVariable
 
 
-def build_dsrg_lp(n, k, t, lambda_param, mu):
+def build_dsrg_lp(n, k, t, lambda_param, mu, fix_out_neighbors_of_zero=True):
     prob = pl.LpProblem('DSRG_problem', pl.LpMinimize)
 
     edges = {}
@@ -11,6 +11,10 @@ def build_dsrg_lp(n, k, t, lambda_param, mu):
             if i == j:
                 # Fixed to 0 — loopless graph, diagonal is always 0
                 edges[i, j] = LpVariable(f"e_{i}_{j}", lowBound=0, upBound=0, cat="Continuous")
+            elif fix_out_neighbors_of_zero and i == 0:
+                # Symmetry breaking: fix out-neighbors of vertex 0 to {1, 2, ..., k}
+                val = 1 if j <= k else 0
+                edges[i, j] = LpVariable(f"e_{i}_{j}", lowBound=val, upBound=val, cat="Binary")
             else:
                 edges[i, j] = LpVariable(f"e_{i}_{j}", cat="Binary")
 
@@ -73,8 +77,9 @@ if __name__ == "__main__":
     ## (10,4,2,1,2) in 10.27
     ## (12,3,1,0,1) in 1.22
     # Open case: 24,10,5,3,5
-    n, k, t, lambda_param, mu = 16,6,3,1,3
-    prob, edges = build_dsrg_lp(n, k, t, lambda_param, mu)
+    # n, k, t, lambda_param, mu = 16,7,4,3,3 # 84 without first k set
+    n, k, t, lambda_param, mu = 15,5,2,1,2 # 7.5 without first k set
+    prob, edges = build_dsrg_lp(n, k, t, lambda_param, mu, fix_out_neighbors_of_zero=True)
     prob.solve(pl.GUROBI(threads=-1))
 
     print("Status:", pl.LpStatus[prob.status])
