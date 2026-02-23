@@ -5,7 +5,8 @@ resolution-markers = [
     "platform_machine == 'aarch64' and sys_platform == 'linux'",
     "platform_machine != 'aarch64' and sys_platform == 'linux'",
     "sys_platform == 'darwin'",
-    "sys_platform != 'darwin' and sys_platform != 'linux'",
+    "platform_machine == 'ARM64' and sys_platform == 'win32'",
+    "(platform_machine != 'ARM64' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'linux' and sys_platform != 'win32')",
 ]
 
 [[package]]
@@ -244,6 +245,7 @@ dependencies = [
     { name = "omegaconf" },
     { name = "pulp" },
     { name = "pydantic" },
+    { name = "python-sat" },
     { name = "scipy" },
     { name = "stable-baselines3", extra = ["extra"] },
     { name = "torch" },
@@ -275,6 +277,7 @@ requires-dist = [
     { name = "pulp", specifier = ">=3.3.0" },
     { name = "pydantic", specifier = ">=2.6,<2.9" },
     { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.404" },
+    { name = "python-sat", specifier = ">=1.8.dev30" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.12.10" },
     { name = "scipy", specifier = ">=1.16.2" },
     { name = "stable-baselines3", extras = ["extra"], specifier = ">=2.7.0" },
@@ -1210,7 +1213,7 @@ name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ptyprocess" },
+    { name = "ptyprocess", marker = "platform_machine != 'ARM64' or sys_platform != 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/42/92/cc564bf6381ff43ce1f4d06852fc19a2f11d180f23dc32d9588bee2f149d/pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f", size = 166450, upload-time = "2023-11-25T09:07:26.339Z" }
 wheels = [
@@ -1483,6 +1486,24 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/66/c0/0c8b6ad9f17a802ee498c46e004a0eb49bc148f2fd230864601a86dcf6db/python-dateutil-2.9.0.post0.tar.gz", hash = "sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3", size = 342432, upload-time = "2024-03-01T18:36:20.211Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl", hash = "sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427", size = 229892, upload-time = "2024-03-01T18:36:18.57Z" },
+]
+
+[[package]]
+name = "python-sat"
+version = "1.8.dev30"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "six" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/78/44/f0e3c63c2b1f9a6f9830a5a6853bb9f07b99edde47b6df5beeeed1ab9425/python_sat-1.8.dev30.tar.gz", hash = "sha256:29a47a34f0fac3303459c633abfa6d44505e2343dfba6cff4b6ad596c0ca9d4e", size = 5092278, upload-time = "2026-02-04T11:45:05.393Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/de/61/6326ef8dd3e2a7f71a20b7cac411367b241037537a24d496bf72963c74f1/python_sat-1.8.dev30-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:be9f45b429b6d070cb91d009a6daa1aab9d6599ee37bbcab9b9302f077ad5afd", size = 1778846, upload-time = "2026-02-04T11:44:12.822Z" },
+    { url = "https://files.pythonhosted.org/packages/91/81/5523b3027737b9e32bd5161c320d14321ebb520b0d6c7bb5e71de090189a/python_sat-1.8.dev30-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:f5fe8ae2381504e355b519e34040d554bffbe734d03c69b814413ea9f699a3df", size = 1638107, upload-time = "2026-02-04T11:44:14.183Z" },
+    { url = "https://files.pythonhosted.org/packages/7d/da/a155f0ce59f32eaf66ecf6d2c696347c90f63a47aed3647aa254d38d93b6/python_sat-1.8.dev30-cp313-cp313-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:9272c75c4cc664d1744793b3eff04c9c6776c39960917a9c1b053d770b3217c7", size = 2785742, upload-time = "2026-02-04T11:44:15.704Z" },
+    { url = "https://files.pythonhosted.org/packages/04/cb/7148d85ac1973c5f85219c85426e73b307017da188626f0d73916830c0a7/python_sat-1.8.dev30-cp313-cp313-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:6df046a7f9a4f662850c9c17a230b9edd74b3ad2a6ccc5b4a685650bba77721e", size = 2875819, upload-time = "2026-02-04T11:44:17.142Z" },
+    { url = "https://files.pythonhosted.org/packages/44/82/ad45d608289eb1e96ed7fe6818e7a0611756aa36cd2e92c7186b0b244936/python_sat-1.8.dev30-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:caaafd7f7c361b676a01e01cfb82b7fb0fcbf84744d4dd4f521d0d8d345d9c70", size = 3753251, upload-time = "2026-02-04T11:44:19.185Z" },
+    { url = "https://files.pythonhosted.org/packages/cd/d5/240dc6bbf2e802599b4a13aa08ca377363baffddf9fc8cf582635c770ba8/python_sat-1.8.dev30-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:4bcc39402125f1a69bce95483e761d7a4d355744a2fc1d192574f0d13ecac547", size = 3885557, upload-time = "2026-02-04T11:44:21.109Z" },
+    { url = "https://files.pythonhosted.org/packages/be/e6/9477a6881f3cf27d43d2115b3d287c891e9e9233b0ea4ab18015f1f34b97/python_sat-1.8.dev30-cp313-cp313-win_amd64.whl", hash = "sha256:91e01a2911095df14e3b1f4ec28ffb7c676fc472b556b1a943ca23dc6e783b13", size = 1357022, upload-time = "2026-02-04T11:24:29.484Z" },
 ]
 
 [[package]]

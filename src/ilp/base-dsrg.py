@@ -24,6 +24,7 @@ def build_dsrg_model(
     mu: int,
     *,
     fix_out_neighbors_of_zero: bool = True,
+    lex_order: bool = True,
     quiet: bool = True,
 ) -> tuple[gp.Model, dict]:
     """Build and return a Gurobi model for DSRG(n, k, t, lambda_param, mu).
@@ -36,6 +37,7 @@ def build_dsrg_model(
         mu: Number of directed 2-paths x→y→z when x→z does not exist.
         fix_out_neighbors_of_zero: Symmetry break that pins the out-neighbours
             of vertex 0 to {1, 2, …, k}.
+        lex_order: Enforce lexicographic row ordering as symmetry breaking.
         quiet: Suppress Gurobi console output.
 
     Returns:
@@ -139,6 +141,55 @@ def build_dsrg_model(
                 name=f"lm_{x}_{z}",
             )
 
+    # ── Lexicographic row ordering (symmetry breaking) ─────────────────────
+    # For consecutive rows i, i+1: enforce row_i ≤_lex row_{i+1}.
+    # agree[j] = 1 iff rows i and i+1 match on all columns up to and including j.
+    # At the first disagreement column j, row i must have 0 (row i+1 has 1).
+    if lex_order:
+        start_row = 1 if fix_out_neighbors_of_zero else 0
+        for i in range(start_row, n - 1):
+            cols = [j for j in range(n) if j != i and j != i + 1]
+            agree: dict[int, gp.Var] = {}
+            for idx, j in enumerate(cols):
+                agree[j] = model.addVar(vtype=GRB.BINARY, name=f"agree_{i}_{j}")
+                # agree[j] = 1 → e[i,j] == e[i+1,j] (and all prior columns agreed)
+                # Linking: agree[j] ≤ 1 - (e[i,j] - e[i+1,j])
+                #          agree[j] ≤ 1 + (e[i,j] - e[i+1,j])
+                # Plus chaining: agree[j] ≤ agree[prev_j] (if not first column)
+                diff = edges[i, j] - edges[i + 1, j]
+                model.addConstr(
+                    agree[j] <= 1 - diff, name=f"agree_ub1_{i}_{j}"
+                )
+                model.addConstr(
+                    agree[j] <= 1 + diff, name=f"agree_ub2_{i}_{j}"
+                )
+                if idx > 0:
+                    prev_j = cols[idx - 1]
+                    model.addConstr(
+                        agree[j] <= agree[prev_j], name=f"agree_chain_{i}_{j}"
+                    )
+
+            # At each column j: if all prior columns agreed (agree[prev] = 1)
+            # and this is the first disagreement, then e[i,j] must be 0.
+            # Equivalently: e[i,j] ≤ 1 - agree[prev] + agree[j]
+            for idx, j in enumerate(cols):
+                if idx == 0:
+                    model.addConstr(
+                        edges[i, j] <= agree[j], name=f"lex_first_{i}_{j}"
+                    )
+                else:
+                    prev_j = cols[idx - 1]
+                    model.addConstr(
+                        edges[i, j] <= 1 - agree[prev_j] + agree[j],
+                        name=f"lex_{i}_{j}",
+                    )
+
+            # Rows must not be identical.
+            model.addConstr(
+                gp.quicksum(agree[j] for j in cols) <= len(cols) - 1,
+                name=f"lex_neq_{i}",
+            )
+
     model.update()
     return model, edges
 
@@ -151,6 +202,7 @@ def solve_dsrg(
     mu: int,
     *,
     fix_out_neighbors_of_zero: bool = True,
+    lex_order: bool = True,
     threads: int = -1,
     time_limit: float | None = None,
     quiet: bool = False,
@@ -174,6 +226,7 @@ def solve_dsrg(
     model, edges = build_dsrg_model(
         n, k, t, lambda_param, mu,
         fix_out_neighbors_of_zero=fix_out_neighbors_of_zero,
+        lex_order=lex_order,
         quiet=quiet,
     )
 

@@ -18,6 +18,7 @@ dependencies = [
     "omegaconf>=2.3.0",
     "pulp>=3.3.0",
     "pydantic>=2.6,<2.9",
+    "python-sat>=1.8.dev30",
     "scipy>=1.16.2",
     "stable-baselines3[extra]>=2.7.0",
     "torch>=2.8.0",
