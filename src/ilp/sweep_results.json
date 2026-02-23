@@ -1,0 +1,137 @@
+[
+  {
+    "status": "Optimal",
+    "wall_seconds": 0.0311,
+    "n": 6,
+    "k": 2,
+    "t": 1,
+    "lambda": 0,
+    "mu": 1
+  },
+  {
+    "status": "Optimal",
+    "wall_seconds": 0.0254,
+    "n": 8,
+    "k": 3,
+    "t": 2,
+    "lambda": 1,
+    "mu": 1
+  },
+  {
+    "status": "Optimal",
+    "wall_seconds": 0.0381,
+    "n": 10,
+    "k": 4,
+    "t": 2,
+    "lambda": 1,
+    "mu": 2
+  },
+  {
+    "status": "Optimal",
+    "wall_seconds": 0.0866,
+    "n": 12,
+    "k": 3,
+    "t": 1,
+    "lambda": 0,
+    "mu": 1
+  },
+  {
+    "status": "Optimal",
+    "wall_seconds": 0.0608,
+    "n": 12,
+    "k": 4,
+    "t": 2,
+    "lambda": 0,
+    "mu": 2
+  },
+  {
+    "status": "Optimal",
+    "wall_seconds": 0.8342,
+    "n": 12,
+    "k": 5,
+    "t": 3,
+    "lambda": 2,
+    "mu": 2
+  },
+  {
+    "status": "Optimal",
+    "wall_seconds": 1.1886,
+    "n": 14,
+    "k": 6,
+    "t": 3,
+    "lambda": 2,
+    "mu": 3
+  },
+  {
+    "status": "Optimal",
+    "wall_seconds": 0.1102,
+    "n": 15,
+    "k": 4,
+    "t": 2,
+    "lambda": 1,
+    "mu": 1
+  },
+  {
+    "status": "Optimal",
+    "wall_seconds": 7.6033,
+    "n": 15,
+    "k": 5,
+    "t": 2,
+    "lambda": 1,
+    "mu": 2
+  },
+  {
+    "status": "Optimal",
+    "wall_seconds": 90.6858,
+    "n": 16,
+    "k": 7,
+    "t": 4,
+    "lambda": 3,
+    "mu": 3
+  },
+  {
+    "status": "Infeasible",
+    "wall_seconds": 21.5303,
+    "n": 16,
+    "k": 8,
+    "t": 5,
+    "lambda": 4,
+    "mu": 2
+  },
+  {
+    "status": "Optimal",
+    "wall_seconds": 37.7757,
+    "n": 16,
+    "k": 8,
+    "t": 6,
+    "lambda": 2,
+    "mu": 6
+  },
+  {
+    "status": "Optimal",
+    "wall_seconds": 0.2167,
+    "n": 18,
+    "k": 4,
+    "t": 3,
+    "lambda": 0,
+    "mu": 1
+  },
+  {
+    "status": "Optimal",
+    "wall_seconds": 7.4178,
+    "n": 18,
+    "k": 5,
+    "t": 3,
+    "lambda": 2,
+    "mu": 1
+  },
+  {
+    "status": "Optimal",
+    "wall_seconds": 0.2175,
+    "n": 18,
+    "k": 6,
+    "t": 3,
+    "lambda": 0,
+    "mu": 3
+  }
+]
