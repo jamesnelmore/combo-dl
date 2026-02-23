@@ -10,8 +10,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from dsrg import build_dsrg_lp
 
-PARAMS_CSV = Path(__file__).parent / "dsrg_params.csv"
-RESULTS_JSON = Path(__file__).parent / "sweep_results.json"
+PARAMS_CSV = Path(__file__).parent.parent / "dsrg_params.csv"
+RESULTS_JSON = Path(__file__).parent.parent / "sweep_results.json"
 
 
 def load_params():
