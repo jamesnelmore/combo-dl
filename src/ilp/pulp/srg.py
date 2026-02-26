@@ -54,37 +54,28 @@ def build_srg_lp(n, k, lambda_param, mu, fix_neighbors_of_zero=True, lex_order=T
                 == mu + e(x, z) * (lambda_param - mu)
             )
 
-    # Lexicographic row ordering (symmetry breaking):
-    # For each consecutive pair of rows (i, i+1), enforce row i <_lex row i+1.
-    # agree[i,j] == 1 iff e(i,0..j) == e(i+1,0..j) (prefix agreement up to column j)
+    # Lexicographic row ordering (symmetry breaking) using exponential weights:
+    # For each consecutive pair (i, i+1), compare rows on the aligned column
+    # set excluding j = i and j = i+1 (diagonal positions). Assign strictly
+    # decreasing powers of 2 so weighted sums preserve lex order.
+    # Enforce non-strict order: row i <=_lex row i+1.
     if lex_order:
         for i in range(n - 1):
-            cols = [j for j in range(n) if j != i and j != i + 1]  # skip diagonal entries
-            agree = {}
-            for idx, j in enumerate(cols):
-                agree[j] = LpVariable(name=f"agree_{i}_{j}", cat="Binary")
-                eij  = e(i,     j)
-                eij1 = e(i + 1, j)
-                # agree[j] == 1 => e(i,j) == e(i+1,j)
-                prob += eij - eij1 <= 1 - agree[j], f"agree_eq0_{i}_{j}"
-                prob += eij1 - eij <= 1 - agree[j], f"agree_eq1_{i}_{j}"
-                # Agreement is a prefix: once it breaks, it stays broken
-                if idx > 0:
-                    prev_j = cols[idx - 1]
-                    prob += agree[j] <= agree[prev_j], f"agree_prefix_{i}_{j}"
+            cols = [j for j in range(n) if j != i and j != i + 1]
 
-            for idx, j in enumerate(cols):
-                eij  = e(i,     j)
-                # If all columns before j agree and this is the first disagreement,
-                # row i must have 0 (so row i+1 has the 1).
-                if idx == 0:
-                    prob += eij <= agree[j], f"lex_first_{i}_{j}"
-                else:
-                    prev_j = cols[idx - 1]
-                    prob += eij <= 1 - agree[prev_j] + agree[j], f"lex_{i}_{j}"
+            weights = {
+                j: 1 << (len(cols) - idx)
+                for idx, j in enumerate(cols)
+            }
 
-            # Rows must not be identical
-            prob += pl.lpSum(agree[j] for j in cols) <= len(cols) - 1, f"lex_neq_{i}"
+            sum_i = pl.lpSum(
+                e(i, j) * weights[j] for j in cols
+            )
+            sum_ip1 = pl.lpSum(
+                e(i + 1, j) * weights[j] for j in cols
+            )
+
+            prob += sum_ip1 >= sum_i, f"lex_{i}"
 
     return prob, edges, e
 
@@ -93,10 +84,11 @@ if __name__ == "__main__":
     # Petersen graph: SRG(10, 3, 0, 1)
     # Paley 13:       SRG(13, 6, 2, 3)
     # SRG(16, 6, 2, 2)
-    n, k, lambda_param, mu = 25,12,5,6
+    n, k, lambda_param, mu = 36,10,4,2
+    lex = True
     prob, edges, e = build_srg_lp(n, k, lambda_param, mu,
-        fix_neighbors_of_zero=True,
-        lex_order=False)
+        fix_neighbors_of_zero=not lex,
+        lex_order=lex)
     t0 = time.perf_counter()
     prob.solve(pl.GUROBI(threads=-1))
     print(f"Solve time: {time.perf_counter() - t0:.2f}s")

@@ -142,52 +142,32 @@ def build_dsrg_model(
             )
 
     # ── Lexicographic row ordering (symmetry breaking) ─────────────────────
-    # For consecutive rows i, i+1: enforce row_i ≤_lex row_{i+1}.
-    # agree[j] = 1 iff rows i and i+1 match on all columns up to and including j.
-    # At the first disagreement column j, row i must have 0 (row i+1 has 1).
+    # Encode lex order without auxiliary variables using exponential weights.
+    # For each consecutive pair (i, i+1), compare rows on the aligned column
+    # set that excludes the two diagonal positions j = i and j = i+1.
+    # On that common column set, assign strictly decreasing powers of 2 so
+    # that the weighted sums preserve lexicographic order exactly.
     if lex_order:
         start_row = 1 if fix_out_neighbors_of_zero else 0
+
         for i in range(start_row, n - 1):
             cols = [j for j in range(n) if j != i and j != i + 1]
-            agree: dict[int, gp.Var] = {}
-            for idx, j in enumerate(cols):
-                agree[j] = model.addVar(vtype=GRB.BINARY, name=f"agree_{i}_{j}")
-                # agree[j] = 1 → e[i,j] == e[i+1,j] (and all prior columns agreed)
-                # Linking: agree[j] ≤ 1 - (e[i,j] - e[i+1,j])
-                #          agree[j] ≤ 1 + (e[i,j] - e[i+1,j])
-                # Plus chaining: agree[j] ≤ agree[prev_j] (if not first column)
-                diff = edges[i, j] - edges[i + 1, j]
-                model.addConstr(
-                    agree[j] <= 1 - diff, name=f"agree_ub1_{i}_{j}"
-                )
-                model.addConstr(
-                    agree[j] <= 1 + diff, name=f"agree_ub2_{i}_{j}"
-                )
-                if idx > 0:
-                    prev_j = cols[idx - 1]
-                    model.addConstr(
-                        agree[j] <= agree[prev_j], name=f"agree_chain_{i}_{j}"
-                    )
 
-            # At each column j: if all prior columns agreed (agree[prev] = 1)
-            # and this is the first disagreement, then e[i,j] must be 0.
-            # Equivalently: e[i,j] ≤ 1 - agree[prev] + agree[j]
-            for idx, j in enumerate(cols):
-                if idx == 0:
-                    model.addConstr(
-                        edges[i, j] <= agree[j], name=f"lex_first_{i}_{j}"
-                    )
-                else:
-                    prev_j = cols[idx - 1]
-                    model.addConstr(
-                        edges[i, j] <= 1 - agree[prev_j] + agree[j],
-                        name=f"lex_{i}_{j}",
-                    )
+            weights = {
+                j: 1 << (len(cols) - idx)
+                for idx, j in enumerate(cols)
+            }
 
-            # Rows must not be identical.
+            sum_i = gp.quicksum(
+                edges[i, j] * weights[j] for j in cols
+            )
+            sum_ip1 = gp.quicksum(
+                edges[i + 1, j] * weights[j] for j in cols
+            )
+
             model.addConstr(
-                gp.quicksum(agree[j] for j in cols) <= len(cols) - 1,
-                name=f"lex_neq_{i}",
+                sum_ip1 >= sum_i + 1,
+                name=f"lex_{i}",
             )
 
     model.update()
