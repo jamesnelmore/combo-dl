@@ -3,7 +3,8 @@
 # Quick metadata extraction: enumerate nonabelian groups of order n
 # and output their SmallGroup library IDs for the Python orchestrator.
 #
-# Usage:  gap -q metadata.g <n>
+# Usage: pipe via stdin with "n := <value>;;" prepended, e.g.:
+#   echo "n := 6;;" | cat - metadata.g | gap -q
 #
 # Output tokens (one per line):
 #   GROUP_COUNT <count>
@@ -12,16 +13,6 @@
 #   META_DONE
 
 LoadPackage("smallgrp");;
-
-ARGS := Filtered(GAPInfo.SystemCommandLine,
-    s -> Length(s) > 0 and ForAll(s, c -> c in "0123456789"));;
-
-if Length(ARGS) < 1 then
-    Print("ERROR missing argument: n\n");
-    QUIT;
-fi;
-
-n := Int(ARGS[1]);;
 
 groups := Filtered(AllSmallGroups(n), G -> not IsAbelian(G));;
 numGroups := Size(groups);;

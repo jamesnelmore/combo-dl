@@ -158,8 +158,10 @@ def _run_metadata(n: int, logger: logging.Logger) -> list[GroupInfo]:
         List of ``GroupInfo`` for each nonabelian group found.
     """
     script = Path(__file__).with_name("metadata.g")
+    script_text = f"n := {n};;\n" + script.read_text()
     proc = subprocess.run(
-        ["gap", "-q", str(script), str(n)],
+        ["gap", "-q"],
+        input=script_text,
         capture_output=True,
         text=True,
         timeout=120,
