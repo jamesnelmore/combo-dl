@@ -1,27 +1,51 @@
 # combo-dl/src/ilp/cayley_graphs.g
 #
-# This script searches for a directed strongly regular graph (DSRG) with parameters
-# (n=24, k=10, t=5, lambda=3, mu=5) among the Cayley graphs of all groups of order 24.
+# This script searches for a directed strongly regular graph (DSRG)
+# with parameters (n, k, t, lambda, mu) among the Cayley graphs of
+# all nonabelian groups of order n.
 #
-# A directed graph with adjacency matrix A is a DSRG with these parameters if it satisfies:
-# 1. It is a 10-regular directed graph on 24 vertices.
-# 2. The matrix equation A^2 = t*I + lambda*A + mu*(J - I - A) holds,
-#    where I is the identity matrix and J is the all-ones matrix.
+# A directed graph with adjacency matrix A is a DSRG with these parameters if:
+# 1. It is a k-regular directed graph on n vertices.
+# 2. The matrix equation
+#        A^2 = t*I + lambda*A + mu*(J - I - A)
+#    holds, where I is the identity matrix and J is the all-ones matrix.
 #
-# For the given parameters, this simplifies to:
-# A^2 = 5*I + 3*A + 5*(J - I - A)
-# A^2 = 5*I + 3*A + 5*J - 5*I - 5*A
-# A^2 = 5*J - 2*A
-#
-# To run this script, execute it from your terminal using the GAP interpreter.
-# Make sure to provide the full path to the script, for example:
-# > gap /path/to/combo-dl/src/ilp/cayley_graphs.g
+# Usage:
+#     gap -q cayley_graphs.g n k t lambda mu
+
+# Bind ARGS to the positional integer arguments from the command line.
+# GAPInfo.CommandLineArguments contains all args passed to the gap binary
+# (including the binary name, flags, and the script filename itself).
+# We extract only the entries that look like non-negative integers, which
+# are the n, k, t, lambda, mu values the caller passes after the script name.
+ARGS := Filtered(GAPInfo.SystemCommandLine,
+    s -> Length(s) > 0 and ForAll(s, c -> c in "0123456789"));
 
 CheckCayleyGraphsForDSRG := function()
-    local n, k, groups, numGroups, J, foundGraph, i, G, groupId, elements, id, nonIdElements, S, numSets, setCounter, A, g, s, h, row, col, ASquared, RHS;
+    local n, k, t, lambda, mu, groups, numGroups, J, I, foundGraph, i, G, groupId, elements, id, nonIdElements, S, numSets, setCounter, A, g, s, h, row, col, ASquared, RHS;
 
-    n := 24;
-    k := 10;
+    if Length(ARGS) < 5 then
+        Error("Usage: gap cayley_graphs.g n k t lambda mu");
+    fi;
+
+    n := Int(ARGS[1]);
+    k := Int(ARGS[2]);
+    t := Int(ARGS[3]);
+    lambda := Int(ARGS[4]);
+    mu := Int(ARGS[5]);
+
+    # Early feasibility check for DSRG parameters:
+    # Necessary condition derived from row-summing A^2 = tI + lambda*A + mu*(J - I - A):
+    # each row of A^2 sums to k^2, and the right-hand side sums to t + lambda*k + mu*(n-1-k),
+    # giving k^2 = t + lambda*k + mu*(n - k - 1), i.e. k*(k - lambda) - t = (n - k - 1)*mu.
+    if k * (k - lambda) - t <> (n - k - 1) * mu then
+        Print("Parameter set (n=", n, ", k=", k, ", t=", t,
+              ", lambda=", lambda, ", mu=", mu, ") fails the necessary condition\n");
+        Print("k*(k - lambda) - t = (n - k - 1)*mu.\n");
+        Print("Aborting search.\n");
+        return;
+    fi;
+
     foundGraph := false;
 
     # Load the small groups library if it's not already loaded.
@@ -29,12 +53,13 @@ CheckCayleyGraphsForDSRG := function()
         RequirePackage("smallgrp");
     fi;
 
-    groups := AllSmallGroups(n);
+    groups := Filtered(AllSmallGroups(n), G -> not IsAbelian(G));
     numGroups := Size(groups);
-    Print("Found ", numGroups, " groups of order ", n, ".\n");
+    Print("Found ", numGroups, " nonabelian groups of order ", n, ".\n");
 
-    # Pre-calculate the all-ones matrix J.
+    # Pre-calculate the all-ones matrix J and identity matrix I.
     J := List([1..n], i -> List([1..n], j -> 1));
+    I := IdentityMat(n);
 
     # Loop through all groups.
     for i in [1..numGroups] do
@@ -68,9 +93,9 @@ CheckCayleyGraphsForDSRG := function()
                 od;
             od;
 
-            # Check the DSRG condition.
+            # Check the DSRG condition: A^2 = t*I + lambda*A + mu*(J - I - A)
             ASquared := A * A;
-            RHS := (5 * J) - (2 * A);
+            RHS := t * I + lambda * A + mu * (J - I - A);
 
             if ASquared = RHS then
                 Print("\n==================================================\n");
@@ -90,8 +115,8 @@ CheckCayleyGraphsForDSRG := function()
 
     if not foundGraph then
         Print("\n--- Search Complete ---\n");
-        Print("No Cayley graph for any group of order 24 was found to be a\n");
-        Print("DSRG with parameters (n=24, k=10, t=5, lambda=3, mu=5).\n");
+        Print("No Cayley graph for any nonabelian group of order ", n, " was found to be a\n");
+        Print("DSRG with parameters (n=", n, ", k=", k, ", t=", t, ", lambda=", lambda, ", mu=", mu, ").\n");
     fi;
 end;
 
