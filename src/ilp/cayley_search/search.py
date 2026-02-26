@@ -282,6 +282,7 @@ def _run_worker(job: Job) -> BlockResult:
 
     except subprocess.TimeoutExpired:
         proc.kill()
+        proc.wait()
         return BlockResult(
             status="timeout",
             group_lib_id=job.group_lib_id,
@@ -290,6 +291,8 @@ def _run_worker(job: Job) -> BlockResult:
             end_idx=job.end_idx,
         )
     except Exception as exc:
+        proc.kill()
+        proc.wait()
         return BlockResult(
             status=f"error: {exc}",
             group_lib_id=job.group_lib_id,
