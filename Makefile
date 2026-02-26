@@ -4,7 +4,7 @@ SHELL := /bin/bash
 
 RUN_ARGS ?=
 TIME ?= 02:00:00
-GPUS ?= 0
+GPUS ?= 1
 MODULE ?=
 
 ifndef MODULE

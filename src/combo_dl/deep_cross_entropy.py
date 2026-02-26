@@ -234,6 +234,13 @@ class WagnerDeepCrossEntropy:
         )
         print(f"  → Saved best construction: {construction_path.name}")
 
+    def should_stop_early(self, best_score: float) -> tuple[bool, str]:
+        # StronglyRegularGraphs.should_stop_early is a static method, so call it on the class
+        if isinstance(self.problem, StronglyRegularGraphs):
+            return StronglyRegularGraphs.should_stop_early(best_score)
+        # For other problem types, call it on the instance
+        return self.problem.should_stop_early(best_score) 
+
     def optimize(self) -> dict[str, Any]:
         """Run the full Deep Cross-Entropy optimization.
 
@@ -258,7 +265,8 @@ class WagnerDeepCrossEntropy:
             else:
                 self.steps_since_best += 1
 
-            should_stop, reason = self.problem.should_stop_early(metrics["best_score"])
+            should_stop, reason = self.should_stop_early(best_score=metrics["best_score"])
+
             if should_stop:
                 print(f"Stopping early: {reason}")
                 stop_early = True
@@ -283,15 +291,7 @@ class WagnerDeepCrossEntropy:
                 "steps_since_best": self.steps_since_best,
             })
 
-            # Step learning rate scheduler
-            if self.scheduler is not None:
-                # ReduceLROnPlateau needs a metric value, others just need step()
-                if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
-                    # Use avg_score (current batch performance) for ReduceLROnPlateau
-                    # Allows scheduler to react to current performance, not just historical best
-                    self.scheduler.step(metrics["avg_score"])
-                else:
-                    self.scheduler.step()
+            self.step_lr_scheduler(metrics)
 
             # Log to WandB
             if self.wandb_run:
@@ -337,6 +337,16 @@ class WagnerDeepCrossEntropy:
         print()
 
         return final_results
+
+    def step_lr_scheduler(self, metrics: dict[str, Any]):
+        if self.scheduler is not None:
+            # ReduceLROnPlateau needs a metric value, others just need step()
+            if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                # Use avg_score (current batch performance) for ReduceLROnPlateau
+                # Allows scheduler to react to current performance, not just historical best
+                self.scheduler.step(metrics["avg_score"])
+            else:
+                self.scheduler.step()
 
     def run_iteration(self) -> dict[str, float]:
         """Run one DCE iteration (compiled if configured)."""

@@ -29,6 +29,10 @@ training:
 
 torch_compile: true
 experiment_name: laplacian_bound3
+seed: 42
+# Set to false for better performance (~10% faster) but less reproducibility
+# For MLPs, the performance impact is typically minimal
+deterministic_cudnn: true
 
 defaults:
   - hydra

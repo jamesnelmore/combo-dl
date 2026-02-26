@@ -8,19 +8,19 @@ graph:
 model:
   _target_: combo_dl.models.mlp.MLP
   n: ${graph.n}
-  hidden_layer_sizes: [64, 32, 16, 8, 4]
+  hidden_layer_sizes: [128, 64, 32, 16, 8, 4]
   output_size: 2
   dropout_probability: 0.1
   layernorm: true
   activation_function: "relu"
 
 training:
-  iterations: 10000
-  batch_size: 2048
+  iterations: 5000
+  batch_size: 16384
   learning_rate: 0.001
   elite_proportion: 0.1
-  early_stopping_patience: 600
-  survivor_proportion: 0.02
+  early_stopping_patience: 4000
+  survivor_proportion: null
   scheduler:
     _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
     mode: "max"
@@ -33,12 +33,8 @@ defaults:
   - hydra
   - _self_
 
-experiment_name: null  # Set to a string to name the WandB run and output directory
-torch_compile: true
-seed: 42
-# Set to false for better performance (~10% faster) but less reproducibility
-# For MLPs, the performance impact is typically minimal
-deterministic_cudnn: true
+experiment_name: "survivor_${training.survivor_proportion}"
+torch_compile: false
 
 # Override specific logging settings if needed
 logging:

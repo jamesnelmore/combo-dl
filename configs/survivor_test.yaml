@@ -8,18 +8,18 @@ graph:
 model:
   _target_: combo_dl.models.mlp.MLP
   n: ${graph.n}
-  hidden_layer_sizes: [64, 32, 16, 8, 4]
+  hidden_layer_sizes: [128, 64, 32, 16, 8, 4]
   output_size: 2
   dropout_probability: 0.1
   layernorm: true
   activation_function: "relu"
 
 training:
-  iterations: 1500
+  iterations: 5000
   batch_size: 16384
   learning_rate: 0.001
   elite_proportion: 0.1
-  early_stopping_patience: 600
+  early_stopping_patience: 4000
   survivor_proportion: null
   scheduler:
     _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
