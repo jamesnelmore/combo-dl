@@ -9,6 +9,24 @@ from combo_dl import WagnerDeepCrossEntropy
 from combo_dl.graph_utils import edge_vec_to_adj
 
 
+def set_seed(seed: int, deterministic_cudnn: bool = True) -> None:
+    """Set random seed for reproducibility.
+
+    Args:
+        seed: Random seed value
+        deterministic_cudnn: If True, enables deterministic cuDNN operations.
+            This ensures full reproducibility but may cause ~10% performance slowdown.
+            For MLPs (linear layers), the impact is typically minimal.
+    """
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    # Set deterministic mode for CUDA operations (may impact performance)
+    if deterministic_cudnn:
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+
+
 class LaplacianSpectralBound:
     def __init__(self, bound: Callable[[torch.Tensor, torch.Tensor], torch.Tensor], n: int):
         self.bound = bound
@@ -17,7 +35,7 @@ class LaplacianSpectralBound:
         self.lambda_param = -1
         self.mu = -1
 
-    def should_stop_early(self, best_score: float) -> tuple[bool, str]:
+    def should_stop_early(self, best_score: float | None = None, best_construction: torch.Tensor) -> tuple[bool, str]:
         """Check if optimization should stop early.
 
         Stop when we find a graph that violates the bound (reward > 0 means max_eigval > bound).
@@ -57,6 +75,7 @@ class LaplacianSpectralBound:
         max_eigval = torch.max(eigvals, dim=1, keepdim=True)[0]
 
         neighbor_degree_sums = (adj @ degrees.unsqueeze(-1)).squeeze(-1)  # (batch_size, n)
+        isolated_vertex_penalty = 100 * torch.sum(degrees == 0, dim=1)
         # Avoid division by zero on isolated vertices
         avg_neighbor_degrees = neighbor_degree_sums / (degrees + 1e-8)
         vertex_scores = self.bound(degrees, avg_neighbor_degrees)
@@ -144,13 +163,27 @@ BOUND_FUNCTIONS: dict[str, Callable[[torch.Tensor, torch.Tensor], torch.Tensor]]
     "bound3": bound3,
 }
 
+class LaplacianDCE(WagnerDeepCrossEntropy):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @override
+    def should_stop_early(self) -> tuple[bool, str]:
+        return self.problem.
 
 @hydra.main(config_path="../configs", config_name="laplacian_spectral_bounds", version_base=None)
 def main(cfg: DictConfig) -> None:
     """Run Laplacian spectral bound experiment with MLP DCE."""
+    # Set random seed for reproducibility
+    seed: int = cfg.get("seed", 42)
+    deterministic_cudnn: bool = cfg.get("deterministic_cudnn", True)
+    set_seed(seed, deterministic_cudnn=deterministic_cudnn)
+
     print("=" * 60)
     print("Laplacian Spectral Bound Experiment")
     print("=" * 60)
+    print(f"Random seed: {seed}")
+    print(f"Deterministic cuDNN: {deterministic_cudnn}")
 
     bound_key: str = cfg.problem.bound
     if bound_key not in BOUND_FUNCTIONS:
@@ -184,6 +217,8 @@ def main(cfg: DictConfig) -> None:
     experiment_name: str | None = cfg.get("experiment_name", None)
     torch_compile: bool = bool(cfg.get("torch_compile", False))
 
+
+
     dce = WagnerDeepCrossEntropy(
         model,
         problem,  # type: ignore[arg-type]
@@ -204,6 +239,7 @@ def main(cfg: DictConfig) -> None:
     if hasattr(cfg.training, "scheduler") and cfg.training.scheduler is not None:
         OmegaConf.set_struct(cfg.training.scheduler, False)
         dce.scheduler = instantiate(cfg.training.scheduler, optimizer=dce.optimizer)
+
 
     dce.optimize()
 
