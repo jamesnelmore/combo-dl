@@ -489,11 +489,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Parallelized Cayley-graph DSRG search via GAP.",
     )
-    parser.add_argument("n", type=int, help="Number of vertices")
-    parser.add_argument("k", type=int, help="Degree (in- and out-)")
-    parser.add_argument("t", type=int, help="Number of reciprocal neighbours")
-    parser.add_argument("lambda_", type=int, metavar="lambda", help="lambda parameter")
-    parser.add_argument("mu", type=int, help="mu parameter")
+    # Positional params — optional when --params-file is used
+    parser.add_argument("n", type=int, nargs="?", help="Number of vertices")
+    parser.add_argument("k", type=int, nargs="?", help="Degree (in- and out-)")
+    parser.add_argument("t", type=int, nargs="?", help="Number of reciprocal neighbours")
+    parser.add_argument("lambda_", type=int, nargs="?", metavar="lambda", help="lambda parameter")
+    parser.add_argument("mu", type=int, nargs="?", help="mu parameter")
+    parser.add_argument(
+        "--params-file", type=Path, default=None, metavar="FILE",
+        help="File with one 'n k t lambda mu' per line; runs a search for each",
+    )
     parser.add_argument(
         "--block-size", type=int, default=100_000,
         help="Connector sets per worker block (default: 100000)",
@@ -508,7 +513,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--log", type=Path, default=Path("cayley_search.log"),
-        help="Log file path (default: cayley_search.log)",
+        help="Log file path (default: cayley_search.log); ignored when --params-file is used",
     )
     parser.add_argument(
         "--stop-on-first", action="store_true",
@@ -516,11 +521,40 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    search(
-        args.n, args.k, args.t, args.lambda_, args.mu,
+    shared = dict(
         block_size=args.block_size,
         num_workers=args.workers,
         timeout=args.timeout,
-        logfile=args.log,
         stop_on_first=args.stop_on_first,
     )
+
+    if args.params_file is not None:
+        param_sets: list[tuple[int, int, int, int, int]] = []
+        with args.params_file.open() as fh:
+            for lineno, raw in enumerate(fh, 1):
+                line = raw.split("#")[0].strip()
+                if not line:
+                    continue
+                parts = line.split()
+                if len(parts) != 5:
+                    parser.error(f"{args.params_file}:{lineno}: expected 5 values, got {len(parts)}")
+                try:
+                    param_sets.append(tuple(int(p) for p in parts))  # type: ignore[misc]
+                except ValueError as exc:
+                    parser.error(f"{args.params_file}:{lineno}: {exc}")
+
+        for pn, pk, pt, pl, pm in param_sets:
+            logfile = Path(f"cayley_search_{pn}_{pk}_{pt}_{pl}_{pm}.log")
+            search(pn, pk, pt, pl, pm, logfile=logfile, **shared)  # type: ignore[arg-type]
+    else:
+        missing = [name for name, val in [("n", args.n), ("k", args.k), ("t", args.t),
+                                           ("lambda", args.lambda_), ("mu", args.mu)]
+                   if val is None]
+        if missing:
+            parser.error(f"missing positional argument(s): {', '.join(missing)} "
+                         f"(or use --params-file)")
+        search(
+            args.n, args.k, args.t, args.lambda_, args.mu,
+            logfile=args.log,
+            **shared,  # type: ignore[arg-type]
+        )
