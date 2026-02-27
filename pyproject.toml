@@ -166,13 +166,6 @@ reportUnsafeMultipleInheritance = "warning"
 # Use library code for better type analysis
 useLibraryCodeForTypes = true
 
-# Research/experimental code settings (notebooks and experiments)
-[tool.pyright.notebook]
-# More lenient type checking for research code
-typeCheckingMode = "basic"
-reportMissingImports = "warning"
-reportAttributeAccessIssue = "warning"
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
