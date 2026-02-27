@@ -49,32 +49,116 @@ elements := AsList(G);;
 id       := Identity(G);;
 nonId    := Filtered(elements, x -> x <> id);;
 
-J := List([1..n], i -> List([1..n], j -> 1));;
-I := IdentityMat(n);;
+# ── Precompute a fast element → list-position lookup ─────────────────────────
+# Position(list, x) scans the list in O(n).  For an n=30 group with k=12,
+# that call appears k²=144 times per candidate — paying O(n·k²) per candidate.
+# A dictionary gives O(1) amortised lookup, cutting the inner loop to O(k²).
+elemPos := NewDictionary(id, true);;
+for i in [1..n] do
+    AddDictionary(elemPos, elements[i], i);
+od;;
 
-allSets := Combinations(nonId, k);;
-slice   := allSets{{[startIdx..endIdx]}};;
+idPos := LookupDictionary(elemPos, id);;   # position of the identity element
+
+# ── OPTIMIZATION 2 (t-filter) + OPTIMIZATION 3 (Aut(G)-orbit reduction) ──────
+#
+# Instead of iterating over all C(n-1, k) raw subsets, we build the much
+# smaller list of Aut(G)-orbit representatives restricted to t-valid subsets.
+#
+# Step 1 — t-filter: keep only k-subsets S with |S ∩ S⁻¹| = t.
+#   Aut(G) preserves this count (φ(s)⁻¹ = φ(s⁻¹)), so t-valid subsets form
+#   a union of complete Aut(G)-orbits and the restriction is well-defined.
+#
+# Step 2 — orbit reduction: two connection sets S and φ(S) give isomorphic
+#   Cayley graphs, so checking one representative per orbit is sufficient.
+#   The factor of reduction is roughly |Aut(G)| / average-stabiliser-size,
+#   often 6–54× for the group orders we care about.
+#
+# Combined, these two steps reduce C(n-1,k) candidates to a list of orbit
+# representatives that is typically 10–100× smaller.  The startIdx/endIdx
+# block boundaries now refer to indices in this *reduced* list, whose size
+# was computed once in the metadata phase and communicated to this worker.
+tValid  := Filtered(Combinations(nonId, k),
+                    S -> Size(Filtered(S, s -> s^-1 in S)) = t);;
+AutG    := AutomorphismGroup(G);;
+orbs    := Orbits(AutG, tValid, OnSets);;
+allReps := List(orbs, orb -> orb[1]);;   # one canonical rep per orbit
+
+slice := allReps{{[startIdx..endIdx]}};;
 
 Print("BLOCK_START ", startIdx, " ", endIdx, "\n");
 
 ProcessBlock := function()
-    local S, A, row, g, s, h, col, checked;
+    local S, inS, fTable, s, sp, h, pos, ok, i, fh, A, row, col, checked;
     checked := 0;
     for S in slice do
         checked := checked + 1;
+        # Note: every S in slice already satisfies |S ∩ S⁻¹| = t (from tValid),
+        # so the i = idPos branch of the check below is always satisfied.
+        # We keep it for correctness and as documentation of the invariant.
 
-        A := List([1..n], i -> List([1..n], j -> 0));
-        for row in [1..n] do
-            g := elements[row];
-            for s in S do
-                h   := g * s;
-                col := Position(elements, h);
-                A[row][col] := 1;
+        # ── OPTIMIZATION 1: check DSRG condition at the identity only ────────
+        #
+        # Every Cayley graph Cay(G, S) is vertex-transitive: left-multiplication
+        # by any g ∈ G is a graph automorphism taking vertex x to vertex g·x.
+        # Therefore the DSRG equation
+        #
+        #   A² = t·I + λ·A + μ·(J − I − A)
+        #
+        # holds at ALL vertices iff it holds at the identity e alone.
+        #
+        # Row e of A² counts, for each h ∈ G, the number of directed 2-paths
+        # e → s → h.  Such a path exists iff s ∈ S and s⁻¹·h ∈ S, i.e.
+        # h = s·s' for some s, s' ∈ S.  Define:
+        #
+        #   f(h) := |{{(s, s') ∈ S × S : s·s' = h}}|
+        #
+        # The three DSRG conditions at e are then:
+        #   f(e)  = t      (t reciprocal neighbours: both s and s⁻¹ in S)
+        #   f(h)  = λ      for every h ∈ S      (out-neighbour of e)
+        #   f(h)  = μ      for every h ∉ S∪{{e}}  (non-neighbour of e)
+        #
+        # Cost: O(k²) to build f, O(n) to check — versus O(n³) for A·A.
+
+        # Boolean membership table: inS[i] is true iff elements[i] ∈ S.
+        # BlistList builds this in one pass from the integer positions.
+        inS := BlistList([1..n], List(S, s -> LookupDictionary(elemPos, s)));;
+
+        # Accumulate f(h) over all ordered pairs (s, s') ∈ S × S.
+        fTable := ListWithIdenticalEntries(n, 0);;
+        for s in S do
+            for sp in S do
+                h   := s * sp;
+                pos := LookupDictionary(elemPos, h);
+                fTable[pos] := fTable[pos] + 1;
             od;
         od;
 
-        if A * A = t * I + lambda * A + mu * (J - I - A) then
+        # Check the three conditions; break on the first violation.
+        ok := true;;
+        for i in [1..n] do
+            fh := fTable[i];
+            if i = idPos then
+                if fh <> t      then ok := false; break; fi;
+            elif inS[i] then
+                if fh <> lambda then ok := false; break; fi;
+            else
+                if fh <> mu     then ok := false; break; fi;
+            fi;
+        od;
+
+        if ok then
             Print("FOUND\n");
+            # Build the full adjacency matrix only for confirmed solutions —
+            # this cost is negligible relative to the search.
+            A := List([1..n], i -> ListWithIdenticalEntries(n, 0));;
+            for row in [1..n] do
+                for s in S do
+                    h   := elements[row] * s;
+                    col := LookupDictionary(elemPos, h);
+                    A[row][col] := 1;
+                od;
+            od;
             Print("ADJ_START\n");
             for row in A do
                 Print(JoinStringsWithSeparator(List(row, String), ","), "\n");
@@ -102,6 +186,9 @@ class GroupInfo:
     filtered_index: int
     library_id: int
     name: str
+    # Number of Aut(G)-orbit representatives among t-valid k-subsets.
+    # This is the true search-space size for this group after optimizations 2+3.
+    num_reps: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,20 +238,24 @@ def _init_pool(flag: mp.Value) -> None:  # type: ignore[type-arg]
 # ---------------------------------------------------------------------------
 
 
-def _run_metadata(n: int, logger: logging.Logger) -> list[GroupInfo]:
+def _run_metadata(n: int, k: int, t: int, logger: logging.Logger) -> list[GroupInfo]:
     """Run metadata.g to enumerate nonabelian groups of order *n*.
+
+    Also computes, for each group, the number of Aut(G)-orbit representatives
+    among t-valid k-subsets (the effective search-space size after opts 2+3).
 
     Returns:
         List of ``GroupInfo`` for each nonabelian group found.
     """
     script = Path(__file__).with_name("metadata.g")
-    script_text = f"n := {n};;\n" + script.read_text()
+    # Inject n, k, t so metadata.g can compute the orbit counts.
+    script_text = f"n := {n};; k := {k};; t := {t};;\n" + script.read_text()
     proc = subprocess.run(
         ["gap", "-q"],
         input=script_text,
         capture_output=True,
         text=True,
-        timeout=120,
+        timeout=300,  # orbit computation can take longer than simple enumeration
         check=False,
     )
     if proc.returncode != 0:
@@ -177,12 +268,15 @@ def _run_metadata(n: int, logger: logging.Logger) -> list[GroupInfo]:
             count = int(line.split()[1])
             logger.info("%d nonabelian group(s) of order %d", count, n)
         elif line.startswith("GROUP "):
-            parts = line.split(maxsplit=3)
+            # Format: GROUP <filtered_index> <library_id> <num_reps> <name...>
+            # num_reps precedes the name because StructureDescription can contain spaces.
+            parts = line.split(maxsplit=4)
             groups.append(
                 GroupInfo(
                     filtered_index=int(parts[1]),
                     library_id=int(parts[2]),
-                    name=parts[3] if len(parts) > 3 else "?",
+                    num_reps=int(parts[3]),
+                    name=parts[4] if len(parts) > 4 else "?",
                 )
             )
         elif line == "META_DONE":
@@ -401,20 +495,31 @@ def search(
     start_time = time.perf_counter()
     logger.info("DSRG(%d, %d, %d, %d, %d) — starting search", n, k, t, lambda_, mu)
 
-    groups = _run_metadata(n, logger)
+    groups = _run_metadata(n, k, t, logger)
     if not groups:
         logger.info("No nonabelian groups of order %d — nothing to search", n)
         return []
 
-    sets_per_group = comb(n - 1, k)
-    logger.info("%s connector sets per group (C(%d, %d))", f"{sets_per_group:,}", n - 1, k)
+    # Log raw search-space sizes for comparison.
+    sets_per_group_raw = comb(n - 1, k)
+    total_reps = sum(g.num_reps for g in groups)
+    logger.info(
+        "C(%d, %d) = %s raw subsets/group → %s orbit-rep(s) total after Aut(G) + t-filter",
+        n - 1, k, f"{sets_per_group_raw:,}", f"{total_reps:,}",
+    )
 
     # -- Job list -------------------------------------------------------------
+    # Each group's search space is now g.num_reps orbit representatives (not
+    # the full C(n-1,k)).  Workers slice into the ordered list of orbit reps
+    # recomputed deterministically in GAP from the same (n, k, t, libId) inputs.
     worker_timeout = max(timeout / (num_workers or mp.cpu_count()) * 2, 60)
     jobs: list[Job] = []
     for g in groups:
-        for start in range(1, sets_per_group + 1, block_size):
-            end = min(start + block_size - 1, sets_per_group)
+        if g.num_reps == 0:
+            logger.info("Group %s (lib_id=%d): 0 orbit reps — skipping", g.name, g.library_id)
+            continue
+        for start in range(1, g.num_reps + 1, block_size):
+            end = min(start + block_size - 1, g.num_reps)
             jobs.append(
                 Job(
                     n=n, k=k, t=t, lambda_=lambda_, mu=mu,
