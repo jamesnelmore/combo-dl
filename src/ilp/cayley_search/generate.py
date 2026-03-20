@@ -12,6 +12,8 @@ from itertools import combinations
 from pathlib import Path
 import subprocess
 
+import numpy as np
+
 import torch
 from tqdm import tqdm
 
@@ -126,12 +128,12 @@ def _parse_gap_output(output: str, n: int, device: torch.device | str) -> list[G
     return groups
 
 
-def _subset_batches(non_identity: list[int], k: int, batch_size: int, device: torch.device | str):
+def _subset_batches(non_identity: list[int], k: int, full_batch_size: int, device: torch.device | str):
     """Yield batches of k-subsets as (batch, k) int64 tensors."""
     batch: list[tuple[int, ...]] = []
     for combo in combinations(non_identity, k):
         batch.append(combo)
-        if len(batch) == batch_size:
+        if len(batch) == full_batch_size:
             yield torch.tensor(batch, dtype=torch.int32, device=device)
             batch = []
     if batch:
@@ -150,9 +152,9 @@ def t_filter(subsets: torch.Tensor, inv: torch.Tensor, n: int, t: int) -> torch.
     Returns:
         (num_valid, k) tensor of valid subsets.
     """
-    batch_size, k = subsets.shape
+    full_batch_size, k = subsets.shape
     # Build boolean membership mask: (batch, n)
-    mask = torch.zeros(batch_size, n, dtype=torch.bool, device=subsets.device)
+    mask = torch.zeros(full_batch_size, n, dtype=torch.bool, device=subsets.device)
     mask.scatter_(1, subsets, True)
     # For each element in each subset, check if its inverse is also in the subset
     inv_of_subsets = inv[subsets]  # (batch, k)
@@ -178,13 +180,13 @@ def check_dsrg(
     n = group.order
     e = group.identity
     device = subsets.device
-    batch_size = subsets.shape[0]
+    full_batch_size = subsets.shape[0]
 
     # Precompute left_mult[g, h] = table[inv[g], h] — the element g⁻¹h.
     left_mult = group.table[group.inv]  # (n, n)
 
     # Build membership mask: (batch, n)
-    mask = torch.zeros(batch_size, n, dtype=torch.bool, device=device)
+    mask = torch.zeros(full_batch_size, n, dtype=torch.bool, device=device)
     mask.scatter_(1, subsets, True)
 
     # Full adjacency: A[b, g, h] = mask[b, left_mult[g, h]]
@@ -204,6 +206,23 @@ def check_dsrg(
     return subsets[is_dsrg]
 
 
+def build_adjacency(subsets: torch.Tensor, group: GroupTable) -> torch.Tensor:
+    """Build adjacency matrices from connection sets.
+
+    Args:
+        subsets: (num_sets, k) element indices.
+        group: GroupTable for the group.
+
+    Returns:
+        (num_sets, n, n) bool adjacency matrices.
+    """
+    n = group.order
+    left_mult = group.table[group.inv]  # (n, n)
+    mask = torch.zeros(subsets.shape[0], n, dtype=torch.bool, device=subsets.device)
+    mask.scatter_(1, subsets, True)
+    return mask[:, left_mult]  # (num_sets, n, n)
+
+
 @torch.no_grad()
 def search_dsrg(
     n: int,
@@ -211,15 +230,15 @@ def search_dsrg(
     t: int,
     lambda_: int,
     mu: int,
-    batch_size: int = 10_000_000,
-    check_size: int = 100_000,
+    full_batch_size: int = 10_000_000,
+    t_reduced_size: int = 100_000,
     device: torch.device | str = "cpu",
 ) -> list[tuple[GroupTable, torch.Tensor]]:
     """Search for DSRGs among Cayley graphs of nonabelian groups of order n.
 
     Args:
-        batch_size: Number of subsets to generate and t-filter at once (cheap).
-        check_size: Number of t-valid subsets to accumulate before running
+        full_batch_size: Number of subsets to generate and t-filter at once (cheap).
+        t_reduced_size: Number of t-valid subsets to accumulate before running
             the DSRG check (expensive — builds batch×n×n adjacency matrices).
 
     Returns:
@@ -259,8 +278,8 @@ def search_dsrg(
                 found_subsets.append(dsrg)
 
         pbar = tqdm(
-            _subset_batches(non_id, k, batch_size, device),
-            total=(total_subsets + batch_size - 1) // batch_size,
+            _subset_batches(non_id, k, full_batch_size, device),
+            total=(total_subsets + full_batch_size - 1) // full_batch_size,
             desc=f"  {group.name}",
             unit="batch",
         )
@@ -276,7 +295,7 @@ def search_dsrg(
                 pending_count += valid.shape[0]
 
             # Flush to DSRG check when we've accumulated enough
-            if pending_count >= check_size:
+            if pending_count >= t_reduced_size:
                 _flush_pending()
 
             pbar.set_postfix(
@@ -297,38 +316,76 @@ def search_dsrg(
     return results
 
 
-if __name__ == "__main__":
-    import sys
-
-    if len(sys.argv) < 6:
-        print("Usage: generate.py n k t lambda mu [--batch-size N] [--check-size N]")
-        sys.exit(1)
-
-    n, k, t, lambda_, mu = (
-        int(sys.argv[1]),
-        int(sys.argv[2]),
-        int(sys.argv[3]),
-        int(sys.argv[4]),
-        int(sys.argv[5]),
-    )
-
-    batch_size = 1_000_000
-    check_size = 100_000
-    for i, arg in enumerate(sys.argv):
-        if arg == "--batch-size" and i + 1 < len(sys.argv):
-            batch_size = int(sys.argv[i + 1])
-        elif arg == "--check-size" and i + 1 < len(sys.argv):
-            check_size = int(sys.argv[i + 1])
-
-    device = "mps" if torch.backends.mps.is_available() else "cpu"
-    print(f"Device: {device}")
-
+def _run_single(n, k, t, lambda_, mu, full_batch_size, t_reduced_size, device):
     results = search_dsrg(
-        n, k, t, lambda_, mu, batch_size=batch_size, check_size=check_size, device=device
+        n, k, t, lambda_, mu,
+        full_batch_size=full_batch_size,
+        t_reduced_size=t_reduced_size,
+        device=device,
     )
     for group, subsets in results:
-        print(
-            f"\n{group.name} (lib_id={group.library_id}): {subsets.shape[0]} DSRG connection set(s)"
+        count = subsets.shape[0]
+        print(f"\n{group.name} (lib_id={group.library_id}): {count} DSRG connection set(s)")
+        adj = build_adjacency(subsets, group).cpu().numpy().astype(np.uint8)
+        filename = f"dsrg_{n}_{k}_{t}_{lambda_}_{mu}_g{group.library_id}.npz"
+        np.savez_compressed(filename, adjacency=adj)
+        print(f"  Saved {count} adjacency matrices ({adj.shape}) to {filename}")
+
+
+if __name__ == "__main__":
+    import csv
+    import sys
+
+    full_batch_size = 1_000_000
+    t_reduced_size = 100_000
+    csv_file = None
+    positional: list[str] = []
+
+    i = 1
+    while i < len(sys.argv):
+        arg = sys.argv[i]
+        if arg == "--full-batch-size":
+            full_batch_size = int(sys.argv[i + 1])
+            i += 2
+        elif arg == "--t-reduced-size":
+            t_reduced_size = int(sys.argv[i + 1])
+            i += 2
+        elif arg == "--csv":
+            csv_file = sys.argv[i + 1]
+            i += 2
+        else:
+            positional.append(arg)
+            i += 1
+
+    if csv_file is None and len(positional) < 5:
+        print("Usage: generate.py n k t lambda mu [--full-batch-size N] [--t-reduced-size N]")
+        print("       generate.py --csv params.csv [--full-batch-size N] [--t-reduced-size N]")
+        sys.exit(1)
+
+    if torch.cuda.is_available():
+        device = "cuda"
+    elif torch.backends.mps.is_available():
+        device = "mps"
+    else:
+        device = "cpu"
+    print(f"Device: {device}")
+
+    if csv_file is not None:
+        with open(csv_file) as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                n = int(row["n"])
+                k = int(row["k"])
+                t = int(row["t"])
+                lambda_ = int(row["lambda"])
+                mu = int(row["mu"])
+                _run_single(n, k, t, lambda_, mu, full_batch_size, t_reduced_size, device)
+    else:
+        n, k, t, lambda_, mu = (
+            int(positional[0]),
+            int(positional[1]),
+            int(positional[2]),
+            int(positional[3]),
+            int(positional[4]),
         )
-        for row in subsets:
-            print(f"  S = {row.tolist()}")
+        _run_single(n, k, t, lambda_, mu, full_batch_size, t_reduced_size, device)
