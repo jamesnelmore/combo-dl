@@ -339,7 +339,7 @@ def search_dsrg(
     gen_batch_size: int = 1_000_000,
     dsrg_batch_size: int = 100_000,
     device: torch.device | str = "cpu",
-) -> list[tuple[GroupTable, torch.Tensor]]:
+) -> tuple[int, list[tuple[GroupTable, torch.Tensor]]]:
     """Search for DSRGs among Cayley graphs of nonabelian groups of order n.
 
     Args:
@@ -348,8 +348,8 @@ def search_dsrg(
             the DSRG check (expensive — builds batch×n×n adjacency matrices).
 
     Returns:
-        List of (group, subsets) pairs where subsets is a (num_found, k) tensor
-        of connection sets that yield a DSRG.
+        (num_groups, results) where num_groups is the number of nonabelian groups
+        checked and results is a list of (group, subsets) pairs.
     """
     total_subsets = comb(n - 1, k)
 
@@ -425,7 +425,7 @@ def search_dsrg(
         else:
             print(f"    → No DSRGs in {group.name}")
 
-    return results
+    return len(groups), results
 
 
 # ---------------------------------------------------------------------------
@@ -433,8 +433,20 @@ def search_dsrg(
 # ---------------------------------------------------------------------------
 
 
-def _run_single(n, k, t, lambda_, mu, gen_batch_size, dsrg_batch_size, device):
-    results = search_dsrg(
+@dataclass
+class SearchResult:
+    """Result of searching a single parameter set."""
+
+    num_groups: int
+    hits: list[tuple[GroupTable, torch.Tensor]]
+
+
+def _run_single(
+    n, k, t, lambda_, mu, gen_batch_size, dsrg_batch_size, device,
+    output_dir: Path | None = None,
+) -> SearchResult:
+    """Run search for a single parameter set and save results."""
+    num_groups, hits = search_dsrg(
         n,
         k,
         t,
@@ -444,22 +456,27 @@ def _run_single(n, k, t, lambda_, mu, gen_batch_size, dsrg_batch_size, device):
         dsrg_batch_size=dsrg_batch_size,
         device=device,
     )
-    for group, subsets in results:
+    for group, subsets in hits:
         count = subsets.shape[0]
         print(f"\n{group.name} (lib_id={group.library_id}): {count} DSRG connection set(s)")
         adj = build_adjacency(subsets, group).cpu().numpy().astype(np.uint8)
         filename = f"dsrg_{n}_{k}_{t}_{lambda_}_{mu}_g{group.library_id}.npz"
+        if output_dir is not None:
+            filename = str(output_dir / filename)
         np.savez_compressed(filename, adjacency=adj)
         print(f"  Saved {count} adjacency matrices ({adj.shape}) to {filename}")
+    return SearchResult(num_groups=num_groups, hits=hits)
 
 
 if __name__ == "__main__":
-    import csv
     import sys
+
+    import pandas as pd
 
     gen_batch_size = 1_000_000
     dsrg_batch_size = 100_000
-    csv_file = None
+    params_file = None
+    output_dir = None
     positional: list[str] = []
 
     i = 1
@@ -478,16 +495,19 @@ if __name__ == "__main__":
         elif arg == "--t-reduced-size":
             dsrg_batch_size = int(sys.argv[i + 1])
             i += 2
-        elif arg == "--csv":
-            csv_file = sys.argv[i + 1]
+        elif arg in ("--csv", "--params"):
+            params_file = sys.argv[i + 1]
+            i += 2
+        elif arg == "--output-dir":
+            output_dir = sys.argv[i + 1]
             i += 2
         else:
             positional.append(arg)
             i += 1
 
-    if csv_file is None and len(positional) < 5:
+    if params_file is None and len(positional) < 5:
         print("Usage: generate.py n k t lambda mu [--gen-batch-size N] [--dsrg-batch-size N]")
-        print("       generate.py --csv params.csv [--gen-batch-size N] [--dsrg-batch-size N]")
+        print("       generate.py --params params.csv|.xlsx [--output-dir DIR] [--gen-batch-size N] [--dsrg-batch-size N]")
         sys.exit(1)
 
     if torch.cuda.is_available():
@@ -498,16 +518,80 @@ if __name__ == "__main__":
         device = "cpu"
     print(f"Device: {device}")
 
-    if csv_file is not None:
-        with open(csv_file) as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                n = int(row["n"])
-                k = int(row["k"])
-                t = int(row["t"])
-                lambda_ = int(row["lambda"])
-                mu = int(row["mu"])
-                _run_single(n, k, t, lambda_, mu, gen_batch_size, dsrg_batch_size, device)
+    out_path = Path(output_dir) if output_dir else None
+    if out_path is not None:
+        out_path.mkdir(parents=True, exist_ok=True)
+
+    if params_file is not None:
+        pf = Path(params_file)
+        if pf.suffix in (".xls", ".xlsx", ".xlsm", ".xlsb", ".ods"):
+            params_df = pd.read_excel(pf)
+        else:
+            params_df = pd.read_csv(pf)
+
+        required = {"n", "k", "t", "lambda", "mu"}
+        missing = required - set(params_df.columns)
+        if missing:
+            print(f"Error: missing required columns: {missing}")
+            print(f"Found columns: {list(params_df.columns)}")
+            sys.exit(1)
+
+        results_log: list[dict] = []
+        results_csv = (out_path / "results.csv") if out_path else Path("results.csv")
+        fieldnames = [
+            "row", "n", "k", "t", "lambda", "mu",
+            "num_groups", "group_lib_id", "group_name",
+            "num_dsrgs", "total_dsrgs", "file",
+        ]
+
+        for row_idx, row in params_df.iterrows():
+            n = int(row["n"])
+            k = int(row["k"])
+            t = int(row["t"])
+            lambda_ = int(row["lambda"])
+            mu = int(row["mu"])
+
+            print(f"\n{'='*60}")
+            print(f"Row {row_idx} : DSRG({n}, {k}, {t}, {lambda_}, {mu})")
+            print(f"{'='*60}")
+
+            result = _run_single(
+                n, k, t, lambda_, mu,
+                gen_batch_size, dsrg_batch_size, device,
+                output_dir=out_path,
+            )
+
+            total_dsrgs = sum(s.shape[0] for _, s in result.hits)
+
+            if result.hits:
+                for group, subsets in result.hits:
+                    results_log.append({
+                        "row": row_idx,
+                        "n": n, "k": k, "t": t,
+                        "lambda": lambda_, "mu": mu,
+                        "num_groups": result.num_groups,
+                        "group_lib_id": group.library_id,
+                        "group_name": group.name,
+                        "num_dsrgs": subsets.shape[0],
+                        "total_dsrgs": total_dsrgs,
+                        "file": f"dsrg_{n}_{k}_{t}_{lambda_}_{mu}_g{group.library_id}.npz",
+                    })
+            else:
+                results_log.append({
+                    "row": row_idx,
+                    "n": n, "k": k, "t": t,
+                    "lambda": lambda_, "mu": mu,
+                    "num_groups": result.num_groups,
+                    "group_lib_id": "", "group_name": "",
+                    "num_dsrgs": 0, "total_dsrgs": 0, "file": "",
+                })
+
+            pd.DataFrame(results_log).to_csv(results_csv, index=False)
+
+        hits = sum(1 for r in results_log if r["total_dsrgs"])
+        print(f"\n{'='*60}")
+        print(f"Done. {hits} parameter set(s) with results out of {len(params_df)} checked.")
+        print(f"Results summary written to {results_csv}")
     else:
         n, k, t, lambda_, mu = (
             int(positional[0]),
@@ -516,4 +600,4 @@ if __name__ == "__main__":
             int(positional[3]),
             int(positional[4]),
         )
-        _run_single(n, k, t, lambda_, mu, gen_batch_size, dsrg_batch_size, device)
+        _run_single(n, k, t, lambda_, mu, gen_batch_size, dsrg_batch_size, device, output_dir=out_path)

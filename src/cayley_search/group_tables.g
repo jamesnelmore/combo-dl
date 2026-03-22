@@ -21,13 +21,9 @@
 
 LoadPackage("smallgrp");;
 
-# Filter out abelian, dihedral, and generalized quaternion groups.
-# Cayley SRGs on cyclic groups are Paley (known), and there are no
-# nontrivial Cayley graphs on dihedral or generalized quaternion groups.
+# Abelian groups cannot have Cayley DSRGs
 groups := Filtered(AllSmallGroups(n),
-    G -> not IsAbelian(G)
-         and not IsDihedralGroup(G)
-         and not IsQuaternionGroup(G));;
+    G -> not IsAbelian(G));;
 
 for Gi in groups do
     gid      := IdGroup(Gi);;

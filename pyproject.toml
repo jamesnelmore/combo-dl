@@ -16,6 +16,7 @@ dependencies = [
     "networkx>=3.5",
     "numpy>=2.3.2",
     "omegaconf>=2.3.0",
+    "openpyxl>=3.1.5",
     "pulp>=3.3.0",
     "pydantic>=2.6,<2.9",
     "python-sat>=1.8.dev30",
