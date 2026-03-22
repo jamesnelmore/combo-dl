@@ -336,16 +336,14 @@ def search_dsrg(
     t: int,
     lambda_: int,
     mu: int,
-    gen_batch_size: int = 1_000_000,
-    dsrg_batch_size: int = 100_000,
+    batch_size: int = 100_000,
     device: torch.device | str = "cpu",
 ) -> tuple[int, list[tuple[GroupTable, torch.Tensor]]]:
     """Search for DSRGs among Cayley graphs of nonabelian groups of order n.
 
     Args:
-        gen_batch_size: Number of t-valid subsets to generate per batch (cheap).
-        dsrg_batch_size: Number of t-valid subsets to accumulate before running
-            the DSRG check (expensive — builds batch×n×n adjacency matrices).
+        batch_size: Number of t-valid subsets per DSRG check batch.
+            Controls GPU memory usage (builds batch×n×n adjacency matrices).
 
     Returns:
         (num_groups, results) where num_groups is the number of nonabelian groups
@@ -378,45 +376,26 @@ def search_dsrg(
             continue
 
         found_subsets: list[torch.Tensor] = []
-        pending: list[torch.Tensor] = []
-        pending_count = 0
         total_generated = 0
 
-        def _flush_pending() -> None:
-            nonlocal pending, pending_count
-            if not pending:
-                return
-            check_batch = torch.cat(pending, dim=0)
-            pending = []
-            pending_count = 0
-            dsrg = check_dsrg(check_batch, group, t, lambda_, mu)
-            if dsrg.shape[0] > 0:
-                found_subsets.append(dsrg)
-
-        total_batches = (t_valid_count + gen_batch_size - 1) // gen_batch_size
+        total_batches = (t_valid_count + batch_size - 1) // batch_size
 
         pbar = tqdm(
-            _t_valid_batches(involutions, pairs, k, t, gen_batch_size, device),
+            _t_valid_batches(involutions, pairs, k, t, batch_size, device),
             total=total_batches,
             desc=f"    {group.name}",
             unit="batch",
         )
         for batch in pbar:
             total_generated += batch.shape[0]
-
-            pending.append(batch)
-            pending_count += batch.shape[0]
-
-            if pending_count >= dsrg_batch_size:
-                _flush_pending()
+            dsrg = check_dsrg(batch, group, t, lambda_, mu)
+            if dsrg.shape[0] > 0:
+                found_subsets.append(dsrg)
 
             pbar.set_postfix(
                 generated=total_generated,
                 found=sum(s.shape[0] for s in found_subsets),
             )
-
-        # Flush remaining
-        _flush_pending()
 
         if found_subsets:
             all_found = torch.cat(found_subsets, dim=0)
@@ -442,7 +421,7 @@ class SearchResult:
 
 
 def _run_single(
-    n, k, t, lambda_, mu, gen_batch_size, dsrg_batch_size, device,
+    n, k, t, lambda_, mu, batch_size, device,
     output_dir: Path | None = None,
 ) -> SearchResult:
     """Run search for a single parameter set and save results."""
@@ -452,8 +431,7 @@ def _run_single(
         t,
         lambda_,
         mu,
-        gen_batch_size=gen_batch_size,
-        dsrg_batch_size=dsrg_batch_size,
+        batch_size=batch_size,
         device=device,
     )
     for group, subsets in hits:
@@ -473,8 +451,7 @@ if __name__ == "__main__":
 
     import pandas as pd
 
-    gen_batch_size = 1_000_000
-    dsrg_batch_size = 100_000
+    batch_size = 100_000
     params_file = None
     output_dir = None
     positional: list[str] = []
@@ -482,18 +459,8 @@ if __name__ == "__main__":
     i = 1
     while i < len(sys.argv):
         arg = sys.argv[i]
-        if arg == "--gen-batch-size":
-            gen_batch_size = int(sys.argv[i + 1])
-            i += 2
-        elif arg == "--dsrg-batch-size":
-            dsrg_batch_size = int(sys.argv[i + 1])
-            i += 2
-        # Keep old flag names as aliases for backwards compatibility
-        elif arg == "--full-batch-size":
-            gen_batch_size = int(sys.argv[i + 1])
-            i += 2
-        elif arg == "--t-reduced-size":
-            dsrg_batch_size = int(sys.argv[i + 1])
+        if arg == "--batch-size":
+            batch_size = int(sys.argv[i + 1])
             i += 2
         elif arg in ("--csv", "--params"):
             params_file = sys.argv[i + 1]
@@ -506,8 +473,8 @@ if __name__ == "__main__":
             i += 1
 
     if params_file is None and len(positional) < 5:
-        print("Usage: generate.py n k t lambda mu [--gen-batch-size N] [--dsrg-batch-size N]")
-        print("       generate.py --params params.csv|.xlsx [--output-dir DIR] [--gen-batch-size N] [--dsrg-batch-size N]")
+        print("Usage: generate.py n k t lambda mu [--batch-size N]")
+        print("       generate.py --params params.csv|.xlsx [--output-dir DIR] [--batch-size N]")
         sys.exit(1)
 
     if torch.cuda.is_available():
@@ -557,8 +524,7 @@ if __name__ == "__main__":
 
             result = _run_single(
                 n, k, t, lambda_, mu,
-                gen_batch_size, dsrg_batch_size, device,
-                output_dir=out_path,
+                batch_size, device, output_dir=out_path,
             )
 
             total_dsrgs = sum(s.shape[0] for _, s in result.hits)
@@ -600,4 +566,4 @@ if __name__ == "__main__":
             int(positional[3]),
             int(positional[4]),
         )
-        _run_single(n, k, t, lambda_, mu, gen_batch_size, dsrg_batch_size, device, output_dir=out_path)
+        _run_single(n, k, t, lambda_, mu, batch_size, device, output_dir=out_path)
