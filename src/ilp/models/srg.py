@@ -102,15 +102,52 @@ def _add_edges(
     k: int,
     *,
     fix_neighbors: bool,
+    fix_v1: bool = False,
+    lambda_param: int = 0,
 ) -> tuple[dict[tuple[int, int], gp.Var], Callable[[int, int], gp.Var | int]]:
-    """Create upper-triangle binary edge variables and return ``(edges, e)``."""
+    """Create upper-triangle binary edge variables and return ``(edges, e)``.
+
+    Symmetry-breaking via neighbour fixing:
+
+    * ``fix_neighbors`` pins vertex 0's neighbours to {1, …, k}.
+    * ``fix_v1`` (requires ``fix_neighbors``) additionally pins vertex 1's
+      neighbours.  After fixing vertex 0, the residual automorphism group
+      acts independently on N(v0)\\{v1} = {2, …, k} and on the non-neighbours
+      {k+1, …, n−1}.  We WLOG fix:
+
+      - λ common neighbours of v0 and v1 among {2, …, k}  →  {2, …, λ+1}
+      - remaining k−1−λ neighbours from {k+1, …, n−1}    →  {k+1, …, 2k−λ−1}
+
+      So N(v1) = {0} ∪ {2, …, λ+1} ∪ {k+1, …, 2k−λ−1},  |N(v1)| = k.
+    """
     edges: dict[tuple[int, int], gp.Var] = {}
+
+    # Pre-compute the set of v1's fixed neighbours (excluding vertex 0,
+    # whose edge (0, 1) is already handled by the v0 block).
+    v1_neighbors: set[int] = set()
+    if fix_neighbors and fix_v1:
+        # λ common neighbours with v0 from {2, …, k}
+        for j in range(2, lambda_param + 2):
+            v1_neighbors.add(j)
+        # remaining k−1−λ neighbours from non-neighbours of v0
+        for j in range(k + 1, 2 * k - lambda_param):
+            v1_neighbors.add(j)
+
     for i in range(n):
         for j in range(i + 1, n):
             if fix_neighbors and i == 0:
+                # v0 neighbours = {1, …, k}.
+                # Use INTEGER type with fixed value to avoid Gurobi issues
+                # with lb==ub on BINARY variables.
                 val = 1.0 if j <= k else 0.0
                 edges[i, j] = model.addVar(
-                    lb=val, ub=val, vtype=GRB.BINARY, name=f"e_{i}_{j}",
+                    lb=val, ub=val, vtype=GRB.INTEGER, name=f"e_{i}_{j}",
+                )
+            elif fix_neighbors and fix_v1 and i == 1:
+                # v1 neighbours among {2, …, n−1} (edge (0,1) handled above)
+                val = 1.0 if j in v1_neighbors else 0.0
+                edges[i, j] = model.addVar(
+                    lb=val, ub=val, vtype=GRB.INTEGER, name=f"e_{i}_{j}",
                 )
             else:
                 edges[i, j] = model.addVar(
@@ -184,6 +221,7 @@ def build_srg_exact(
     mu: int,
     *,
     fix_neighbors: bool = True,
+    fix_v1: bool = False,
     lex_order: LexOrder = "none",
     quiet: bool = True,
 ) -> tuple[gp.Model, dict[tuple[int, int], gp.Var], Callable]:
@@ -195,6 +233,7 @@ def build_srg_exact(
         lambda_param: Common neighbours for adjacent pairs.
         mu: Common neighbours for non-adjacent pairs.
         fix_neighbors: Pin neighbours of vertex 0 to {1, …, k}.
+        fix_v1: Also pin neighbours of vertex 1 (requires *fix_neighbors*).
         lex_order: Lex-ordering strategy (``"none"``, ``"exponential"``,
             ``"lex_leader"``).
         quiet: Suppress Gurobi console output.
@@ -207,7 +246,12 @@ def build_srg_exact(
     if quiet:
         model.setParam("OutputFlag", 0)
 
-    edges, e = _add_edges(model, n, k, fix_neighbors=fix_neighbors)
+    edges, e = _add_edges(
+        model, n, k,
+        fix_neighbors=fix_neighbors,
+        fix_v1=fix_v1,
+        lambda_param=lambda_param,
+    )
 
     # Feasibility problem — no objective.
     model.setObjective(0, GRB.MINIMIZE)
@@ -231,7 +275,7 @@ def build_srg_exact(
             )
 
     # ── Lex ordering (symmetry breaking) ──────────────────────────────────
-    start_row = 1 if fix_neighbors else 0
+    start_row = 2 if (fix_neighbors and fix_v1) else (1 if fix_neighbors else 0)
     add_lex_order(
         model, e, n,
         kind=lex_order,
@@ -252,6 +296,7 @@ def build_srg_relaxed(
     mu: int,
     *,
     fix_neighbors: bool = True,
+    fix_v1: bool = False,
     lex_order: LexOrder = "none",
     quiet: bool = True,
 ) -> tuple[gp.Model, dict[tuple[int, int], gp.Var], Callable]:
@@ -276,6 +321,7 @@ def build_srg_relaxed(
         lambda_param: Target common neighbours for adjacent pairs.
         mu: Target common neighbours for non-adjacent pairs.
         fix_neighbors: Pin neighbours of vertex 0 to {1, …, k}.
+        fix_v1: Also pin neighbours of vertex 1 (requires *fix_neighbors*).
         lex_order: Lex-ordering strategy.
         quiet: Suppress Gurobi console output.
 
@@ -286,7 +332,12 @@ def build_srg_relaxed(
     if quiet:
         model.setParam("OutputFlag", 0)
 
-    edges, e = _add_edges(model, n, k, fix_neighbors=fix_neighbors)
+    edges, e = _add_edges(
+        model, n, k,
+        fix_neighbors=fix_neighbors,
+        fix_v1=fix_v1,
+        lambda_param=lambda_param,
+    )
 
     _add_degree_constraints(model, e, n, k)
     p = _add_path_products(model, e, n)
@@ -327,7 +378,7 @@ def build_srg_relaxed(
     )
 
     # ── Lex ordering (symmetry breaking) ──────────────────────────────────
-    start_row = 1 if fix_neighbors else 0
+    start_row = 2 if (fix_neighbors and fix_v1) else (1 if fix_neighbors else 0)
     add_lex_order(
         model, e, n,
         kind=lex_order,
@@ -350,6 +401,7 @@ def build_srg_quadratic(
     mu: int,
     *,
     fix_neighbors: bool = True,
+    fix_v1: bool = False,
     lex_order: LexOrder = "none",
     quiet: bool = True,
 ) -> tuple[gp.Model, dict[tuple[int, int], gp.Var], Callable]:
@@ -375,6 +427,7 @@ def build_srg_quadratic(
         lambda_param: Target common neighbours for adjacent pairs.
         mu: Target common neighbours for non-adjacent pairs.
         fix_neighbors: Pin neighbours of vertex 0 to {1, …, k}.
+        fix_v1: Also pin neighbours of vertex 1 (requires *fix_neighbors*).
         lex_order: Lex-ordering strategy.
         quiet: Suppress Gurobi console output.
 
@@ -388,7 +441,12 @@ def build_srg_quadratic(
     # Bilinear products in the residual constraints require this.
     model.setParam("NonConvex", 2)
 
-    edges, e = _add_edges(model, n, k, fix_neighbors=fix_neighbors)
+    edges, e = _add_edges(
+        model, n, k,
+        fix_neighbors=fix_neighbors,
+        fix_v1=fix_v1,
+        lambda_param=lambda_param,
+    )
     _add_degree_constraints(model, e, n, k)
 
     lam_minus_mu = lambda_param - mu
@@ -434,7 +492,7 @@ def build_srg_quadratic(
     )
 
     # ── Lex ordering (symmetry breaking) ──────────────────────────────────
-    start_row = 1 if fix_neighbors else 0
+    start_row = 2 if (fix_neighbors and fix_v1) else (1 if fix_neighbors else 0)
     add_lex_order(
         model, e, n,
         kind=lex_order,
@@ -462,6 +520,7 @@ def solve_srg(
     *,
     formulation: Formulation = "exact",
     fix_neighbors: bool = True,
+    fix_v1: bool = False,
     lex_order: LexOrder = "none",
     threads: int = -1,
     time_limit: float | None = None,
@@ -478,6 +537,7 @@ def solve_srg(
         formulation: ``"exact"``, ``"relaxed"`` (violation count), or
             ``"quadratic"`` (sum of squared residuals).
         fix_neighbors: Pin neighbours of vertex 0.
+        fix_v1: Also pin neighbours of vertex 1 (requires *fix_neighbors*).
         lex_order: Lex-ordering strategy.
         threads: Solver threads (-1 = Gurobi default / all).
         time_limit: Wall-clock limit in seconds.
@@ -493,6 +553,7 @@ def solve_srg(
     model, edges, e = builder(
         n, k, lambda_param, mu,
         fix_neighbors=fix_neighbors,
+        fix_v1=fix_v1,
         lex_order=lex_order,
         quiet=quiet,
     )

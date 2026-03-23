@@ -75,6 +75,16 @@ def add_parser(subparsers: argparse._SubParsersAction) -> None:
         ),
     )
     p.add_argument(
+        "--fix-v1",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Also pin neighbours of vertex 1 (requires --fix-neighbors). "
+            "Fixes λ common neighbours among N(v0) and the remaining "
+            "k−1−λ from non-neighbours of v0.  Default: disabled."
+        ),
+    )
+    p.add_argument(
         "--lex",
         choices=["none", "exponential", "lex_leader"],
         default="none",
@@ -200,6 +210,7 @@ def _run(args: argparse.Namespace) -> None:
     # Build the config dict that will be passed to every instance.
     config: dict[str, Any] = {
         "fix_neighbors": args.fix_neighbors,
+        "fix_v1": args.fix_v1,
     }
     # Only include lex_order for SRG models (DSRG ignores it).
     if model_name.startswith("srg"):
@@ -211,9 +222,13 @@ def _run(args: argparse.Namespace) -> None:
         )
 
     # Lex ordering and fix-neighbors are mutually exclusive symmetry breaks.
-    # When --lex is requested, auto-disable fix-neighbors.
     if args.lex != "none" and args.fix_neighbors:
-        args.fix_neighbors = False
+        print(
+            "Error: --lex and --fix-neighbors are mutually exclusive. "
+            "Use --no-fix-neighbors with --lex.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     # Assemble the instance list: (model_name, params, config) tuples.
     instances = [(model_name, params, config) for params in param_rows]

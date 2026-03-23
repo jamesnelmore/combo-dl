@@ -91,7 +91,10 @@ def run_instance(
     threads: int = -1,
     time_limit: float | None = None,
     heuristics: float | None = None,
-) -> dict[str, Any]:
+    log_file: str | Path | None = None,
+    seed: int | None = None,
+    return_model: bool = False,
+) -> dict[str, Any] | tuple[dict[str, Any], "gp.Model"]:
     """Build and solve a single model instance, returning a result dict.
 
     Args:
@@ -103,16 +106,32 @@ def run_instance(
         time_limit: Wall-clock limit in seconds (``None`` = unlimited).
         heuristics: Fraction of solve time on MIP heuristics (0.0–1.0).
             ``None`` uses the Gurobi default (0.05).
+        log_file: Path for Gurobi solver log (works independently of
+            ``OutputFlag``).  ``None`` disables logging to file.
+        seed: Gurobi random seed for reproducibility.  ``None`` uses
+            the solver default.
+        return_model: If ``True``, return ``(result, model)`` so the caller
+            can extract solution data (e.g. adjacency matrices).
 
     Returns:
         Flat dict with at least ``model``, ``status``, ``wall_seconds``,
-        plus all entries from *params* and *config*.
+        plus all entries from *params* and *config*, and extended solver
+        metrics (``node_count``, ``iter_count``, ``num_vars``, etc.).
+        If *return_model* is ``True``, returns ``(result_dict, gp.Model)``.
     """
     builder = get_builder(model_name)
     model = builder(params, config)
 
     # ── Centralised Gurobi parameter control ──────────────────────────────
-    model.setParam("OutputFlag", 0)
+    # When logging to a file, keep OutputFlag=1 so Gurobi writes its full
+    # solve log (node table, cuts, presolve, etc.) to LogFile.  Console
+    # output goes to the SLURM .out file which is fine for HPC runs.
+    # When no log file is requested, suppress console output.
+    if log_file is not None:
+        model.setParam("LogFile", str(log_file))
+        model.setParam("OutputFlag", 1)
+    else:
+        model.setParam("OutputFlag", 0)
     if threads >= 0:
         model.setParam("Threads", threads)
     if time_limit is not None:
@@ -121,6 +140,8 @@ def run_instance(
         model.setParam("Heuristics", heuristics)
     if model_name.endswith("_exact"):
         model.setParam("MIPFocus", 1)
+    if seed is not None:
+        model.setParam("Seed", seed)
 
     # ── Solve + time ──────────────────────────────────────────────────────
     t0 = time.perf_counter()
@@ -136,18 +157,36 @@ def run_instance(
         except Exception:  # noqa: BLE001
             pass
 
+    # ── Extended solver metrics ────────────────────────────────────────────
+    def _safe_attr(attr: str) -> Any:
+        try:
+            return getattr(model, attr)
+        except Exception:  # noqa: BLE001
+            return None
+
     # ── Assemble result ───────────────────────────────────────────────────
     result: dict[str, Any] = {
         "model": model_name,
         "status": status,
         "wall_seconds": round(wall, 4),
         "obj_val": obj_val,
+        "node_count": _safe_attr("NodeCount"),
+        "iter_count": _safe_attr("IterCount"),
+        "num_vars": _safe_attr("NumVars"),
+        "num_constrs": _safe_attr("NumConstrs"),
+        "num_gen_constrs": _safe_attr("NumGenConstrs"),
+        "mip_gap": _safe_attr("MIPGap"),
+        "obj_bound": _safe_attr("ObjBound"),
+        "sol_count": _safe_attr("SolCount"),
+        "runtime": _safe_attr("Runtime"),
     }
     # Flatten params and config into the result for easy DataFrame use.
     result.update(params)
     for k_cfg, v_cfg in config.items():
         result[f"cfg_{k_cfg}"] = v_cfg
 
+    if return_model:
+        return result, model
     return result
 
 
@@ -161,6 +200,8 @@ def run_sweep(
     threads: int = -1,
     time_limit: float | None = None,
     heuristics: float | None = None,
+    seed: int | None = None,
+    log_dir: str | Path | None = None,
     output_path: str | Path = "sweep_results.json",
     verbose: bool = True,
 ) -> list[dict[str, Any]]:
@@ -172,6 +213,9 @@ def run_sweep(
         time_limit: Per-instance wall-clock limit in seconds.
         heuristics: Fraction of solve time on MIP heuristics (0.0–1.0).
             ``None`` uses the Gurobi default (0.05).
+        seed: Gurobi random seed for reproducibility.
+        log_dir: Directory for per-instance Gurobi log files.  Each
+            instance gets ``{log_dir}/{model}_{params}.log``.
         output_path: JSON file to write results to.  If the file already
             exists, completed instances are loaded and skipped.
         verbose: Print progress to stdout.
@@ -194,9 +238,15 @@ def run_sweep(
         # Reconstruct the key from saved result.  We need to separate
         # params from config fields (cfg_* prefix).
         saved_model = r.get("model", "")
+        _meta_keys = {
+            "model", "status", "wall_seconds", "obj_val",
+            "node_count", "iter_count", "num_vars", "num_constrs",
+            "num_gen_constrs", "mip_gap", "obj_bound", "sol_count",
+            "runtime",
+        }
         saved_params = {
             k: v for k, v in r.items()
-            if k not in ("model", "status", "wall_seconds", "obj_val")
+            if k not in _meta_keys
             and not k.startswith("cfg_")
         }
         saved_config = {
@@ -225,6 +275,13 @@ def run_sweep(
                 flush=True,
             )
 
+        # Per-instance log file path.
+        log_file = None
+        if log_dir is not None:
+            ld = Path(log_dir)
+            ld.mkdir(parents=True, exist_ok=True)
+            log_file = ld / f"{model_name}_{_format_params(params)}.log"
+
         result = run_instance(
             model_name,
             params,
@@ -232,6 +289,8 @@ def run_sweep(
             threads=threads,
             time_limit=time_limit,
             heuristics=heuristics,
+            log_file=log_file,
+            seed=seed,
         )
 
         results.append(result)

@@ -71,6 +71,7 @@ def _build_srg_exact(params: dict, config: dict) -> "gp.Model":
         lambda_param=params["lambda"],
         mu=params["mu"],
         fix_neighbors=config.get("fix_neighbors", True),
+        fix_v1=config.get("fix_v1", False),
         lex_order=config.get("lex_order", "none"),
         quiet=True,
     )
@@ -86,6 +87,7 @@ def _build_srg_relaxed(params: dict, config: dict) -> "gp.Model":
         lambda_param=params["lambda"],
         mu=params["mu"],
         fix_neighbors=config.get("fix_neighbors", True),
+        fix_v1=config.get("fix_v1", False),
         lex_order=config.get("lex_order", "none"),
         quiet=True,
     )
@@ -101,6 +103,7 @@ def _build_srg_quadratic(params: dict, config: dict) -> "gp.Model":
         lambda_param=params["lambda"],
         mu=params["mu"],
         fix_neighbors=config.get("fix_neighbors", True),
+        fix_v1=config.get("fix_v1", False),
         lex_order=config.get("lex_order", "none"),
         quiet=True,
     )

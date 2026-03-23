@@ -19,7 +19,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from ilp.cli import solve, sweep, plot
+from ilp.cli import bench_single, solve, sweep, plot
 
 
 def main() -> None:
@@ -41,6 +41,7 @@ def main() -> None:
     # Register each subcommand.
     solve.add_parser(subparsers)
     sweep.add_parser(subparsers)
+    bench_single.add_parser(subparsers)
     plot.add_parser(subparsers)
 
     args = parser.parse_args()

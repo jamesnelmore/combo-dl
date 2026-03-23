@@ -67,6 +67,15 @@ def add_parser(subparsers: argparse._SubParsersAction) -> None:
         ),
     )
     p.add_argument(
+        "--fix-v1",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Also pin neighbours of vertex 1 (requires --fix-neighbors). "
+            "Default: disabled."
+        ),
+    )
+    p.add_argument(
         "--lex",
         choices=["none", "exponential", "lex_leader"],
         default="none",
@@ -157,10 +166,13 @@ def _run(args: argparse.Namespace) -> None:
         )
 
     # Lex ordering and fix-neighbors are mutually exclusive symmetry breaks.
-    # When --lex is requested, auto-disable fix-neighbors unless the user
-    # explicitly passed --fix-neighbors.
     if args.lex != "none" and args.fix_neighbors:
-        args.fix_neighbors = False
+        print(
+            "Error: --lex and --fix-neighbors are mutually exclusive. "
+            "Use --no-fix-neighbors with --lex.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     # Quadratic formulation is SRG-only.
     if graph_type == "dsrg" and formulation == "quadratic":
@@ -181,6 +193,7 @@ def _run(args: argparse.Namespace) -> None:
             mu=params["mu"],
             formulation=formulation,
             fix_neighbors=args.fix_neighbors,
+            fix_v1=args.fix_v1,
             lex_order=args.lex,
             threads=args.threads,
             time_limit=args.time_limit,
