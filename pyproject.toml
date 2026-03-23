@@ -19,6 +19,7 @@ dependencies = [
     "openpyxl>=3.1.5",
     "pulp>=3.3.0",
     "pydantic>=2.6,<2.9",
+    "pynauty>=2.8.8.1",
     "python-sat>=1.8.dev30",
     "scipy>=1.16.2",
     "stable-baselines3[extra]>=2.7.0",
