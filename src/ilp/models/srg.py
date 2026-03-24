@@ -564,7 +564,7 @@ def solve_srg(
         model.setParam("TimeLimit", time_limit)
     if heuristics is not None:
         model.setParam("Heuristics", heuristics)
-    if formulation == "exact":
+    if formulation in ("exact", "relaxed"):
         model.setParam("MIPFocus", 1)
 
     t0 = time.perf_counter()
