@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --array=0-35%20
 #SBATCH --job-name=relaxed_ilp
-#SBATCH --time=04:00:00
+#SBATCH --time=01:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=64
 #SBATCH --exclusive
@@ -27,7 +27,7 @@ source .venv/bin/activate
 # ── Configurable parameters ───────────────────────────────────────────────
 PARAMS_CSV="src/ilp/srg_params_n50.csv"
 MODEL="srg_relaxed"
-TIMEOUT=14100        # seconds (leave 300s buffer before SLURM kills)
+TIMEOUT=3300         # seconds (leave 300s buffer before SLURM kills)
 HEURISTICS=0.3       # elevated for feasibility problem
 SEED=0               # reproducibility
 OUTPUT_DIR="bench_output/${SLURM_JOB_NAME}"
