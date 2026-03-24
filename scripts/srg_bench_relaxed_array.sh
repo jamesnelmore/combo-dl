@@ -1,26 +1,22 @@
 #!/bin/bash
-#SBATCH --array=0-35%2
-#SBATCH --job-name=naive_ilp
+#SBATCH --array=0-35%20
+#SBATCH --job-name=relaxed_ilp
 #SBATCH --time=04:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=64
 #SBATCH --exclusive
 #SBATCH --output=/dev/null
 #SBATCH --error=/dev/null
-# SRG ILP Benchmark: exact formulation with v0+v1 neighbour fixing.
+# SRG ILP Benchmark: relaxed formulation with v0+v1 neighbour fixing.
 #
-# Runs one parameter set per array task from srg_params_n50.csv (36 rows,
-# complements excluded).  Each task gets a full Kuro node (64 cores,
-# 384 GB) with --exclusive for fair wall-time comparison.
-#
-# Gurobi timeout is 14100s (3h55m), leaving a 5-minute buffer before
-# the 4-hour SLURM wall clock.
+# Minimises the number of λ/μ violations while enforcing k-regularity.
+# Objective = 0 certifies a valid SRG.
 #
 # Usage:
-#   sbatch scripts/srg_bench_array.sh
+#   sbatch scripts/srg_bench_relaxed_array.sh
 #
 # After all tasks finish:
-#   python scripts/aggregate_bench.py bench_output/<JOB_ID>
+#   python scripts/aggregate_bench.py bench_output/relaxed_ilp
 
 set -euo pipefail
 
@@ -30,7 +26,7 @@ source .venv/bin/activate
 
 # ── Configurable parameters ───────────────────────────────────────────────
 PARAMS_CSV="src/ilp/srg_params_n50.csv"
-MODEL="srg_exact"
+MODEL="srg_relaxed"
 TIMEOUT=14100        # seconds (leave 300s buffer before SLURM kills)
 HEURISTICS=0.3       # elevated for feasibility problem
 SEED=0               # reproducibility
@@ -42,7 +38,7 @@ mkdir -p "${TASK_DIR}"
 exec > "${TASK_DIR}/slurm.out" 2> "${TASK_DIR}/slurm.err"
 
 # ── Logging ───────────────────────────────────────────────────────────────
-echo "=== SRG ILP Benchmark ==="
+echo "=== SRG ILP Benchmark (relaxed) ==="
 echo "Job ID:        ${SLURM_ARRAY_JOB_ID}"
 echo "Task ID:       ${SLURM_ARRAY_TASK_ID}"
 echo "Node:          $(hostname)"

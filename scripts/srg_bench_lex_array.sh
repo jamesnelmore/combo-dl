@@ -5,16 +5,15 @@
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=64
 #SBATCH --exclusive
-#SBATCH --output=bench_output/lex-leader/%A_%a.out
-#SBATCH --error=bench_output/lex-leader/%A_%a.err
-
+#SBATCH --output=/dev/null
+#SBATCH --error=/dev/null
 # SRG ILP Benchmark: exact formulation with lex-leader symmetry breaking.
 #
 # Same parameter sets and solver settings as srg_bench_array.sh, but uses
 # lex-leader row ordering instead of v0+v1 neighbour fixing.
 #
 # Usage:
-#   mkdir -p bench_output && sbatch scripts/srg_bench_lex_array.sh
+#   sbatch scripts/srg_bench_lex_array.sh
 #
 # After all tasks finish:
 #   python scripts/aggregate_bench.py bench_output/<JOB_ID>
@@ -25,15 +24,18 @@ set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:-.}"
 source .venv/bin/activate
 
-mkdir -p bench_output
-
 # ── Configurable parameters ───────────────────────────────────────────────
 PARAMS_CSV="src/ilp/srg_params_n50.csv"
 MODEL="srg_exact"
 TIMEOUT=14100        # seconds (leave 300s buffer before SLURM kills)
 HEURISTICS=0.3       # elevated for feasibility problem
 SEED=0               # reproducibility
-OUTPUT_DIR="bench_output/${SLURM_ARRAY_JOB_ID}"
+OUTPUT_DIR="bench_output/${SLURM_JOB_NAME}"
+
+# ── Create task directory and redirect SLURM output there ────────────────
+TASK_DIR="${OUTPUT_DIR}/$(printf '%03d' "${SLURM_ARRAY_TASK_ID}")"
+mkdir -p "${TASK_DIR}"
+exec > "${TASK_DIR}/slurm.out" 2> "${TASK_DIR}/slurm.err"
 
 # ── Logging ───────────────────────────────────────────────────────────────
 echo "=== SRG ILP Benchmark (lex-leader) ==="
