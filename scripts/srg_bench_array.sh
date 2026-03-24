@@ -1,14 +1,12 @@
 #!/bin/bash
-#SBATCH --array=0-35
-#SBATCH --job-name=srg-bench
-#SBATCH --partition=kuro
+#SBATCH --array=0-35%2
+#SBATCH --job-name=naive_ilp
 #SBATCH --time=04:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=64
-#SBATCH --mem=384G
 #SBATCH --exclusive
-#SBATCH --output=bench_output/%A_%a.out
-#SBATCH --error=bench_output/%A_%a.err
+#SBATCH --output=bench_output/naive_ilp/%A_%a.out
+#SBATCH --error=bench_output/naive_ilp/%A_%a.err
 
 # SRG ILP Benchmark: exact formulation with v0+v1 neighbour fixing.
 #
