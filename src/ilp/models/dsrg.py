@@ -325,6 +325,7 @@ def solve_dsrg(
     time_limit: float | None = None,
     heuristics: float | None = None,
     quiet: bool = False,
+    gurobi_params: dict[str, str] | None = None,
 ) -> dict:
     """Build, solve, and return a results dict for DSRG(n, k, t, λ, μ).
 
@@ -367,6 +368,16 @@ def solve_dsrg(
         model.setParam("Heuristics", heuristics)
     if not relaxed:
         model.setParam("MIPFocus", 1)
+
+    # Apply arbitrary Gurobi parameters.
+    for key, val in (gurobi_params or {}).items():
+        for conv in (int, float):
+            try:
+                val = conv(val)  # type: ignore[assignment]
+                break
+            except ValueError:
+                continue
+        model.setParam(key, val)
 
     t0 = time.perf_counter()
     model.optimize()

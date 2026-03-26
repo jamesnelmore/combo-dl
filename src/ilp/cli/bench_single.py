@@ -76,12 +76,27 @@ def add_parser(subparsers: argparse._SubParsersAction) -> None:
     )
     p.add_argument(
         "--lex",
-        choices=["none", "exponential", "lex_leader"],
+        choices=["none", "exponential", "lex_leader", "hybrid"],
         default="none",
         help="Lex-ordering strategy (SRG models only).  Default: none.",
     )
 
+    p.add_argument(
+        "--lex-block-size",
+        type=int,
+        default=20,
+        metavar="B",
+        help="Block size for hybrid lex ordering (default: 20).",
+    )
+
     # ── Solver options ────────────────────────────────────────────────────
+    p.add_argument(
+        "--gurobi-param",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        help="Set an arbitrary Gurobi parameter (repeatable).",
+    )
     p.add_argument(
         "--threads",
         type=int,
@@ -194,6 +209,7 @@ def _run(args: argparse.Namespace) -> None:
     }
     if model_name.startswith("srg"):
         config["lex_order"] = args.lex
+        config["lex_block_size"] = args.lex_block_size
 
     # Lex ordering and fix-neighbors are mutually exclusive symmetry breaks.
     if args.lex != "none" and args.fix_neighbors:
@@ -218,6 +234,15 @@ def _run(args: argparse.Namespace) -> None:
         print(f"  timeout: {args.timeout}s")
     print(flush=True)
 
+    # Parse --gurobi-param Key=Value pairs.
+    gurobi_params: dict[str, str] = {}
+    for kv in args.gurobi_param:
+        if "=" not in kv:
+            print(f"Error: --gurobi-param expects KEY=VALUE, got {kv!r}", file=sys.stderr)
+            sys.exit(1)
+        gkey, gval = kv.split("=", 1)
+        gurobi_params[gkey] = gval
+
     result, grb_model = run_instance(
         model_name,
         params,
@@ -228,6 +253,7 @@ def _run(args: argparse.Namespace) -> None:
         log_file=log_file,
         seed=args.seed,
         return_model=True,
+        gurobi_params=gurobi_params,
     )
 
     # Add bench metadata.

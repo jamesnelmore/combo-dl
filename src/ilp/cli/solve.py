@@ -77,7 +77,7 @@ def add_parser(subparsers: argparse._SubParsersAction) -> None:
     )
     p.add_argument(
         "--lex",
-        choices=["none", "exponential", "lex_leader"],
+        choices=["none", "exponential", "lex_leader", "hybrid"],
         default="none",
         help=(
             "Lex-ordering strategy for symmetry breaking (undirected only). "
@@ -114,6 +114,27 @@ def add_parser(subparsers: argparse._SubParsersAction) -> None:
         action="store_true",
         default=False,
         help="Suppress Gurobi console output.",
+    )
+    p.add_argument(
+        "--lex-block-size",
+        type=int,
+        default=20,
+        metavar="B",
+        help=(
+            "Block size for hybrid lex ordering (default: 20). "
+            "Smaller values improve numerical stability at the cost of "
+            "more auxiliary variables."
+        ),
+    )
+    p.add_argument(
+        "--gurobi-param",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        help=(
+            "Set an arbitrary Gurobi parameter (repeatable). "
+            "Example: --gurobi-param BarHomogeneous=1"
+        ),
     )
 
     p.set_defaults(func=_run)
@@ -182,6 +203,15 @@ def _run(args: argparse.Namespace) -> None:
         )
         sys.exit(1)
 
+    # Parse --gurobi-param Key=Value pairs.
+    gurobi_params: dict[str, str] = {}
+    for kv in args.gurobi_param:
+        if "=" not in kv:
+            print(f"Error: --gurobi-param expects KEY=VALUE, got {kv!r}", file=sys.stderr)
+            sys.exit(1)
+        key, val = kv.split("=", 1)
+        gurobi_params[key] = val
+
     # ── Dispatch to the appropriate solver ────────────────────────────────
     if graph_type == "srg":
         from ilp.models.srg import solve_srg
@@ -195,10 +225,12 @@ def _run(args: argparse.Namespace) -> None:
             fix_neighbors=args.fix_neighbors,
             fix_v1=args.fix_v1,
             lex_order=args.lex,
+            lex_block_size=args.lex_block_size,
             threads=args.threads,
             time_limit=args.time_limit,
             heuristics=args.heuristics,
             quiet=args.quiet,
+            gurobi_params=gurobi_params,
         )
     else:
         from ilp.models.dsrg import solve_dsrg
@@ -215,6 +247,7 @@ def _run(args: argparse.Namespace) -> None:
             time_limit=args.time_limit,
             heuristics=args.heuristics,
             quiet=args.quiet,
+            gurobi_params=gurobi_params,
         )
 
     # ── Print results ─────────────────────────────────────────────────────

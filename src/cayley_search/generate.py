@@ -39,10 +39,20 @@ class GroupTable:
     table: torch.Tensor  # (n, n) int32 — table[i, j] = index of elements[i] * elements[j]
 
 
-def load_group_tables(n: int, device: torch.device | str = "cpu") -> list[GroupTable]:
-    """Run GAP to get multiplication tables for all nonabelian groups of order *n*."""
+def load_group_tables(
+    n: int,
+    device: torch.device | str = "cpu",
+    include_abelian: bool = False,
+) -> list[GroupTable]:
+    """Run GAP to get multiplication tables for groups of order *n*.
+
+    When *include_abelian* is False (default), only nonabelian groups are
+    loaded (directed DSRG search).  When True, all groups are loaded
+    (undirected / t=k search where S = S⁻¹).
+    """
     script = Path(__file__).with_name("group_tables.g")
-    gap_input = f"n := {n};;\n" + script.read_text()
+    abelian_flag = "true" if include_abelian else "false"
+    gap_input = f"n := {n};;\ninclude_abelian := {abelian_flag};;\n" + script.read_text()
 
     proc = subprocess.run(
         ["gap", "-q"],
@@ -211,9 +221,18 @@ def _t_valid_batches(
       - c = k - t unpaired elements (one from each of c remaining pairs)
 
     The constraint is a + 2b = t, with a ≥ 0, b ≥ 0, c = k - t.
+
+    When c = 0 (t = k, undirected case), uses a vectorised fast path that
+    avoids per-subset Python overhead.
     """
     c = k - t  # number of half-pair elements needed
     if c < 0:
+        return
+
+    if c == 0:
+        yield from _t_valid_batches_inverse_closed(
+            involutions, pairs, k, t, batch_size, device,
+        )
         return
 
     num_inv = len(involutions)
@@ -260,6 +279,65 @@ def _t_valid_batches(
 
     if batch:
         yield torch.tensor(batch, dtype=torch.int32, device=device)
+
+
+def _t_valid_batches_inverse_closed(
+    involutions: list[int],
+    pairs: list[tuple[int, int]],
+    k: int,
+    t: int,
+    batch_size: int,
+    device: torch.device | str,
+):
+    """Fast path for c = 0 (t = k): every subset is fully inverse-closed.
+
+    Each subset consists of ``a`` involutions + ``b`` complete pairs where
+    ``a + 2b = k``.  The inner loop does minimal Python work per combination
+    and expands pair indices to element indices via vectorised numpy indexing.
+    """
+    num_inv = len(involutions)
+    num_pairs = len(pairs)
+    pair_arr = np.array(pairs, dtype=np.int32)  # (num_pairs, 2)
+    inv_arr = np.array(involutions, dtype=np.int32)
+
+    for b in range(min(t // 2, num_pairs) + 1):
+        a = t - 2 * b
+        if a < 0 or a > num_inv:
+            continue
+
+        for inv_choice in combinations(range(num_inv), a):
+            inv_elems = inv_arr[list(inv_choice)] if a > 0 else np.empty(0, dtype=np.int32)
+
+            # Collect pair-index combinations into a numpy chunk, then
+            # expand to element indices in one vectorised step.
+            chunk = np.empty((batch_size, b), dtype=np.int32)
+            idx = 0
+
+            for combo in combinations(range(num_pairs), b):
+                chunk[idx] = combo
+                idx += 1
+
+                if idx == batch_size:
+                    # (batch_size, b, 2) -> (batch_size, 2b)
+                    pair_elems = pair_arr[chunk[:idx]].reshape(idx, -1)
+                    # Prepend involution columns: (batch_size, a + 2b)
+                    if a > 0:
+                        inv_block = np.broadcast_to(inv_elems, (idx, a))
+                        subsets = np.concatenate([inv_block, pair_elems], axis=1)
+                    else:
+                        subsets = pair_elems
+                    yield torch.from_numpy(subsets.copy()).to(device)
+                    idx = 0
+
+            # Flush remaining
+            if idx > 0:
+                pair_elems = pair_arr[chunk[:idx]].reshape(idx, -1)
+                if a > 0:
+                    inv_block = np.broadcast_to(inv_elems, (idx, a))
+                    subsets = np.concatenate([inv_block, pair_elems], axis=1)
+                else:
+                    subsets = pair_elems
+                yield torch.from_numpy(subsets.copy()).to(device)
 
 
 # ---------------------------------------------------------------------------
@@ -354,7 +432,7 @@ def search_dsrg(
     print(f"DSRG({n}, {k}, {t}, {lambda_}, {mu})")
     print(f"Total {k}-subsets of {n - 1} non-identity elements: {total_subsets:,}")
 
-    groups = load_group_tables(n, device=device)
+    groups = load_group_tables(n, device=device, include_abelian=(t == k))
     print(f"Nonabelian groups of order {n}: {len(groups)}")
 
     results: list[tuple[GroupTable, torch.Tensor]] = []

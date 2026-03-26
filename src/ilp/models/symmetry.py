@@ -35,7 +35,7 @@ from gurobipy import GRB
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-LexOrder = Literal["none", "exponential", "lex_leader"]
+LexOrder = Literal["none", "exponential", "lex_leader", "hybrid"]
 
 
 # ---------------------------------------------------------------------------
@@ -49,6 +49,7 @@ def add_lex_order(
     *,
     kind: LexOrder = "none",
     start_row: int = 0,
+    block_size: int = 20,
 ) -> None:
     """Dispatch to the appropriate lex-ordering strategy.
 
@@ -70,9 +71,11 @@ def add_lex_order(
         _add_lex_exponential(model, edge, n, start_row=start_row)
     elif kind == "lex_leader":
         _add_lex_leader(model, edge, n, start_row=start_row)
+    elif kind == "hybrid":
+        _add_lex_hybrid(model, edge, n, start_row=start_row, block_size=block_size)
     else:
         raise ValueError(
-            f"Unknown lex order kind {kind!r}; choose from: none, exponential, lex_leader"
+            f"Unknown lex order kind {kind!r}; choose from: none, exponential, lex_leader, hybrid"
         )
 
 
@@ -181,4 +184,92 @@ def _add_lex_leader(
                 model.addConstr(
                     ei - eip1 <= 1 - g[j - 1],
                     name=f"lexldr_lex_{i}_{j}",
+                )
+
+
+# ---------------------------------------------------------------------------
+# Strategy 3 — hybrid (exponential within blocks, lex-leader between)
+# ---------------------------------------------------------------------------
+
+def _add_lex_hybrid(
+    model: gp.Model,
+    edge: Callable[[int, int], gp.Var | int],
+    n: int,
+    *,
+    start_row: int,
+    block_size: int = 20,
+) -> None:
+    r"""Hybrid lex ordering: exponential within blocks, lex-leader between.
+
+    Columns are divided into blocks of *block_size*.  Within each block,
+    a single exponential-weighted difference expression ``D_b`` captures
+    the lex comparison (coefficients at most ``2^block_size``).  Between
+    blocks, auxiliary binary variables chain the comparisons in the style
+    of lex-leader.
+
+    For each consecutive row pair (i, i+1) and each block *b*:
+
+    * ``D_b = Σ_j 2^(B-1-idx) · (edge(i+1, j) − edge(i, j))``
+    * ``d_b ∈ {0,1}``:  difference indicator,  ``|D_b| ≤ M_b · d_b``
+    * ``g_b ∈ {0,1}``:  agreement chain — 1 iff rows agree on blocks 0‥b
+
+    Agreement chain:
+
+    * ``g_b ≤ 1 − d_b``          (differ → break chain)
+    * ``g_b ≤ g_{b−1}``          (monotone, b > 0)
+    * ``g_b ≥ g_{b−1} − d_b``    (reverse implication, b > 0)
+    * ``g_0 ≥ 1 − d_0``          (base case)
+
+    Lex constraint:
+
+    * ``D_0 ≥ 0``
+    * ``D_b ≥ −M_b · (1 − g_{b−1})``   (b > 0)
+
+    Uses ``2 · ⌈n / block_size⌉`` binary variables per row pair.
+    """
+    for i in range(start_row, n - 1):
+        # Partition columns into blocks.
+        blocks: list[list[int]] = []
+        for start in range(0, n, block_size):
+            end = min(start + block_size, n)
+            blocks.append(list(range(start, end)))
+
+        num_blocks = len(blocks)
+
+        # d[b]: 1 if rows differ on block b.
+        d = model.addVars(num_blocks, vtype=GRB.BINARY, name=f"lexhyb_d_{i}")
+        # g[b]: 1 if rows agree on all of blocks 0..b.
+        g = model.addVars(num_blocks, vtype=GRB.BINARY, name=f"lexhyb_g_{i}")
+
+        for b, cols in enumerate(blocks):
+            B = len(cols)
+            weights = {j: 1 << (B - 1 - idx) for idx, j in enumerate(cols)}
+            M_b = (1 << B) - 1
+
+            # D_b = weighted (row_{i+1} − row_i) on this block's columns.
+            D_b = gp.quicksum(
+                (edge(i + 1, j) - edge(i, j)) * weights[j] for j in cols
+            )
+
+            # ── Difference indicator: |D_b| ≤ M_b · d[b] ────────────────
+            model.addConstr(D_b <= M_b * d[b], name=f"lexhyb_dhi_{i}_{b}")
+            model.addConstr(-D_b <= M_b * d[b], name=f"lexhyb_dlo_{i}_{b}")
+
+            # ── Agreement chain ──────────────────────────────────────────
+            model.addConstr(g[b] <= 1 - d[b], name=f"lexhyb_gd_{i}_{b}")
+            if b == 0:
+                model.addConstr(g[b] >= 1 - d[b], name=f"lexhyb_grev_{i}_{b}")
+            else:
+                model.addConstr(g[b] <= g[b - 1], name=f"lexhyb_gchain_{i}_{b}")
+                model.addConstr(
+                    g[b] >= g[b - 1] - d[b], name=f"lexhyb_grev_{i}_{b}",
+                )
+
+            # ── Lex constraint ───────────────────────────────────────────
+            if b == 0:
+                model.addConstr(D_b >= 0, name=f"lexhyb_lex_{i}_{b}")
+            else:
+                model.addConstr(
+                    D_b >= -M_b * (1 - g[b - 1]),
+                    name=f"lexhyb_lex_{i}_{b}",
                 )

@@ -94,6 +94,7 @@ def run_instance(
     log_file: str | Path | None = None,
     seed: int | None = None,
     return_model: bool = False,
+    gurobi_params: dict[str, str] | None = None,
 ) -> dict[str, Any] | tuple[dict[str, Any], "gp.Model"]:
     """Build and solve a single model instance, returning a result dict.
 
@@ -138,10 +139,20 @@ def run_instance(
         model.setParam("TimeLimit", time_limit)
     if heuristics is not None:
         model.setParam("Heuristics", heuristics)
-    if model_name.endswith("_exact"):
+    if model_name.endswith("_exact") or model_name.endswith("_relaxed"):
         model.setParam("MIPFocus", 1)
     if seed is not None:
         model.setParam("Seed", seed)
+
+    # Apply arbitrary Gurobi parameters.
+    for key, val in (gurobi_params or {}).items():
+        for conv in (int, float):
+            try:
+                val = conv(val)  # type: ignore[assignment]
+                break
+            except ValueError:
+                continue
+        model.setParam(key, val)
 
     # ── Solve + time ──────────────────────────────────────────────────────
     t0 = time.perf_counter()

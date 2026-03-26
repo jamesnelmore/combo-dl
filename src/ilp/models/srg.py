@@ -65,7 +65,7 @@ from .symmetry import add_lex_order
 # Public type alias for the lex-order parameter
 # ---------------------------------------------------------------------------
 
-LexOrder = Literal["none", "exponential", "lex_leader"]
+LexOrder = Literal["none", "exponential", "lex_leader", "hybrid"]
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -223,6 +223,7 @@ def build_srg_exact(
     fix_neighbors: bool = True,
     fix_v1: bool = False,
     lex_order: LexOrder = "none",
+    lex_block_size: int = 20,
     quiet: bool = True,
 ) -> tuple[gp.Model, dict[tuple[int, int], gp.Var], Callable]:
     """Build a Gurobi model for SRG(n, k, λ, μ) with all constraints hard.
@@ -280,6 +281,7 @@ def build_srg_exact(
         model, e, n,
         kind=lex_order,
         start_row=start_row,
+        block_size=lex_block_size,
     )
 
     model.update()
@@ -298,6 +300,7 @@ def build_srg_relaxed(
     fix_neighbors: bool = True,
     fix_v1: bool = False,
     lex_order: LexOrder = "none",
+    lex_block_size: int = 20,
     quiet: bool = True,
 ) -> tuple[gp.Model, dict[tuple[int, int], gp.Var], Callable]:
     """Build a Gurobi model that minimises λ/μ violation count for SRG.
@@ -383,6 +386,7 @@ def build_srg_relaxed(
         model, e, n,
         kind=lex_order,
         start_row=start_row,
+        block_size=lex_block_size,
     )
 
     model.update()
@@ -403,6 +407,7 @@ def build_srg_quadratic(
     fix_neighbors: bool = True,
     fix_v1: bool = False,
     lex_order: LexOrder = "none",
+    lex_block_size: int = 20,
     quiet: bool = True,
 ) -> tuple[gp.Model, dict[tuple[int, int], gp.Var], Callable]:
     """Build a MIQCQP that minimises sum of squared λ/μ residuals for SRG.
@@ -497,6 +502,7 @@ def build_srg_quadratic(
         model, e, n,
         kind=lex_order,
         start_row=start_row,
+        block_size=lex_block_size,
     )
 
     model.update()
@@ -522,10 +528,12 @@ def solve_srg(
     fix_neighbors: bool = True,
     fix_v1: bool = False,
     lex_order: LexOrder = "none",
+    lex_block_size: int = 20,
     threads: int = -1,
     time_limit: float | None = None,
     heuristics: float | None = None,
     quiet: bool = False,
+    gurobi_params: dict[str, str] | None = None,
 ) -> dict:
     """Build, solve, and return a results dict for SRG(n, k, λ, μ).
 
@@ -555,6 +563,7 @@ def solve_srg(
         fix_neighbors=fix_neighbors,
         fix_v1=fix_v1,
         lex_order=lex_order,
+        lex_block_size=lex_block_size,
         quiet=quiet,
     )
 
@@ -566,6 +575,17 @@ def solve_srg(
         model.setParam("Heuristics", heuristics)
     if formulation in ("exact", "relaxed"):
         model.setParam("MIPFocus", 1)
+
+    # Apply arbitrary Gurobi parameters.
+    for key, val in (gurobi_params or {}).items():
+        # Auto-convert to int or float if possible.
+        for conv in (int, float):
+            try:
+                val = conv(val)  # type: ignore[assignment]
+                break
+            except ValueError:
+                continue
+        model.setParam(key, val)
 
     t0 = time.perf_counter()
     model.optimize()

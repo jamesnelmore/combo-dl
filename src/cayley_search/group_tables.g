@@ -21,9 +21,23 @@
 
 LoadPackage("smallgrp");;
 
-# Abelian groups cannot have Cayley DSRGs
-groups := Filtered(AllSmallGroups(n),
-    G -> not IsAbelian(G));;
+# When include_abelian is true (undirected / t=k search), load all groups.
+# Otherwise filter to nonabelian only (directed DSRG search).
+if not IsBound(include_abelian) then
+    include_abelian := false;;
+fi;;
+
+if include_abelian then
+    # Undirected (t=k) search: load all groups except cyclic, dihedral,
+    # and quaternion — these are well-understood and cannot produce new SRGs.
+    groups := Filtered(AllSmallGroups(n),
+        G -> not IsCyclic(G)
+             and not IsDihedralGroup(G)
+             and not IsQuaternionGroup(G));;
+else
+    groups := Filtered(AllSmallGroups(n),
+        G -> not IsAbelian(G));;
+fi;;
 
 for Gi in groups do
     gid      := IdGroup(Gi);;

@@ -86,7 +86,7 @@ def add_parser(subparsers: argparse._SubParsersAction) -> None:
     )
     p.add_argument(
         "--lex",
-        choices=["none", "exponential", "lex_leader"],
+        choices=["none", "exponential", "lex_leader", "hybrid"],
         default="none",
         help=(
             "Lex-ordering strategy for symmetry breaking (SRG models only). "
@@ -94,7 +94,22 @@ def add_parser(subparsers: argparse._SubParsersAction) -> None:
         ),
     )
 
+    p.add_argument(
+        "--lex-block-size",
+        type=int,
+        default=20,
+        metavar="B",
+        help="Block size for hybrid lex ordering (default: 20).",
+    )
+
     # ── Solver options ────────────────────────────────────────────────────
+    p.add_argument(
+        "--gurobi-param",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        help="Set an arbitrary Gurobi parameter (repeatable).",
+    )
     p.add_argument(
         "--threads",
         type=int,
@@ -215,6 +230,7 @@ def _run(args: argparse.Namespace) -> None:
     # Only include lex_order for SRG models (DSRG ignores it).
     if model_name.startswith("srg"):
         config["lex_order"] = args.lex
+        config["lex_block_size"] = args.lex_block_size
     elif args.lex != "none":
         print(
             "Warning: --lex is only meaningful for SRG models. Ignoring.",

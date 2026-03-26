@@ -73,6 +73,7 @@ def _build_srg_exact(params: dict, config: dict) -> "gp.Model":
         fix_neighbors=config.get("fix_neighbors", True),
         fix_v1=config.get("fix_v1", False),
         lex_order=config.get("lex_order", "none"),
+        lex_block_size=config.get("lex_block_size", 20),
         quiet=True,
     )
     return model
@@ -89,6 +90,7 @@ def _build_srg_relaxed(params: dict, config: dict) -> "gp.Model":
         fix_neighbors=config.get("fix_neighbors", True),
         fix_v1=config.get("fix_v1", False),
         lex_order=config.get("lex_order", "none"),
+        lex_block_size=config.get("lex_block_size", 20),
         quiet=True,
     )
     return model
@@ -105,6 +107,7 @@ def _build_srg_quadratic(params: dict, config: dict) -> "gp.Model":
         fix_neighbors=config.get("fix_neighbors", True),
         fix_v1=config.get("fix_v1", False),
         lex_order=config.get("lex_order", "none"),
+        lex_block_size=config.get("lex_block_size", 20),
         quiet=True,
     )
     return model
