@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --array=0-35
+#SBATCH --array=0-35%20
 #SBATCH --job-name=srg-exp-lex
 #SBATCH --time=04:00:00
 #SBATCH --nodes=1
