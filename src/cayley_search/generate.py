@@ -205,6 +205,50 @@ def _count_t_valid_subsets(
 # ---------------------------------------------------------------------------
 
 
+def _unrank_combinations(indices: torch.Tensor, n: int, c: int) -> torch.Tensor:
+    """Decode flat indices to combinations using the combinatorial number system.
+
+    Given a tensor of indices in [0, C(n, c)), returns the corresponding
+    c-combinations of {0, ..., n-1} in sorted order. Fully vectorized.
+
+    Args:
+        indices: (B,) int64 tensor of combination indices.
+        n: Size of the set to choose from.
+        c: Number of elements to choose.
+
+    Returns:
+        (B, c) int64 tensor where each row is a sorted combination.
+    """
+    B = indices.shape[0]
+    device = indices.device
+    result = torch.empty(B, c, dtype=torch.int64, device=device)
+    remaining = indices.clone()
+
+    # Precompute C(m, j) for all m in [0, n) and j in [1, c].
+    # binom_table[m, j-1] = C(m, j)
+    binom_table = torch.zeros(n, c, dtype=torch.int64, device=device)
+    for m in range(n):
+        for j in range(1, c + 1):
+            binom_table[m, j - 1] = comb(m, j)
+
+    for j in range(c, 0, -1):
+        # Find largest m where C(m, j) <= remaining, with m < n
+        # binom_col[m] = C(m, j) for m = 0..n-1
+        binom_col = binom_table[:, j - 1].contiguous()  # (n,)
+
+        # For each index in remaining, find the largest valid m.
+        # binom_col is non-decreasing, so we can use searchsorted.
+        # searchsorted(a, v, side='right') gives first index where a > v,
+        # so the largest m with C(m, j) <= remaining is searchsorted(..., 'right') - 1.
+        m = torch.searchsorted(binom_col, remaining, side="right") - 1
+        m = m.clamp(min=0)
+
+        result[:, c - j] = m
+        remaining -= binom_col[m]
+
+    return result
+
+
 def _t_valid_batches(
     involutions: list[int],
     pairs: list[tuple[int, int]],
@@ -222,122 +266,91 @@ def _t_valid_batches(
 
     The constraint is a + 2b = t, with a ≥ 0, b ≥ 0, c = k - t.
 
-    When c = 0 (t = k, undirected case), uses a vectorised fast path that
-    avoids per-subset Python overhead.
+    The inner loops (half-pair selection × 2^c bit patterns) are fully
+    generated on the target device using the combinatorial number system,
+    avoiding Python-level iteration over combinations.
     """
     c = k - t  # number of half-pair elements needed
     if c < 0:
         return
 
-    if c == 0:
-        yield from _t_valid_batches_inverse_closed(
-            involutions, pairs, k, t, batch_size, device,
-        )
-        return
-
     num_inv = len(involutions)
     num_pairs = len(pairs)
-    pair_arr = pairs  # list of (x, x_inv) tuples
+    pair_tensor = torch.tensor(pairs, dtype=torch.int32, device=device)  # (num_pairs, 2)
+    inv_tensor = torch.tensor(involutions, dtype=torch.int32, device=device)
 
-    batch: list[list[int]] = []
+    # Precompute bit patterns for half-pair side selection: (2^c, c)
+    if c > 0:
+        two_to_c = 1 << c
+        bits_range = torch.arange(two_to_c, device=device, dtype=torch.int32)
+        shifts = torch.arange(c, device=device, dtype=torch.int32)
+        bit_patterns = (bits_range.unsqueeze(1) >> shifts.unsqueeze(0)) & 1  # (2^c, c)
+    else:
+        two_to_c = 1
+        bit_patterns = None
+
+    # How many half-pair combos to generate per GPU chunk.
+    # Each expands to 2^c subsets.
+    hp_chunk_size = max(1, batch_size // two_to_c) if c > 0 else batch_size
 
     for b in range(min(t // 2, num_pairs) + 1):
         a = t - 2 * b
         if a < 0 or a > num_inv:
             continue
-        remaining_pairs_needed = c
-        if remaining_pairs_needed > num_pairs - b:
+        if c > num_pairs - b:
             continue
 
-        # Enumerate: choose a involutions, b full pairs, c half-pairs
         for inv_choice in combinations(range(num_inv), a):
-            inv_elems = [involutions[i] for i in inv_choice]
+            inv_elems = inv_tensor[list(inv_choice)] if a > 0 else torch.empty(0, dtype=torch.int32, device=device)
 
             for pair_full_choice in combinations(range(num_pairs), b):
                 pair_full_set = set(pair_full_choice)
-                pair_full_elems: list[int] = []
-                for pi in pair_full_choice:
-                    pair_full_elems.extend(pair_arr[pi])
-
-                # Remaining pair indices (not chosen as full pairs)
-                remaining_pair_indices = [pi for pi in range(num_pairs) if pi not in pair_full_set]
-
-                for half_pair_choice in combinations(remaining_pair_indices, c):
-                    # For each half-pair, we pick element 0 or 1 → 2^c choices
-                    for bits in range(1 << c):
-                        half_elems: list[int] = []
-                        for j, pi in enumerate(half_pair_choice):
-                            side = (bits >> j) & 1
-                            half_elems.append(pair_arr[pi][side])
-
-                        subset = inv_elems + pair_full_elems + half_elems
-                        batch.append(subset)
-
-                        if len(batch) == batch_size:
-                            yield torch.tensor(batch, dtype=torch.int32, device=device)
-                            batch = []
-
-    if batch:
-        yield torch.tensor(batch, dtype=torch.int32, device=device)
-
-
-def _t_valid_batches_inverse_closed(
-    involutions: list[int],
-    pairs: list[tuple[int, int]],
-    k: int,
-    t: int,
-    batch_size: int,
-    device: torch.device | str,
-):
-    """Fast path for c = 0 (t = k): every subset is fully inverse-closed.
-
-    Each subset consists of ``a`` involutions + ``b`` complete pairs where
-    ``a + 2b = k``.  The inner loop does minimal Python work per combination
-    and expands pair indices to element indices via vectorised numpy indexing.
-    """
-    num_inv = len(involutions)
-    num_pairs = len(pairs)
-    pair_arr = np.array(pairs, dtype=np.int32)  # (num_pairs, 2)
-    inv_arr = np.array(involutions, dtype=np.int32)
-
-    for b in range(min(t // 2, num_pairs) + 1):
-        a = t - 2 * b
-        if a < 0 or a > num_inv:
-            continue
-
-        for inv_choice in combinations(range(num_inv), a):
-            inv_elems = inv_arr[list(inv_choice)] if a > 0 else np.empty(0, dtype=np.int32)
-
-            # Collect pair-index combinations into a numpy chunk, then
-            # expand to element indices in one vectorised step.
-            chunk = np.empty((batch_size, b), dtype=np.int32)
-            idx = 0
-
-            for combo in combinations(range(num_pairs), b):
-                chunk[idx] = combo
-                idx += 1
-
-                if idx == batch_size:
-                    # (batch_size, b, 2) -> (batch_size, 2b)
-                    pair_elems = pair_arr[chunk[:idx]].reshape(idx, -1)
-                    # Prepend involution columns: (batch_size, a + 2b)
-                    if a > 0:
-                        inv_block = np.broadcast_to(inv_elems, (idx, a))
-                        subsets = np.concatenate([inv_block, pair_elems], axis=1)
-                    else:
-                        subsets = pair_elems
-                    yield torch.from_numpy(subsets.copy()).to(device)
-                    idx = 0
-
-            # Flush remaining
-            if idx > 0:
-                pair_elems = pair_arr[chunk[:idx]].reshape(idx, -1)
-                if a > 0:
-                    inv_block = np.broadcast_to(inv_elems, (idx, a))
-                    subsets = np.concatenate([inv_block, pair_elems], axis=1)
+                if b > 0:
+                    pair_full_elems = pair_tensor[list(pair_full_choice)].reshape(-1)
                 else:
-                    subsets = pair_elems
-                yield torch.from_numpy(subsets.copy()).to(device)
+                    pair_full_elems = torch.empty(0, dtype=torch.int32, device=device)
+
+                prefix = torch.cat([inv_elems, pair_full_elems])  # (t,)
+
+                if c == 0:
+                    yield prefix.unsqueeze(0)
+                    continue
+
+                remaining_pair_indices = [pi for pi in range(num_pairs) if pi not in pair_full_set]
+                remaining_pairs = pair_tensor[remaining_pair_indices]  # (R, 2)
+                R = len(remaining_pair_indices)
+                total_hp_combos = comb(R, c)
+
+                # Generate half-pair combos on GPU in chunks via unranking
+                for chunk_start in range(0, total_hp_combos, hp_chunk_size):
+                    chunk_end = min(chunk_start + hp_chunk_size, total_hp_combos)
+                    chunk_len = chunk_end - chunk_start
+
+                    # Unrank indices to combinations on device
+                    flat_indices = torch.arange(
+                        chunk_start, chunk_end, dtype=torch.int64, device=device,
+                    )
+                    hp_combos = _unrank_combinations(flat_indices, R, c)  # (chunk_len, c)
+
+                    # Gather pairs: (chunk_len, c, 2)
+                    selected_pairs = remaining_pairs[hp_combos]
+
+                    # Expand bit patterns: (chunk_len, 2^c, c)
+                    expanded = selected_pairs.unsqueeze(1).expand(chunk_len, two_to_c, c, 2)
+                    bp = bit_patterns.unsqueeze(0).unsqueeze(-1).expand(chunk_len, two_to_c, c, 1).long()
+                    half_elems = expanded.gather(-1, bp).squeeze(-1)  # (chunk_len, 2^c, c)
+
+                    # Reshape to (chunk_len * 2^c, c)
+                    total = chunk_len * two_to_c
+                    half_elems = half_elems.reshape(total, c)
+
+                    # Prepend prefix
+                    prefix_block = prefix.unsqueeze(0).expand(total, -1)
+                    subsets = torch.cat([prefix_block, half_elems], dim=1)
+
+                    # Yield in batch_size slices
+                    for start in range(0, total, batch_size):
+                        yield subsets[start : start + batch_size]
 
 
 # ---------------------------------------------------------------------------
