@@ -200,6 +200,46 @@ def _count_t_valid_subsets(
     return total
 
 
+def _count_batches(
+    num_involutions: int,
+    num_pairs: int,
+    k: int,
+    t: int,
+    batch_size: int,
+) -> int:
+    """Count the exact number of batches that _t_valid_batches will yield.
+
+    Mirrors the loop structure of _t_valid_batches: for each
+    (b, inv_choice, pair_full_choice) triple, c==0 yields 1 batch and c>0
+    yields ceil(comb(R, c) / hp_chunk_size) batches (each of which is then
+    sliced into ceil(chunk * 2^c / batch_size) yields — always 1 since
+    chunk * 2^c <= hp_chunk_size * 2^c <= batch_size).
+    """
+    c = k - t
+    if c < 0:
+        return 0
+
+    two_to_c = 1 << c if c > 0 else 1
+    hp_chunk_size = max(1, batch_size // two_to_c) if c > 0 else batch_size
+
+    total = 0
+    for b in range(min(t // 2, num_pairs) + 1):
+        a = t - 2 * b
+        if a < 0 or a > num_involutions:
+            continue
+        R = num_pairs - b
+        if c > R:
+            continue
+        num_triples = comb(num_involutions, a) * comb(num_pairs, b)
+        if c == 0:
+            total += num_triples
+        else:
+            chunks_per_triple = (comb(R, c) + hp_chunk_size - 1) // hp_chunk_size
+            total += num_triples * chunks_per_triple
+
+    return total
+
+
 # ---------------------------------------------------------------------------
 # Direct t-valid subset generation (the key optimization)
 # ---------------------------------------------------------------------------

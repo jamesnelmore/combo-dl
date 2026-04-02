@@ -22,7 +22,7 @@
 # After completion, each task dir contains:
 #   progress.csv              — one row per group, status/timing/counts
 #   dsrg_{n}_{k}_{t}_{l}_{m}_g{id}.npz  — adjacency matrices (if any found)
-#   slurm.out / slurm.err    — stdout/stderr logs
+#   slurm<jobID>.out/err     — stdout/stderr logs (one file per submission)
 
 set -euo pipefail
 
@@ -49,7 +49,7 @@ r = df.iloc[${SLURM_ARRAY_TASK_ID}]
 print(f'${OUTPUT_DIR}/{int(r.n)}_{int(r.k)}_{int(r.t)}_{int(r[\"lambda\"])}_{int(r.mu)}')
 ")
 mkdir -p "${TASK_DIR}"
-exec > "${TASK_DIR}/slurm.out" 2> "${TASK_DIR}/slurm.err"
+exec > "${TASK_DIR}/slurm${SLURM_ARRAY_JOB_ID}.out" 2> "${TASK_DIR}/slurm${SLURM_ARRAY_JOB_ID}.err"
 
 # ── Logging ───────────────────────────────────────────────────────────────
 echo "=== Cayley DSRG Search ==="
@@ -64,7 +64,7 @@ echo "Start:         $(date -Iseconds)"
 echo ""
 
 # ── Run ───────────────────────────────────────────────────────────────────
-python -m cayley_search.run_single \
+python -u -m cayley_search.run_single \
     --params "${PARAMS}" \
     --index "${SLURM_ARRAY_TASK_ID}" \
     --output-dir "${OUTPUT_DIR}" \

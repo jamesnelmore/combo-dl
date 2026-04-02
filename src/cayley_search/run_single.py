@@ -27,6 +27,7 @@ import torch
 
 from .generate import (
     _classify_elements,
+    _count_batches,
     _count_t_valid_subsets,
     _t_valid_batches,
     build_adjacency,
@@ -100,25 +101,46 @@ def run_single(
         }])
         return
 
-    # Write initial progress CSV with all groups as "queued"
+    # Load existing progress if resuming, treating any "running" row as not done
+    previous_done: dict[int, dict] = {}
+    if progress_csv.exists():
+        with open(progress_csv, newline="") as f:
+            for row in csv.DictReader(f):
+                if row["status"] == "done":
+                    try:
+                        previous_done[int(row["group_lib_id"])] = row
+                    except ValueError:
+                        pass
+
+    # Build progress rows, preserving results for already-completed groups
     progress_rows: list[dict] = []
     for group in groups:
-        involutions, pairs = _classify_elements(group)
-        tv = _count_t_valid_subsets(len(involutions), len(pairs), k, t)
-        progress_rows.append({
-            "group_lib_id": group.library_id,
-            "group_name": group.name,
-            "status": "queued",
-            "t_valid_count": tv,
-            "num_dsrgs": 0,
-            "elapsed_s": 0,
-        })
+        if group.library_id in previous_done:
+            progress_rows.append(previous_done[group.library_id])
+        else:
+            involutions, pairs = _classify_elements(group)
+            tv = _count_t_valid_subsets(len(involutions), len(pairs), k, t)
+            progress_rows.append({
+                "group_lib_id": group.library_id,
+                "group_name": group.name,
+                "status": "queued",
+                "t_valid_count": tv,
+                "num_dsrgs": 0,
+                "elapsed_s": 0,
+            })
     _write_progress(progress_csv, progress_rows)
+
+    if previous_done:
+        print(f"Resuming: {len(previous_done)} group(s) already done, skipping.")
 
     # Search each group
     for gi, group in enumerate(groups):
         row = progress_rows[gi]
-        tv = row["t_valid_count"]
+        tv = int(row["t_valid_count"])
+
+        if row["status"] == "done":
+            print(f"\n  {group.name} (lib_id={group.library_id}): already done, skipping.")
+            continue
 
         print(f"\n  {group.name} (lib_id={group.library_id}): {tv:,} t-valid subsets")
 
@@ -136,16 +158,17 @@ def run_single(
         found_subsets: list[torch.Tensor] = []
         t0 = time.perf_counter()
         checked = 0
-        total_batches = (tv + batch_size - 1) // batch_size
+        total_batches = _count_batches(len(involutions), len(pairs), k, t, batch_size)
         batch_iter = _t_valid_batches(involutions, pairs, k, t, batch_size, device)
 
         if noninteractive:
+            bi = -1
             for bi, batch in enumerate(batch_iter):
                 checked += batch.shape[0]
                 dsrg = check_dsrg(batch, group, t, lambda_, mu)
                 if dsrg.shape[0] > 0:
                     found_subsets.append(dsrg)
-                if (bi + 1) % 200 == 0 or bi + 1 == total_batches:
+                if (bi + 1) % 200 == 0:
                     found_so_far = sum(s.shape[0] for s in found_subsets)
                     elapsed = time.perf_counter() - t0
                     bps = (bi + 1) / elapsed if elapsed > 0 else 0
@@ -154,6 +177,15 @@ def run_single(
                         f"  generated={checked}  found={found_so_far}"
                         f"  elapsed={_fmt_elapsed(elapsed)}  {bps:.1f} batch/s"
                     )
+            if bi >= 0 and (bi + 1) % 200 != 0:
+                found_so_far = sum(s.shape[0] for s in found_subsets)
+                elapsed = time.perf_counter() - t0
+                bps = (bi + 1) / elapsed if elapsed > 0 else 0
+                print(
+                    f"    batch {bi+1}/{total_batches}"
+                    f"  generated={checked}  found={found_so_far}"
+                    f"  elapsed={_fmt_elapsed(elapsed)}  {bps:.1f} batch/s"
+                )
         else:
             from tqdm import tqdm
 
