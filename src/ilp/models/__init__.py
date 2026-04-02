@@ -143,8 +143,25 @@ def _build_dsrg_relaxed(params: dict, config: dict) -> "gp.Model":
     return model
 
 
+def _build_cayley_dsrg(params: dict, config: dict) -> "gp.Model":
+    from .cayley_dsrg import build_cayley_dsrg, load_cayley_data
+
+    group_data = load_cayley_data(params["n"], config["lib_id"])
+    model, _x = build_cayley_dsrg(
+        n=params["n"],
+        k=params["k"],
+        t=params["t"],
+        lambda_param=params["lambda"],
+        mu=params["mu"],
+        group_data=group_data,
+        use_aut_pruning=config.get("use_aut_pruning", True),
+        quiet=True,
+    )
+    return model
+
+
 # ---------------------------------------------------------------------------
-# Register the four built-in formulations.
+# Register the built-in formulations.
 # ---------------------------------------------------------------------------
 
 register("srg_exact", _build_srg_exact)
@@ -152,3 +169,4 @@ register("srg_relaxed", _build_srg_relaxed)
 register("srg_quadratic", _build_srg_quadratic)
 register("dsrg_exact", _build_dsrg_exact)
 register("dsrg_relaxed", _build_dsrg_relaxed)
+register("cayley_dsrg", _build_cayley_dsrg)
