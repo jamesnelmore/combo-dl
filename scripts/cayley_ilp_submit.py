@@ -19,13 +19,29 @@ Usage:
 """
 
 import argparse
-import csv
 import json
 import subprocess
 import sys
 from pathlib import Path
 
 GAP_BIN = "/opt/homebrew/bin/gap"
+
+
+def _parse_time(s: str) -> int:
+    """Parse HH:MM:SS, MM:SS, or bare seconds to total seconds."""
+    parts = s.split(":")
+    if len(parts) == 3:
+        return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+    if len(parts) == 2:
+        return int(parts[0]) * 60 + int(parts[1])
+    return int(float(parts[0]))
+
+
+def _format_time(seconds: int) -> str:
+    """Format seconds as HH:MM:SS."""
+    h, rem = divmod(seconds, 3600)
+    m, s = divmod(rem, 60)
+    return f"{h:02d}:{m:02d}:{s:02d}"
 
 
 def get_groups(n, include_abelian=False):
@@ -68,10 +84,8 @@ def main():
                         help="Only include rows with k/n <= this (default 0.5, avoids complements)")
     parser.add_argument("--output-dir", type=str, default="cayley_ilp_results",
                         help="Directory for result JSON files")
-    parser.add_argument("--time-limit", type=float, default=300,
-                        help="Per-solve Gurobi time limit in seconds")
-    parser.add_argument("--slurm-time", type=str, default="01:00:00",
-                        help="SLURM wall time per task")
+    parser.add_argument("--time-limit", type=str, default="1:00:00",
+                        help="SLURM wall time per task, HH:MM:SS or MM:SS (Gurobi gets this minus 10 min)")
     parser.add_argument("--slurm-max-concurrent", type=int, default=50,
                         help="Max concurrent SLURM tasks")
     parser.add_argument("--submit", action="store_true",
@@ -142,10 +156,13 @@ def main():
     # Write SLURM script
     kind = "srg" if args.undirected else "dsrg"
     undirected_flag = " --undirected" if args.undirected else ""
+    slurm_secs = _parse_time(args.time_limit)
+    slurm_time = _format_time(slurm_secs)
+    time_limit_secs = max(slurm_secs - 600, 60)
     slurm_script = Path(f"scripts/cayley_ilp_{kind}_array.sh")
     slurm_script.write_text(f"""#!/bin/bash
 #SBATCH --job-name=cayley-{kind}
-#SBATCH --time={args.slurm_time}
+#SBATCH --time={slurm_time}
 #SBATCH --output=slurm_logs/cayley_{kind}_%A_%a.out
 #SBATCH --error=slurm_logs/cayley_{kind}_%A_%a.err
 #SBATCH --cpus-per-task=1
@@ -166,7 +183,7 @@ print(f'--n {{t[\"n\"]}} --k {{t[\"k\"]}} --t {{t[\"t\"]}} --lambda {{t[\"lambda
 uv run python3 scripts/cayley_ilp_worker.py \\
     $TASK \\
     --output-dir {args.output_dir} \\
-    --time-limit {args.time_limit}{undirected_flag}
+    --time-limit {time_limit_secs}{undirected_flag}
 """)
 
     print(f"SLURM script written to {slurm_script}")
