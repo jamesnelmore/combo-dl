@@ -20,11 +20,12 @@ Usage:
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-GAP_BIN = "/opt/homebrew/bin/gap"
+GAP_BIN = shutil.which("gap") or "/opt/homebrew/bin/gap"
 
 
 def _parse_time(s: str) -> int:

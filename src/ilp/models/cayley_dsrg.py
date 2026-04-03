@@ -15,11 +15,12 @@ at a single vertex) becomes:
 Symmetry breaking uses Aut(G) — automorphisms permute elements and yield
 isomorphic Cayley graphs, so we add lex-leader constraints.
 
-Requires GAP (at /opt/homebrew/bin/gap) for group algebra computations.
+Requires GAP (found via PATH or GAP_BIN env var) for group algebra computations.
 """
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import time
 from dataclasses import dataclass, field
@@ -32,7 +33,7 @@ from gurobipy import GRB
 # ── GAP integration ──────────────────────────────────────────────────────────
 
 GAP_SCRIPT = Path(__file__).with_name("cayley_dsrg.g")
-GAP_BIN = "/opt/homebrew/bin/gap"
+GAP_BIN = shutil.which("gap") or "/opt/homebrew/bin/gap"
 
 
 @dataclass
