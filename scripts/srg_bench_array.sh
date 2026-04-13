@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --array=0-35%2
+#SBATCH --array=0-35
 #SBATCH --job-name=naive_ilp
 #SBATCH --time=08:00:00
 #SBATCH --nodes=1
