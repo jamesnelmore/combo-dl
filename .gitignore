@@ -4,6 +4,10 @@ bench_output
 old_cayley_results/
 cayley_ilp_results/
 cayley_ilp_results_6hr/
+cayley_export/
+plots/
+cayley_*_tasks.json
+cayley_*_tasks.csv
 # =============================================================================
 # Python
 # =============================================================================
