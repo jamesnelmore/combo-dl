@@ -1,22 +1,17 @@
 #!/bin/bash
 #SBATCH --array=0-35
-#SBATCH --job-name=srg-lex-leader
-#SBATCH --time=04:00:00
+#SBATCH --job-name=srg-relaxed-known
+#SBATCH --time=08:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=32
 #SBATCH --exclusive
 #SBATCH --output=/dev/null
 #SBATCH --error=/dev/null
-# SRG ILP Benchmark: exact formulation with lex-leader symmetry breaking.
-#
-# Same parameter sets and solver settings as srg_bench_array.sh, but uses
-# lex-leader row ordering instead of v0+v1 neighbour fixing.
+# SRG ILP Benchmark: penalty relaxation with fix-neighbors + hybrid lex.
+# Runs all known parameter sets from srg_params_n50.csv.
 #
 # Usage:
-#   sbatch scripts/srg_bench_lex_array.sh
-#
-# After all tasks finish:
-#   python scripts/aggregate_bench.py bench_output/<JOB_ID>
+#   sbatch scripts/srg_relaxed_known_array.sh
 
 set -euo pipefail
 
@@ -26,8 +21,8 @@ source .venv/bin/activate
 
 # ── Configurable parameters ───────────────────────────────────────────────
 PARAMS_CSV="src/ilp/srg_params_n50.csv"
-MODEL="srg_exact"
-TIMEOUT=14100        # seconds (leave 300s buffer before SLURM kills)
+MODEL="srg_relaxed"
+TIMEOUT=28500        # seconds (leave 300s buffer before SLURM kills at 8h)
 HEURISTICS=0.3       # elevated for feasibility problem
 SEED=0               # reproducibility
 OUTPUT_DIR="bench_output/${SLURM_JOB_NAME}"
@@ -38,7 +33,7 @@ mkdir -p "${TASK_DIR}"
 exec > "${TASK_DIR}/slurm.out" 2> "${TASK_DIR}/slurm.err"
 
 # ── Logging ───────────────────────────────────────────────────────────────
-echo "=== SRG ILP Benchmark (lex-leader) ==="
+echo "=== SRG ILP Benchmark (relaxed, fix-neighbors + hybrid lex) ==="
 echo "Job ID:        ${SLURM_ARRAY_JOB_ID}"
 echo "Task ID:       ${SLURM_ARRAY_TASK_ID}"
 echo "Node:          $(hostname)"
@@ -57,7 +52,7 @@ python -m ilp bench-single \
     --params "${PARAMS_CSV}" \
     --index "${SLURM_ARRAY_TASK_ID}" \
     --model "${MODEL}" \
-    --no-fix-neighbors --lex lex_leader \
+    --fix-neighbors --lex hybrid \
     --threads "${SLURM_CPUS_PER_TASK}" \
     --timeout "${TIMEOUT}" \
     --heuristics "${HEURISTICS}" \

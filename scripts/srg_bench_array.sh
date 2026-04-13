@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --array=0-35%2
 #SBATCH --job-name=naive_ilp
-#SBATCH --time=04:00:00
+#SBATCH --time=08:00:00
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=64
+#SBATCH --cpus-per-task=32
 #SBATCH --exclusive
 #SBATCH --output=/dev/null
 #SBATCH --error=/dev/null
@@ -31,7 +31,7 @@ source .venv/bin/activate
 # ── Configurable parameters ───────────────────────────────────────────────
 PARAMS_CSV="src/ilp/srg_params_n50.csv"
 MODEL="srg_exact"
-TIMEOUT=14100        # seconds (leave 300s buffer before SLURM kills)
+TIMEOUT=28500        # seconds (leave 300s buffer before SLURM kills at 8h)
 HEURISTICS=0.3       # elevated for feasibility problem
 SEED=0               # reproducibility
 OUTPUT_DIR="bench_output/${SLURM_JOB_NAME}"
