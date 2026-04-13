@@ -1,26 +1,19 @@
 #!/bin/bash
-#SBATCH --array=0-35%2
-#SBATCH --job-name=naive_ilp
-#SBATCH --time=04:00:00
+#SBATCH --array=0-35
+#SBATCH --job-name=srg-fix-exp
+#SBATCH --time=08:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=64
 #SBATCH --exclusive
 #SBATCH --output=/dev/null
 #SBATCH --error=/dev/null
-# SRG ILP Benchmark: exact formulation with v0+v1 neighbour fixing.
-#
-# Runs one parameter set per array task from srg_params_n50.csv (36 rows,
-# complements excluded).  Each task gets a full Kuro node (64 cores,
-# 384 GB) with --exclusive for fair wall-time comparison.
-#
-# Gurobi timeout is 14100s (3h55m), leaving a 5-minute buffer before
-# the 4-hour SLURM wall clock.
+# SRG ILP Benchmark: exact formulation with fix-neighbors + exponential lex.
 #
 # Usage:
-#   sbatch scripts/srg_bench_array.sh
+#   sbatch scripts/srg_bench_fix_exp_array.sh
 #
-# After all tasks finish:
-#   python scripts/aggregate_bench.py bench_output/<JOB_ID>
+# To target specific open-case indices only:
+#   sbatch --array=5,12,17 scripts/srg_bench_fix_exp_array.sh
 
 set -euo pipefail
 
@@ -31,7 +24,7 @@ source .venv/bin/activate
 # ── Configurable parameters ───────────────────────────────────────────────
 PARAMS_CSV="src/ilp/srg_params_n50.csv"
 MODEL="srg_exact"
-TIMEOUT=14100        # seconds (leave 300s buffer before SLURM kills)
+TIMEOUT=28500        # seconds (leave 300s buffer before SLURM kills at 8h)
 HEURISTICS=0.3       # elevated for feasibility problem
 SEED=0               # reproducibility
 OUTPUT_DIR="bench_output/${SLURM_JOB_NAME}"
@@ -42,7 +35,7 @@ mkdir -p "${TASK_DIR}"
 exec > "${TASK_DIR}/slurm.out" 2> "${TASK_DIR}/slurm.err"
 
 # ── Logging ───────────────────────────────────────────────────────────────
-echo "=== SRG ILP Benchmark ==="
+echo "=== SRG ILP Benchmark (fix-neighbors + exponential lex) ==="
 echo "Job ID:        ${SLURM_ARRAY_JOB_ID}"
 echo "Task ID:       ${SLURM_ARRAY_TASK_ID}"
 echo "Node:          $(hostname)"
@@ -61,7 +54,7 @@ python -m ilp bench-single \
     --params "${PARAMS_CSV}" \
     --index "${SLURM_ARRAY_TASK_ID}" \
     --model "${MODEL}" \
-    --fix-neighbors \
+    --fix-neighbors --lex exponential \
     --threads "${SLURM_CPUS_PER_TASK}" \
     --timeout "${TIMEOUT}" \
     --heuristics "${HEURISTICS}" \
