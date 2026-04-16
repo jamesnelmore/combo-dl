@@ -1,9 +1,11 @@
 cayley_data/
 images/
+plots/
 bench_output
 old_cayley_results/
 cayley_ilp_results/
 cayley_ilp_results_6hr/
+cayley_ilp_tasks.json
 # =============================================================================
 # Python
 # =============================================================================

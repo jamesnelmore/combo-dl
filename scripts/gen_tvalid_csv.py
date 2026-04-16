@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 
 PARAMS_CSV = Path(__file__).parent.parent / "dsrg_parameters.csv"
 OUT_CSV = Path(__file__).parent.parent / "dsrg_params_tvalid.csv"
-OUT_PLOT = Path(__file__).parent.parent / "plots" / "dsrg_tvalid_scatter.png"
+OUT_PLOT = Path(__file__).parent.parent / "plots" / "dsrg_tvalid_scatter.pdf"
 OUT_PLOT_ABS = Path(__file__).parent.parent / "plots" / "dsrg_tvalid_abs_scatter.png"
 OUT_PLOT_SIZE = Path(__file__).parent.parent / "plots" / "dsrg_tvalid_vs_size.png"
 
@@ -113,7 +113,7 @@ def main():
     with open(PARAMS_CSV, encoding="utf-8-sig") as f:
         for row in csv.DictReader(f):
             n, k = int(row["n"]), int(row["k"])
-            if True:
+            if n <= 100 and 2 * k <= n:
                 params.append({
                     "n": n,
                     "k": k,
@@ -142,7 +142,8 @@ def main():
 
         p["num_cayley"] = total_cayley
         p["t_valid"] = t_valid
-        p["pct_t_valid"] = (100.0 * t_valid / total_cayley) if total_cayley > 0 else 0.0
+        p["prop_t_valid"] = (t_valid / total_cayley) if total_cayley > 0 else 0.0
+        p["pct_t_valid"] = 100.0 * p["prop_t_valid"]
         p["log_cayley"] = math.log10(total_cayley) if total_cayley > 0 else 0.0
 
     # Write CSV.
@@ -169,7 +170,7 @@ def main():
             ax.scatter(
                 [p[x_field] for p in impossibl],
                 [p[y_field] for p in impossibl],
-                c="lightgray",
+                c="red",
                 edgecolors="gray",
                 linewidths=0.6,
                 s=45,
@@ -179,30 +180,31 @@ def main():
         ax.scatter(
             [p[x_field] for p in known],
             [p[y_field] for p in known],
-            c="steelblue",
+            c="green",
             alpha=0.75,
             s=55,
             label="known",
+            marker="+",
             zorder=3,
         )
         ax.scatter(
             [p[x_field] for p in open_],
             [p[y_field] for p in open_],
-            c="crimson",
+            c="steelblue",
             alpha=0.9,
             s=90,
-            marker="*",
+            marker=".",
             label="open",
             zorder=4,
         )
         ax.scatter(
             [p[x_field] for p in newly],
             [p[y_field] for p in newly],
-            c="limegreen",
-            edgecolors="darkgreen",
+            c="orange",
+            edgecolors="darkorange",
             linewidths=0.8,
-            s=120,
-            marker="D",
+            s=100,
+            marker="d",
             label="newly realized",
             zorder=5,
         )
@@ -213,21 +215,33 @@ def main():
         ax.legend(fontsize=11)
         if x_field == "n":
             ax.set_xlabel("n", fontsize=13)
-            ax.set_xlim(4, 115)
+            ax.set_xlim(4, 101)
         ax.grid(True, alpha=0.3, which="both")
 
-    # % t-valid plot
-    fig, ax = plt.subplots(figsize=(13, 7))
+    # Proportion t-valid plot
+    fig, ax = plt.subplots(figsize=(9, 5))
     _scatter(
         ax,
-        "pct_t_valid",
-        "% t-valid Cayley graphs",
-        "Feasible DSRG parameter sets (n ≤ 110):\n"
-        "fraction of (group, connection set) pairs satisfying the t-constraint",
+        "prop_t_valid",
+        r"Proportion of $t$-valid Cayley graphs",
+        title="",
     )
-    ax.set_ylim(bottom=0)
-    plt.tight_layout()
-    plt.savefig(OUT_PLOT, dpi=150)
+    ax.set_xlabel(r"$n$", fontsize=16)
+    ax.set_ylabel(r"Proportion of $t$-valid Cayley graphs", fontsize=16)
+    ax.tick_params(axis="both", labelsize=15)
+    ax.legend(
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.14),
+        ncol=4,
+        fontsize=15,
+        frameon=False,
+        handletextpad=0.2,
+        columnspacing=0.8,
+        borderaxespad=0.0,
+    )
+    ax.set_ylim(bottom=-0.01)
+    plt.tight_layout(pad=0.25)
+    plt.savefig(OUT_PLOT, bbox_inches="tight", pad_inches=0.1)
     print(f"Plot saved to {OUT_PLOT}")
     plt.close()
 
