@@ -47,21 +47,24 @@ class MLP(nn.Module):
         if hidden_layer_sizes is None:
             hidden_layer_sizes = [128, 64, 64]  # From Wagner 2021
 
+        n_hidden = len(hidden_layer_sizes)
         model_layers = []
         model_layers.append(("input_layer", nn.Linear(2 * self.edges, hidden_layer_sizes[0])))
-        if layernorm:
+        is_last_hidden = n_hidden == 1
+        if layernorm and not is_last_hidden:
             model_layers.append(("layernorm_input", nn.LayerNorm(hidden_layer_sizes[0])))
         model_layers.append(("activation_input", activation()))
-        if dropout_probability > 0:
+        if dropout_probability > 0 and not is_last_hidden:
             model_layers.append(("dropout_input", nn.Dropout(dropout_probability)))
 
         prev_layer_size = hidden_layer_sizes[0]
         for i, layer_size in enumerate(hidden_layer_sizes[1:]):
             model_layers.append((f"hidden_{i}", nn.Linear(prev_layer_size, layer_size)))
-            if layernorm:
+            is_last_hidden = i == n_hidden - 2
+            if layernorm and not is_last_hidden:
                 model_layers.append((f"layernorm_{i}", nn.LayerNorm(layer_size)))
             model_layers.append((f"activation_{i}", activation()))
-            if dropout_probability > 0:
+            if dropout_probability > 0 and not is_last_hidden:
                 model_layers.append((f"dropout_{i}", nn.Dropout(dropout_probability)))
             prev_layer_size = layer_size
 

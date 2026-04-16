@@ -31,15 +31,18 @@ class GCNN(nn.Module):
         actual_channel_sizes = [input_dim, *channel_sizes]
         self.output_dim = actual_channel_sizes[-1]
 
-        # Build PyG graph layers only
+        # Build PyG graph layers only. No activation or dropout after the final
+        # GATConv so the extracted features are raw (not rectified/zeroed).
         graph_layers = []
-        for i in range(len(actual_channel_sizes) - 1):
+        num_conv = len(actual_channel_sizes) - 1
+        for i in range(num_conv):
             graph_layers.append((
                 GATConv(actual_channel_sizes[i], actual_channel_sizes[i + 1]),
                 "x, edge_index -> x",
             ))
-            graph_layers.append((torch.nn.ReLU(), "x -> x"))
-            graph_layers.append((torch.nn.Dropout(0.1), "x -> x"))
+            if i < num_conv - 1:
+                graph_layers.append((torch.nn.ReLU(), "x -> x"))
+                graph_layers.append((torch.nn.Dropout(0.1), "x -> x"))
 
         # PyG Sequential for graph layers only
         self.graph_convolutions = gnn.Sequential("x, edge_index", graph_layers)

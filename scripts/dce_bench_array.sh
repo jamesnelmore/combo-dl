@@ -42,6 +42,19 @@ with open('${PARAMS_CSV}') as f:
 
 EXPERIMENT_NAME="$(printf '%03d' "${SLURM_ARRAY_TASK_ID}")_srg_${N}_${K}_${LAMBDA}_${MU}"
 
+# ── Scale MLP width with n: width = max(n^2 / 2, 1024) ───────────────────
+WIDTH=$(python3 -c "print(int(max(${N}**2 / 2, 1024)))")
+HIDDEN="[${WIDTH},${WIDTH},${WIDTH},64]"
+
+# ── Early stopping patience: ≈ 1 hour of no-improvement at this n ────────
+# Iter time on A40 at batch=16384 scales ~0.0025 s/edge.
+PATIENCE=$(python3 -c "
+n = ${N}
+edges = n * (n - 1) // 2
+iter_s = max(0.0025 * edges, 0.05)
+print(max(int(3600 / iter_s), 500))
+")
+
 # ── Logging ───────────────────────────────────────────────────────────────
 echo "=== DCE SRG Benchmark ==="
 echo "Job ID:        ${SLURM_ARRAY_JOB_ID}"
@@ -51,6 +64,8 @@ echo "GPU:           $(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/
 echo "SRG:           (${N},${K},${LAMBDA},${MU})"
 echo "Experiment:    ${EXPERIMENT_NAME}"
 echo "Output dir:    ${TASK_DIR}"
+echo "Hidden layers: ${HIDDEN}"
+echo "Patience:      ${PATIENCE} iters (~1h)"
 echo "Start:         $(date -Iseconds)"
 echo ""
 
@@ -61,6 +76,8 @@ python -m experiments.mlp_dce \
     graph.k="${K}" \
     graph.lambda_param="${LAMBDA}" \
     graph.mu="${MU}" \
+    model.hidden_layer_sizes="${HIDDEN}" \
+    training.early_stopping_patience="${PATIENCE}" \
     experiment_name="${EXPERIMENT_NAME}" \
     save_dir="${TASK_DIR}"
 

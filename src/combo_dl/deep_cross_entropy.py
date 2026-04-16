@@ -115,7 +115,6 @@ class WagnerDeepCrossEntropy:
         if use_wandb:
             import wandb  # noqa: PLC0415
 
-            print("initialized")
             self.wandb_run = wandb.init(
                 project="combo-dl",
                 name=experiment_name,
@@ -134,7 +133,6 @@ class WagnerDeepCrossEntropy:
                 },
             )
         else:
-            print("didnt")
             self.wandb_run = None
 
         # Setup experiment directory
