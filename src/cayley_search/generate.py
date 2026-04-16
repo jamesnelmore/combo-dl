@@ -341,7 +341,11 @@ def _t_valid_batches(
             continue
 
         for inv_choice in combinations(range(num_inv), a):
-            inv_elems = inv_tensor[list(inv_choice)] if a > 0 else torch.empty(0, dtype=torch.int32, device=device)
+            inv_elems = (
+                inv_tensor[list(inv_choice)]
+                if a > 0
+                else torch.empty(0, dtype=torch.int32, device=device)
+            )
 
             for pair_full_choice in combinations(range(num_pairs), b):
                 pair_full_set = set(pair_full_choice)
@@ -368,7 +372,10 @@ def _t_valid_batches(
 
                     # Unrank indices to combinations on device
                     flat_indices = torch.arange(
-                        chunk_start, chunk_end, dtype=torch.int64, device=device,
+                        chunk_start,
+                        chunk_end,
+                        dtype=torch.int64,
+                        device=device,
                     )
                     hp_combos = _unrank_combinations(flat_indices, R, c)  # (chunk_len, c)
 
@@ -377,7 +384,13 @@ def _t_valid_batches(
 
                     # Expand bit patterns: (chunk_len, 2^c, c)
                     expanded = selected_pairs.unsqueeze(1).expand(chunk_len, two_to_c, c, 2)
-                    bp = bit_patterns.unsqueeze(0).unsqueeze(-1).expand(chunk_len, two_to_c, c, 1).long()
+                    bp = (
+                        bit_patterns
+                        .unsqueeze(0)
+                        .unsqueeze(-1)
+                        .expand(chunk_len, two_to_c, c, 1)
+                        .long()
+                    )
                     half_elems = expanded.gather(-1, bp).squeeze(-1)  # (chunk_len, 2^c, c)
 
                     # Reshape to (chunk_len * 2^c, c)
@@ -419,6 +432,7 @@ def check_dsrg(
     B = subsets.shape[0]
 
     # Precompute left_mult[g, h] = table[inv[g], h] — the element g⁻¹h.
+    # If g⁻¹h is in the connection set then g -> h in the graph
     left_mult = group.table[group.inv]  # (n, n)
 
     # Build membership mask: (B, n)
@@ -552,7 +566,13 @@ class SearchResult:
 
 
 def _run_single(
-    n, k, t, lambda_, mu, batch_size, device,
+    n,
+    k,
+    t,
+    lambda_,
+    mu,
+    batch_size,
+    device,
     output_dir: Path | None = None,
 ) -> SearchResult:
     """Run search for a single parameter set and save results."""
@@ -637,9 +657,18 @@ if __name__ == "__main__":
         results_log: list[dict] = []
         results_csv = (out_path / "results.csv") if out_path else Path("results.csv")
         fieldnames = [
-            "row", "n", "k", "t", "lambda", "mu",
-            "num_groups", "group_lib_id", "group_name",
-            "num_dsrgs", "total_dsrgs", "file",
+            "row",
+            "n",
+            "k",
+            "t",
+            "lambda",
+            "mu",
+            "num_groups",
+            "group_lib_id",
+            "group_name",
+            "num_dsrgs",
+            "total_dsrgs",
+            "file",
         ]
 
         for row_idx, row in params_df.iterrows():
@@ -649,13 +678,19 @@ if __name__ == "__main__":
             lambda_ = int(row["lambda"])
             mu = int(row["mu"])
 
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print(f"Row {row_idx} : DSRG({n}, {k}, {t}, {lambda_}, {mu})")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
             result = _run_single(
-                n, k, t, lambda_, mu,
-                batch_size, device, output_dir=out_path,
+                n,
+                k,
+                t,
+                lambda_,
+                mu,
+                batch_size,
+                device,
+                output_dir=out_path,
             )
 
             total_dsrgs = sum(s.shape[0] for _, s in result.hits)
@@ -664,8 +699,11 @@ if __name__ == "__main__":
                 for group, subsets in result.hits:
                     results_log.append({
                         "row": row_idx,
-                        "n": n, "k": k, "t": t,
-                        "lambda": lambda_, "mu": mu,
+                        "n": n,
+                        "k": k,
+                        "t": t,
+                        "lambda": lambda_,
+                        "mu": mu,
                         "num_groups": result.num_groups,
                         "group_lib_id": group.library_id,
                         "group_name": group.name,
@@ -676,17 +714,23 @@ if __name__ == "__main__":
             else:
                 results_log.append({
                     "row": row_idx,
-                    "n": n, "k": k, "t": t,
-                    "lambda": lambda_, "mu": mu,
+                    "n": n,
+                    "k": k,
+                    "t": t,
+                    "lambda": lambda_,
+                    "mu": mu,
                     "num_groups": result.num_groups,
-                    "group_lib_id": "", "group_name": "",
-                    "num_dsrgs": 0, "total_dsrgs": 0, "file": "",
+                    "group_lib_id": "",
+                    "group_name": "",
+                    "num_dsrgs": 0,
+                    "total_dsrgs": 0,
+                    "file": "",
                 })
 
             pd.DataFrame(results_log).to_csv(results_csv, index=False)
 
         hits = sum(1 for r in results_log if r["total_dsrgs"])
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Done. {hits} parameter set(s) with results out of {len(params_df)} checked.")
         print(f"Results summary written to {results_csv}")
     else:

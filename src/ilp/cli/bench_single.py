@@ -8,14 +8,14 @@ Examples::
 
     python -m ilp bench-single \\
         --params srg_params_n50.csv --index 0 \\
-        --model srg_exact --fix-neighbors --fix-v1 \\
+        --model srg_exact --fix-neighbors \\
         --threads 64 --timeout 14100 --heuristics 0.3 --seed 0 \\
         --output-dir bench_output/12345
 
     # In a SLURM array script:
     python -m ilp bench-single \\
         --params "$PARAMS_CSV" --index "$SLURM_ARRAY_TASK_ID" \\
-        --model srg_exact --fix-neighbors --fix-v1 \\
+        --model srg_exact --fix-neighbors \\
         --threads "$SLURM_CPUS_PER_TASK" --timeout 14100 \\
         --output-dir "bench_output/$SLURM_ARRAY_JOB_ID"
 """
@@ -69,12 +69,6 @@ def add_parser(subparsers: argparse._SubParsersAction) -> None:
         help="Pin neighbours of vertex 0 to {1,...,k} (default: enabled).",
     )
     p.add_argument(
-        "--fix-v1",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help="Also pin neighbours of vertex 1 (requires --fix-neighbors).",
-    )
-    p.add_argument(
         "--lex",
         choices=["none", "exponential", "lex_leader", "hybrid"],
         default="none",
@@ -84,9 +78,9 @@ def add_parser(subparsers: argparse._SubParsersAction) -> None:
     p.add_argument(
         "--lex-block-size",
         type=int,
-        default=20,
+        default=10,
         metavar="B",
-        help="Block size for hybrid lex ordering (default: 20).",
+        help="Block size for hybrid lex ordering (default: 10).",
     )
 
     # ── Solver options ────────────────────────────────────────────────────
@@ -205,20 +199,10 @@ def _run(args: argparse.Namespace) -> None:
     # Build config dict.
     config: dict[str, Any] = {
         "fix_neighbors": args.fix_neighbors,
-        "fix_v1": args.fix_v1,
     }
     if model_name.startswith("srg"):
         config["lex_order"] = args.lex
         config["lex_block_size"] = args.lex_block_size
-
-    # Lex ordering and fix-neighbors are mutually exclusive symmetry breaks.
-    if args.lex != "none" and args.fix_neighbors:
-        print(
-            "Error: --lex and --fix-neighbors are mutually exclusive. "
-            "Use --no-fix-neighbors with --lex.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
 
     # Output directory for this instance.
     instance_dir = args.output_dir / f"{args.index:03d}"

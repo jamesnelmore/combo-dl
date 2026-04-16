@@ -14,11 +14,12 @@ import argparse
 import json
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, "src")
 
-from ilp.models.cayley_dsrg import load_cayley_data, build_cayley_dsrg_quad, _extract_status
+from ilp.models.cayley_dsrg import load_cayley_data, build_cayley_dsrg, build_cayley_dsrg_quad, _extract_status
 
 
 def main():
@@ -33,6 +34,8 @@ def main():
     parser.add_argument("--undirected", action="store_true")
     parser.add_argument("--time-limit", type=float, default=300)
     parser.add_argument("--no-aut-pruning", action="store_true")
+    parser.add_argument("--threads", type=int, default=0, help="Gurobi threads (0 = auto)")
+    parser.add_argument("--linear", action="store_true", help="Use linear MIP formulation instead of quadratic")
     args = parser.parse_args()
 
     outdir = Path(args.output_dir)
@@ -48,7 +51,8 @@ def main():
 
     # Build model
     t0 = time.perf_counter()
-    model, x_vars = build_cayley_dsrg_quad(
+    builder = build_cayley_dsrg if args.linear else build_cayley_dsrg_quad
+    model, x_vars = builder(
         args.n, args.k, args.t, args.lambda_param, args.mu, group_data,
         use_aut_pruning=not args.no_aut_pruning,
         undirected=args.undirected,
@@ -60,6 +64,8 @@ def main():
     model.setParam("MIPFocus", 1)
     if args.time_limit > 0:
         model.setParam("TimeLimit", args.time_limit)
+    if args.threads > 0:
+        model.setParam("Threads", args.threads)
 
     # Solve
     t0 = time.perf_counter()
@@ -83,6 +89,7 @@ def main():
         "lib_id": args.lib_id,
         "group_name": group_data.name,
         "undirected": args.undirected,
+        "formulation": "linear" if args.linear else "quadratic",
         "use_aut_pruning": not args.no_aut_pruning,
         "status": status,
         "gap_seconds": round(gap_time, 4),
@@ -96,6 +103,19 @@ def main():
     }
 
     outfile.write_text(json.dumps(result, indent=2) + "\n")
+
+    kind = "srg" if args.undirected else "dsrg"
+    tag = " *** NEW" if status == "Optimal" and connection_set is not None else ""
+    log_line = (
+        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+        f"{status:<12} "
+        f"{kind}({args.n},{args.k},{args.t},{args.lambda_param},{args.mu}) "
+        f"g{args.lib_id} ({group_data.name})  "
+        f"solve={solve_time:.1f}s{tag}\n"
+    )
+    with open(outdir / "progress.log", "a") as lf:
+        lf.write(log_line)
+
     print(json.dumps(result))
 
 

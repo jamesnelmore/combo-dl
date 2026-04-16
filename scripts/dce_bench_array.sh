@@ -1,22 +1,20 @@
 #!/bin/bash
 #SBATCH --array=0-35
-#SBATCH --job-name=srg-lex-leader
-#SBATCH --time=04:00:00
+#SBATCH --job-name=dce-bench
+#SBATCH --time=08:00:00
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=32
-#SBATCH --exclusive
+#SBATCH --gpus=1
 #SBATCH --output=/dev/null
 #SBATCH --error=/dev/null
-# SRG ILP Benchmark: exact formulation with lex-leader symmetry breaking.
-#
-# Same parameter sets and solver settings as srg_bench_array.sh, but uses
-# lex-leader row ordering instead of v0+v1 neighbour fixing.
+# DCE (Deep Cross-Entropy) SRG benchmark.
+# Runs one parameter set per array task from srg_params_n50.csv (36 rows).
+# Wall-time limited to 8h; training runs until solution found or time expires.
 #
 # Usage:
-#   sbatch scripts/srg_bench_lex_array.sh
+#   sbatch scripts/dce_bench_array.sh
 #
-# After all tasks finish:
-#   python scripts/aggregate_bench.py bench_output/<JOB_ID>
+# To target specific indices:
+#   sbatch --array=5,12,17 scripts/dce_bench_array.sh
 
 set -euo pipefail
 
@@ -26,10 +24,6 @@ source .venv/bin/activate
 
 # ── Configurable parameters ───────────────────────────────────────────────
 PARAMS_CSV="src/ilp/srg_params_n50.csv"
-MODEL="srg_exact"
-TIMEOUT=14100        # seconds (leave 300s buffer before SLURM kills)
-HEURISTICS=0.3       # elevated for feasibility problem
-SEED=0               # reproducibility
 OUTPUT_DIR="bench_output/${SLURM_JOB_NAME}"
 
 # ── Create task directory and redirect SLURM output there ────────────────
@@ -37,32 +31,38 @@ TASK_DIR="${OUTPUT_DIR}/$(printf '%03d' "${SLURM_ARRAY_TASK_ID}")"
 mkdir -p "${TASK_DIR}"
 exec > "${TASK_DIR}/slurm.out" 2> "${TASK_DIR}/slurm.err"
 
+# ── Extract SRG parameters for this task ─────────────────────────────────
+read -r N K LAMBDA MU < <(python3 -c "
+import csv
+with open('${PARAMS_CSV}') as f:
+    rows = list(csv.DictReader(f))
+    r = rows[${SLURM_ARRAY_TASK_ID}]
+    print(r['n'], r['k'], r['lambda'], r['mu'])
+")
+
+EXPERIMENT_NAME="$(printf '%03d' "${SLURM_ARRAY_TASK_ID}")_srg_${N}_${K}_${LAMBDA}_${MU}"
+
 # ── Logging ───────────────────────────────────────────────────────────────
-echo "=== SRG ILP Benchmark (lex-leader) ==="
+echo "=== DCE SRG Benchmark ==="
 echo "Job ID:        ${SLURM_ARRAY_JOB_ID}"
 echo "Task ID:       ${SLURM_ARRAY_TASK_ID}"
 echo "Node:          $(hostname)"
-echo "CPUs per task: ${SLURM_CPUS_PER_TASK}"
-echo "Model:         ${MODEL}"
-echo "Params CSV:    ${PARAMS_CSV}"
-echo "Timeout:       ${TIMEOUT}s"
-echo "Heuristics:    ${HEURISTICS}"
-echo "Seed:          ${SEED}"
-echo "Output dir:    ${OUTPUT_DIR}"
+echo "GPU:           $(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null || echo unknown)"
+echo "SRG:           (${N},${K},${LAMBDA},${MU})"
+echo "Experiment:    ${EXPERIMENT_NAME}"
+echo "Output dir:    ${TASK_DIR}"
 echo "Start:         $(date -Iseconds)"
 echo ""
 
 # ── Run ───────────────────────────────────────────────────────────────────
-python -m ilp bench-single \
-    --params "${PARAMS_CSV}" \
-    --index "${SLURM_ARRAY_TASK_ID}" \
-    --model "${MODEL}" \
-    --no-fix-neighbors --lex lex_leader \
-    --threads "${SLURM_CPUS_PER_TASK}" \
-    --timeout "${TIMEOUT}" \
-    --heuristics "${HEURISTICS}" \
-    --seed "${SEED}" \
-    --output-dir "${OUTPUT_DIR}"
+python -m experiments.mlp_dce \
+    --config-name=dce_srg_bench \
+    graph.n="${N}" \
+    graph.k="${K}" \
+    graph.lambda_param="${LAMBDA}" \
+    graph.mu="${MU}" \
+    experiment_name="${EXPERIMENT_NAME}" \
+    save_dir="${TASK_DIR}"
 
 echo ""
 echo "End:           $(date -Iseconds)"

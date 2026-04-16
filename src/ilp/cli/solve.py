@@ -62,17 +62,8 @@ def add_parser(subparsers: argparse._SubParsersAction) -> None:
         action=argparse.BooleanOptionalAction,
         default=True,
         help=(
-            "Pin (out-)neighbours of vertex 0 to {1,...,k} as a symmetry "
-            "break (default: enabled)."
-        ),
-    )
-    p.add_argument(
-        "--fix-v1",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help=(
-            "Also pin neighbours of vertex 1 (requires --fix-neighbors). "
-            "Default: disabled."
+            "Pin neighbours of vertices 0 and 1 to high-index positions as a "
+            "symmetry break (default: enabled).  Compatible with --lex."
         ),
     )
     p.add_argument(
@@ -81,7 +72,7 @@ def add_parser(subparsers: argparse._SubParsersAction) -> None:
         default="none",
         help=(
             "Lex-ordering strategy for symmetry breaking (undirected only). "
-            "Default: none."
+            "Default: none.  Can be combined with --fix-neighbors."
         ),
     )
 
@@ -118,10 +109,10 @@ def add_parser(subparsers: argparse._SubParsersAction) -> None:
     p.add_argument(
         "--lex-block-size",
         type=int,
-        default=20,
+        default=10,
         metavar="B",
         help=(
-            "Block size for hybrid lex ordering (default: 20). "
+            "Block size for hybrid lex ordering (default: 10). "
             "Smaller values improve numerical stability at the cost of "
             "more auxiliary variables."
         ),
@@ -186,15 +177,6 @@ def _run(args: argparse.Namespace) -> None:
             file=sys.stderr,
         )
 
-    # Lex ordering and fix-neighbors are mutually exclusive symmetry breaks.
-    if args.lex != "none" and args.fix_neighbors:
-        print(
-            "Error: --lex and --fix-neighbors are mutually exclusive. "
-            "Use --no-fix-neighbors with --lex.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
     # Quadratic formulation is SRG-only.
     if graph_type == "dsrg" and formulation == "quadratic":
         print(
@@ -223,7 +205,6 @@ def _run(args: argparse.Namespace) -> None:
             mu=params["mu"],
             formulation=formulation,
             fix_neighbors=args.fix_neighbors,
-            fix_v1=args.fix_v1,
             lex_order=args.lex,
             lex_block_size=args.lex_block_size,
             threads=args.threads,

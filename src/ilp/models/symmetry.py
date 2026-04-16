@@ -49,7 +49,7 @@ def add_lex_order(
     *,
     kind: LexOrder = "none",
     start_row: int = 0,
-    block_size: int = 20,
+    block_size: int = 10,
 ) -> None:
     """Dispatch to the appropriate lex-ordering strategy.
 
@@ -122,69 +122,67 @@ def _add_lex_leader(
     *,
     start_row: int,
 ) -> None:
-    r"""Classic lex-leader formulation with auxiliary binary variables.
+    r"""Lex-leader formulation with auxiliary binary variables.
 
-    For consecutive rows *i* and *i+1*, compare on all *n* columns
-    ``C = (0, 1, ..., n-1)``.  The edge accessor returns 0 for diagonal
-    entries, so columns *i* and *i+1* participate as constants.
+    For consecutive rows *i* and *i+1*, compare on all *n* columns.
 
-    Introduce binary variables ``g_j`` (j = 0 .. n-1) where ``g_j = 1``
-    means "rows i and i+1 agree on columns 0 .. j".  Then:
+    Two sets of auxiliary binary variables per row pair:
 
-    **Equality tracking** (g_j = 0 whenever rows disagree at column j):
+    ``d_j`` — difference indicator: ``d_j = 1`` iff ``edge(i,j) != edge(i+1,j)``.
+    Encoded with four constraints that force ``d_j`` to exactly track
+    disagreement for binary edge variables:
 
-    * ``g_j <= 1 - edge(i, j) + edge(i+1, j)``
-    * ``g_j <= 1 + edge(i, j) - edge(i+1, j)``
+    * ``d_j >= edge(i,j) - edge(i+1,j)``
+    * ``d_j >= edge(i+1,j) - edge(i,j)``
+    * ``d_j <= edge(i,j) + edge(i+1,j)``          (d=0 when both are 0)
+    * ``d_j <= 2 - edge(i,j) - edge(i+1,j)``      (d=0 when both are 1)
 
-    **Chain** (agreement through j requires agreement through j-1):
+    ``g_j`` — agreement chain: ``g_j = 1`` iff rows agree on all columns
+    ``0 .. j``.  The chain is enforced with both an upper and a lower bound
+    so that agreement propagates correctly in feasibility problems (without
+    an objective the lower bound is essential — without it the solver sets
+    all ``g_j = 0``, making every lex constraint vacuous):
 
-    * ``g_j <= g_{j-1}``   for j >= 1
+    * ``g_j <= 1 - d_j``                           (disagree → g=0)
+    * ``g_j <= g_{j-1}``        for j >= 1         (chain down)
+    * ``g_0 >= 1 - d_0``                            (base: agree → g=1)
+    * ``g_j >= g_{j-1} - d_j``  for j >= 1         (agree → propagate)
 
     **Lex constraint** (row i cannot win at the first disagreement):
 
     * ``edge(i, 0) - edge(i+1, 0) <= 0``
     * ``edge(i, j) - edge(i+1, j) <= 1 - g_{j-1}``   for j >= 1
 
-    Uses O(n) binary variables and O(n) constraints per row pair.
+    Uses O(n) binary variables per set (2n total) and O(n) constraints per
+    row pair.
     """
     for i in range(start_row, n - 1):
-        g = model.addVars(
-            n, vtype=GRB.BINARY, name=f"lexldr_g_{i}",
-        )
+        g = model.addVars(n, vtype=GRB.BINARY, name=f"lexldr_g_{i}")
+        d = model.addVars(n, vtype=GRB.BINARY, name=f"lexldr_d_{i}")
 
         for j in range(n):
             ei = edge(i, j)
             eip1 = edge(i + 1, j)
 
-            # g[j] = 1  =>  edge(i,j) == edge(i+1,j)
-            model.addConstr(
-                g[j] <= 1 - ei + eip1,
-                name=f"lexldr_eq_hi_{i}_{j}",
-            )
-            model.addConstr(
-                g[j] <= 1 + ei - eip1,
-                name=f"lexldr_eq_lo_{i}_{j}",
-            )
+            # ── Difference indicator: d[j] = 1 iff ei != eip1 ────────────
+            model.addConstr(d[j] >= ei - eip1,       name=f"lexldr_dlo_{i}_{j}")
+            model.addConstr(d[j] >= eip1 - ei,       name=f"lexldr_dhi_{i}_{j}")
+            model.addConstr(d[j] <= ei + eip1,       name=f"lexldr_d00_{i}_{j}")
+            model.addConstr(d[j] <= 2 - ei - eip1,   name=f"lexldr_d11_{i}_{j}")
 
-            # Chain: g[j] <= g[j-1]
-            if j > 0:
-                model.addConstr(
-                    g[j] <= g[j - 1],
-                    name=f"lexldr_chain_{i}_{j}",
-                )
-
-            # Lex constraint: if all previous columns are equal,
-            # row i must not beat row i+1 at this column.
+            # ── Agreement chain: g[j] = 1 iff agreed on 0..j ─────────────
+            model.addConstr(g[j] <= 1 - d[j],        name=f"lexldr_gup_{i}_{j}")
             if j == 0:
-                model.addConstr(
-                    ei - eip1 <= 0,
-                    name=f"lexldr_lex_{i}_{j}",
-                )
+                model.addConstr(g[j] >= 1 - d[j],    name=f"lexldr_glo_{i}_{j}")
             else:
-                model.addConstr(
-                    ei - eip1 <= 1 - g[j - 1],
-                    name=f"lexldr_lex_{i}_{j}",
-                )
+                model.addConstr(g[j] <= g[j - 1],    name=f"lexldr_chain_{i}_{j}")
+                model.addConstr(g[j] >= g[j-1] - d[j], name=f"lexldr_glo_{i}_{j}")
+
+            # ── Lex constraint ────────────────────────────────────────────
+            if j == 0:
+                model.addConstr(ei - eip1 <= 0,           name=f"lexldr_lex_{i}_{j}")
+            else:
+                model.addConstr(ei - eip1 <= 1 - g[j-1], name=f"lexldr_lex_{i}_{j}")
 
 
 # ---------------------------------------------------------------------------
@@ -197,7 +195,7 @@ def _add_lex_hybrid(
     n: int,
     *,
     start_row: int,
-    block_size: int = 20,
+    block_size: int = 10,
 ) -> None:
     r"""Hybrid lex ordering: exponential within blocks, lex-leader between.
 

@@ -56,11 +56,13 @@ def main(cfg: DictConfig) -> None:
         early_stopping_patience=cfg.training.early_stopping_patience,
         device=device,
         hydra_cfg=cfg,
-        checkpoint_frequency=100,
+        checkpoint_frequency=cfg.training.get("checkpoint_frequency", 100),
         save_best_constructions=True,
         survivor_proportion=cfg.training.survivor_proportion,
         experiment_name=experiment_name,
         torch_compile=torch_compile,
+        max_wall_seconds=cfg.training.get("max_wall_seconds", None),
+        save_dir=cfg.get("save_dir", "runs"),
     )
 
     # Instantiate scheduler if configured, using DCE's optimizer
