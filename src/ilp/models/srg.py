@@ -234,7 +234,7 @@ def build_srg_exact(
     *,
     fix_neighbors: bool = True,
     lex_order: LexOrder = "none",
-    lex_block_size: int = 20,
+    lex_block_size: int = 10,
     quiet: bool = True,
 ) -> tuple[gp.Model, dict[tuple[int, int], gp.Var], Callable]:
     """Build a Gurobi model for SRG(n, k, λ, μ) with all constraints hard.
@@ -307,7 +307,7 @@ def build_srg_relaxed(
     *,
     fix_neighbors: bool = True,
     lex_order: LexOrder = "none",
-    lex_block_size: int = 20,
+    lex_block_size: int = 10,
     quiet: bool = True,
 ) -> tuple[gp.Model, dict[tuple[int, int], gp.Var], Callable]:
     """Build a Gurobi model that minimises λ/μ violation count for SRG.
@@ -407,7 +407,7 @@ def build_srg_quadratic(
     *,
     fix_neighbors: bool = True,
     lex_order: LexOrder = "none",
-    lex_block_size: int = 20,
+    lex_block_size: int = 10,
     quiet: bool = True,
 ) -> tuple[gp.Model, dict[tuple[int, int], gp.Var], Callable]:
     """Build a MIQCQP that minimises sum of squared λ/μ residuals for SRG.
@@ -521,7 +521,7 @@ def solve_srg(
     formulation: Formulation = "exact",
     fix_neighbors: bool = True,
     lex_order: LexOrder = "none",
-    lex_block_size: int = 20,
+    lex_block_size: int = 10,
     threads: int = -1,
     time_limit: float | None = None,
     heuristics: float | None = None,

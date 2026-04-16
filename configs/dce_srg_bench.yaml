@@ -1,0 +1,43 @@
+graph:
+  _target_: combo_dl.strongly_regular_graphs_problem.StronglyRegularGraphs
+  n: 13
+  k: 6
+  lambda_param: 2
+  mu: 3
+
+model:
+  _target_: combo_dl.models.mlp.MLP
+  n: ${graph.n}
+  hidden_layer_sizes: [128, 64, 32, 16, 8, 4]
+  output_size: 2
+  dropout_probability: 0.1
+  layernorm: true
+  activation_function: "relu"
+
+training:
+  iterations: 1000000          # effectively unlimited — wall time is the stopping criterion
+  batch_size: 16384
+  learning_rate: 0.001
+  elite_proportion: 0.1
+  early_stopping_patience: 1000000  # disabled — stop on time limit or solution found
+  survivor_proportion: 0.0
+  max_wall_seconds: 28500      # 8h - 5min buffer
+  checkpoint_frequency: 500
+  scheduler:
+    _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+    mode: "max"
+    factor: 0.5
+    patience: 300
+    min_lr: 0.000001
+
+defaults:
+  - hydra
+  - _self_
+
+experiment_name: null          # set per task via CLI override
+save_dir: "runs"               # override per task to bench_output/{job}/{index}
+torch_compile: false
+
+logging:
+  wandb_mode: "online"
+  checkpoint_dir: "runs"

@@ -7,6 +7,7 @@ cayley_ilp_results_6hr/
 cayley_export/
 plots/
 cayley_*_tasks.json
+old_bench_output
 cayley_*_tasks.csv
 # =============================================================================
 # Python

@@ -109,10 +109,10 @@ def add_parser(subparsers: argparse._SubParsersAction) -> None:
     p.add_argument(
         "--lex-block-size",
         type=int,
-        default=20,
+        default=10,
         metavar="B",
         help=(
-            "Block size for hybrid lex ordering (default: 20). "
+            "Block size for hybrid lex ordering (default: 10). "
             "Smaller values improve numerical stability at the cost of "
             "more auxiliary variables."
         ),

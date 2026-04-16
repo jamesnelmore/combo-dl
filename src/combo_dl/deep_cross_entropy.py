@@ -4,6 +4,7 @@ from collections.abc import Callable
 from datetime import datetime
 import json
 from pathlib import Path
+import time
 from typing import Any
 
 import torch
@@ -43,6 +44,7 @@ class WagnerDeepCrossEntropy:
         scheduler: torch.optim.lr_scheduler.LRScheduler | None = None,
         survivor_proportion: float = 0.0,
         torch_compile: bool = False,
+        max_wall_seconds: float | None = None,
     ):
         """Initialize Deep Cross Entropy algorithm.
 
@@ -88,6 +90,10 @@ class WagnerDeepCrossEntropy:
         self.best_score = float("-inf")
         self.best_construction = torch.ones(self.problem.n, device=self.device, dtype=torch.long)
         self.samples_seen = 0
+
+        # Wall-time limit
+        self.max_wall_seconds = max_wall_seconds
+        self._start_time = time.monotonic()
 
         # Early stopping tracking
         self.steps_since_best = 0
@@ -248,10 +254,19 @@ class WagnerDeepCrossEntropy:
             Dictionary of optimization results
         """
         stop_early = False
+        stopped_by_time = False
         final_metrics = None
         p_bar = tqdm(total=self.iterations)
 
         for iteration in range(self.iterations):
+            if self.max_wall_seconds is not None:
+                elapsed = time.monotonic() - self._start_time
+                if elapsed >= self.max_wall_seconds:
+                    print(f"Wall time limit reached ({elapsed:.0f}s >= {self.max_wall_seconds:.0f}s). Stopping.")
+                    stopped_by_time = True
+                    stop_early = True
+                    break
+
             metrics = self.run_iteration()
             final_metrics = metrics
             num_elites = metrics["num_elites"]
@@ -314,6 +329,8 @@ class WagnerDeepCrossEntropy:
             "num_elites": num_elites,
             "final_metrics": final_metrics,
             "early_stopped": stop_early,
+            "stopped_by_time": stopped_by_time,
+            "wall_seconds": time.monotonic() - self._start_time,
             "iterations": iteration,
             "samples_seen": self.samples_seen,
             "best_score_iteration": self.best_score_iteration,

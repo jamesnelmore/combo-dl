@@ -49,7 +49,7 @@ def add_lex_order(
     *,
     kind: LexOrder = "none",
     start_row: int = 0,
-    block_size: int = 20,
+    block_size: int = 10,
 ) -> None:
     """Dispatch to the appropriate lex-ordering strategy.
 
@@ -195,7 +195,7 @@ def _add_lex_hybrid(
     n: int,
     *,
     start_row: int,
-    block_size: int = 20,
+    block_size: int = 10,
 ) -> None:
     r"""Hybrid lex ordering: exponential within blocks, lex-leader between.
 

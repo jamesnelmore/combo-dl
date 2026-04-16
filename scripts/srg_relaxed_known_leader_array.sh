@@ -1,20 +1,17 @@
 #!/bin/bash
-#SBATCH --array=0-1
-#SBATCH --job-name=srg-relaxed-open
-#SBATCH --time=72:00:00
+#SBATCH --array=0-35
+#SBATCH --job-name=srg-relaxed-known-leader
+#SBATCH --time=08:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=32
 #SBATCH --exclusive
 #SBATCH --output=/dev/null
 #SBATCH --error=/dev/null
 # SRG ILP Benchmark: penalty relaxation with fix-neighbors + hybrid lex.
-# Targets open cases SRG(69,20,7,5) and SRG(80,30,11,10) at 72h wall time.
-#
-# Index 0 -> SRG(69,20,7,5)
-# Index 1 -> SRG(80,30,11,10)
+# Runs all known parameter sets from srg_params_n50.csv.
 #
 # Usage:
-#   sbatch scripts/srg_relaxed_open_array.sh
+#   sbatch scripts/srg_relaxed_known_array.sh
 
 set -euo pipefail
 
@@ -23,9 +20,9 @@ cd "${SLURM_SUBMIT_DIR:-.}"
 source .venv/bin/activate
 
 # ── Configurable parameters ───────────────────────────────────────────────
-PARAMS_CSV="src/ilp/srg_params_open.csv"
+PARAMS_CSV="src/ilp/srg_params_n50.csv"
 MODEL="srg_relaxed"
-TIMEOUT=258900       # seconds (leave 300s buffer before SLURM kills at 72h)
+TIMEOUT=28500        # seconds (leave 300s buffer before SLURM kills at 8h)
 HEURISTICS=0.3       # elevated for feasibility problem
 SEED=0               # reproducibility
 OUTPUT_DIR="bench_output/${SLURM_JOB_NAME}"
@@ -36,7 +33,7 @@ mkdir -p "${TASK_DIR}"
 exec > "${TASK_DIR}/slurm.out" 2> "${TASK_DIR}/slurm.err"
 
 # ── Logging ───────────────────────────────────────────────────────────────
-echo "=== SRG ILP Benchmark (relaxed, open cases, 72h) ==="
+echo "=== SRG ILP Benchmark (relaxed, fix-neighbors + hybrid lex) ==="
 echo "Job ID:        ${SLURM_ARRAY_JOB_ID}"
 echo "Task ID:       ${SLURM_ARRAY_TASK_ID}"
 echo "Node:          $(hostname)"
@@ -56,7 +53,6 @@ python -m ilp bench-single \
     --index "${SLURM_ARRAY_TASK_ID}" \
     --model "${MODEL}" \
     --fix-neighbors --lex lex_leader \
-    --gurobi-param Method=1 \
     --threads "${SLURM_CPUS_PER_TASK}" \
     --timeout "${TIMEOUT}" \
     --heuristics "${HEURISTICS}" \
