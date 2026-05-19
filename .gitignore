@@ -1,13 +1,4 @@
-cayley_data/
-images/
-plots/
-bench_output
-old_cayley_results/
-cayley_ilp_results/
-cayley_ilp_results_6hr/
-cayley_export/
-cayley_*_tasks.csv
-old_bench_output
+
 # =============================================================================
 # Python
 # =============================================================================
@@ -91,8 +82,3 @@ Thumbs.db
 # ILP sweep outputs
 # =============================================================================
 srg_*.json
-
-# =============================================================================
-# Scratch / exploratory scripts
-# =============================================================================
-src/ilp/exhaustive-autograph-search/
