@@ -1,0 +1,821 @@
+[
+  {
+    "n": 40,
+    "k": 16,
+    "t": 8,
+    "lambda": 4,
+    "mu": 8,
+    "lib_id": 1,
+    "group_name": "C5 : C8"
+  },
+  {
+    "n": 40,
+    "k": 16,
+    "t": 8,
+    "lambda": 4,
+    "mu": 8,
+    "lib_id": 3,
+    "group_name": "C5 : C8"
+  },
+  {
+    "n": 40,
+    "k": 16,
+    "t": 8,
+    "lambda": 4,
+    "mu": 8,
+    "lib_id": 4,
+    "group_name": "C5 : Q8"
+  },
+  {
+    "n": 40,
+    "k": 16,
+    "t": 8,
+    "lambda": 4,
+    "mu": 8,
+    "lib_id": 5,
+    "group_name": "C4 x D10"
+  },
+  {
+    "n": 40,
+    "k": 16,
+    "t": 8,
+    "lambda": 4,
+    "mu": 8,
+    "lib_id": 6,
+    "group_name": "D40"
+  },
+  {
+    "n": 40,
+    "k": 16,
+    "t": 8,
+    "lambda": 4,
+    "mu": 8,
+    "lib_id": 7,
+    "group_name": "C2 x (C5 : C4)"
+  },
+  {
+    "n": 40,
+    "k": 16,
+    "t": 8,
+    "lambda": 4,
+    "mu": 8,
+    "lib_id": 8,
+    "group_name": "(C10 x C2) : C2"
+  },
+  {
+    "n": 40,
+    "k": 16,
+    "t": 8,
+    "lambda": 4,
+    "mu": 8,
+    "lib_id": 10,
+    "group_name": "C5 x D8"
+  },
+  {
+    "n": 40,
+    "k": 16,
+    "t": 8,
+    "lambda": 4,
+    "mu": 8,
+    "lib_id": 11,
+    "group_name": "C5 x Q8"
+  },
+  {
+    "n": 40,
+    "k": 16,
+    "t": 8,
+    "lambda": 4,
+    "mu": 8,
+    "lib_id": 12,
+    "group_name": "C2 x (C5 : C4)"
+  },
+  {
+    "n": 40,
+    "k": 16,
+    "t": 8,
+    "lambda": 4,
+    "mu": 8,
+    "lib_id": 13,
+    "group_name": "C2 x C2 x D10"
+  },
+  {
+    "n": 40,
+    "k": 17,
+    "t": 11,
+    "lambda": 6,
+    "mu": 8,
+    "lib_id": 1,
+    "group_name": "C5 : C8"
+  },
+  {
+    "n": 40,
+    "k": 17,
+    "t": 11,
+    "lambda": 6,
+    "mu": 8,
+    "lib_id": 3,
+    "group_name": "C5 : C8"
+  },
+  {
+    "n": 40,
+    "k": 17,
+    "t": 11,
+    "lambda": 6,
+    "mu": 8,
+    "lib_id": 4,
+    "group_name": "C5 : Q8"
+  },
+  {
+    "n": 40,
+    "k": 17,
+    "t": 11,
+    "lambda": 6,
+    "mu": 8,
+    "lib_id": 5,
+    "group_name": "C4 x D10"
+  },
+  {
+    "n": 40,
+    "k": 17,
+    "t": 11,
+    "lambda": 6,
+    "mu": 8,
+    "lib_id": 6,
+    "group_name": "D40"
+  },
+  {
+    "n": 40,
+    "k": 17,
+    "t": 11,
+    "lambda": 6,
+    "mu": 8,
+    "lib_id": 7,
+    "group_name": "C2 x (C5 : C4)"
+  },
+  {
+    "n": 40,
+    "k": 17,
+    "t": 11,
+    "lambda": 6,
+    "mu": 8,
+    "lib_id": 8,
+    "group_name": "(C10 x C2) : C2"
+  },
+  {
+    "n": 40,
+    "k": 17,
+    "t": 11,
+    "lambda": 6,
+    "mu": 8,
+    "lib_id": 10,
+    "group_name": "C5 x D8"
+  },
+  {
+    "n": 40,
+    "k": 17,
+    "t": 11,
+    "lambda": 6,
+    "mu": 8,
+    "lib_id": 11,
+    "group_name": "C5 x Q8"
+  },
+  {
+    "n": 40,
+    "k": 17,
+    "t": 11,
+    "lambda": 6,
+    "mu": 8,
+    "lib_id": 12,
+    "group_name": "C2 x (C5 : C4)"
+  },
+  {
+    "n": 40,
+    "k": 17,
+    "t": 11,
+    "lambda": 6,
+    "mu": 8,
+    "lib_id": 13,
+    "group_name": "C2 x C2 x D10"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 9,
+    "lambda": 7,
+    "mu": 9,
+    "lib_id": 1,
+    "group_name": "C5 : C8"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 9,
+    "lambda": 7,
+    "mu": 9,
+    "lib_id": 3,
+    "group_name": "C5 : C8"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 9,
+    "lambda": 7,
+    "mu": 9,
+    "lib_id": 4,
+    "group_name": "C5 : Q8"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 9,
+    "lambda": 7,
+    "mu": 9,
+    "lib_id": 5,
+    "group_name": "C4 x D10"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 9,
+    "lambda": 7,
+    "mu": 9,
+    "lib_id": 6,
+    "group_name": "D40"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 9,
+    "lambda": 7,
+    "mu": 9,
+    "lib_id": 7,
+    "group_name": "C2 x (C5 : C4)"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 9,
+    "lambda": 7,
+    "mu": 9,
+    "lib_id": 8,
+    "group_name": "(C10 x C2) : C2"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 9,
+    "lambda": 7,
+    "mu": 9,
+    "lib_id": 10,
+    "group_name": "C5 x D8"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 9,
+    "lambda": 7,
+    "mu": 9,
+    "lib_id": 11,
+    "group_name": "C5 x Q8"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 9,
+    "lambda": 7,
+    "mu": 9,
+    "lib_id": 12,
+    "group_name": "C2 x (C5 : C4)"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 9,
+    "lambda": 7,
+    "mu": 9,
+    "lib_id": 13,
+    "group_name": "C2 x C2 x D10"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 12,
+    "lambda": 8,
+    "mu": 8,
+    "lib_id": 1,
+    "group_name": "C5 : C8"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 12,
+    "lambda": 8,
+    "mu": 8,
+    "lib_id": 3,
+    "group_name": "C5 : C8"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 12,
+    "lambda": 8,
+    "mu": 8,
+    "lib_id": 4,
+    "group_name": "C5 : Q8"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 12,
+    "lambda": 8,
+    "mu": 8,
+    "lib_id": 5,
+    "group_name": "C4 x D10"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 12,
+    "lambda": 8,
+    "mu": 8,
+    "lib_id": 6,
+    "group_name": "D40"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 12,
+    "lambda": 8,
+    "mu": 8,
+    "lib_id": 7,
+    "group_name": "C2 x (C5 : C4)"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 12,
+    "lambda": 8,
+    "mu": 8,
+    "lib_id": 8,
+    "group_name": "(C10 x C2) : C2"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 12,
+    "lambda": 8,
+    "mu": 8,
+    "lib_id": 10,
+    "group_name": "C5 x D8"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 12,
+    "lambda": 8,
+    "mu": 8,
+    "lib_id": 11,
+    "group_name": "C5 x Q8"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 12,
+    "lambda": 8,
+    "mu": 8,
+    "lib_id": 12,
+    "group_name": "C2 x (C5 : C4)"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 12,
+    "lambda": 8,
+    "mu": 8,
+    "lib_id": 13,
+    "group_name": "C2 x C2 x D10"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 15,
+    "lambda": 9,
+    "mu": 7,
+    "lib_id": 1,
+    "group_name": "C5 : C8"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 15,
+    "lambda": 9,
+    "mu": 7,
+    "lib_id": 3,
+    "group_name": "C5 : C8"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 15,
+    "lambda": 9,
+    "mu": 7,
+    "lib_id": 4,
+    "group_name": "C5 : Q8"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 15,
+    "lambda": 9,
+    "mu": 7,
+    "lib_id": 5,
+    "group_name": "C4 x D10"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 15,
+    "lambda": 9,
+    "mu": 7,
+    "lib_id": 6,
+    "group_name": "D40"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 15,
+    "lambda": 9,
+    "mu": 7,
+    "lib_id": 7,
+    "group_name": "C2 x (C5 : C4)"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 15,
+    "lambda": 9,
+    "mu": 7,
+    "lib_id": 8,
+    "group_name": "(C10 x C2) : C2"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 15,
+    "lambda": 9,
+    "mu": 7,
+    "lib_id": 10,
+    "group_name": "C5 x D8"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 15,
+    "lambda": 9,
+    "mu": 7,
+    "lib_id": 11,
+    "group_name": "C5 x Q8"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 15,
+    "lambda": 9,
+    "mu": 7,
+    "lib_id": 12,
+    "group_name": "C2 x (C5 : C4)"
+  },
+  {
+    "n": 40,
+    "k": 18,
+    "t": 15,
+    "lambda": 9,
+    "mu": 7,
+    "lib_id": 13,
+    "group_name": "C2 x C2 x D10"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 10,
+    "lambda": 9,
+    "mu": 9,
+    "lib_id": 1,
+    "group_name": "C5 : C8"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 10,
+    "lambda": 9,
+    "mu": 9,
+    "lib_id": 3,
+    "group_name": "C5 : C8"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 10,
+    "lambda": 9,
+    "mu": 9,
+    "lib_id": 4,
+    "group_name": "C5 : Q8"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 10,
+    "lambda": 9,
+    "mu": 9,
+    "lib_id": 5,
+    "group_name": "C4 x D10"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 10,
+    "lambda": 9,
+    "mu": 9,
+    "lib_id": 6,
+    "group_name": "D40"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 10,
+    "lambda": 9,
+    "mu": 9,
+    "lib_id": 7,
+    "group_name": "C2 x (C5 : C4)"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 10,
+    "lambda": 9,
+    "mu": 9,
+    "lib_id": 8,
+    "group_name": "(C10 x C2) : C2"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 10,
+    "lambda": 9,
+    "mu": 9,
+    "lib_id": 10,
+    "group_name": "C5 x D8"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 10,
+    "lambda": 9,
+    "mu": 9,
+    "lib_id": 11,
+    "group_name": "C5 x Q8"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 10,
+    "lambda": 9,
+    "mu": 9,
+    "lib_id": 12,
+    "group_name": "C2 x (C5 : C4)"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 10,
+    "lambda": 9,
+    "mu": 9,
+    "lib_id": 13,
+    "group_name": "C2 x C2 x D10"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 11,
+    "lambda": 10,
+    "mu": 8,
+    "lib_id": 1,
+    "group_name": "C5 : C8"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 11,
+    "lambda": 10,
+    "mu": 8,
+    "lib_id": 3,
+    "group_name": "C5 : C8"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 11,
+    "lambda": 10,
+    "mu": 8,
+    "lib_id": 4,
+    "group_name": "C5 : Q8"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 11,
+    "lambda": 10,
+    "mu": 8,
+    "lib_id": 5,
+    "group_name": "C4 x D10"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 11,
+    "lambda": 10,
+    "mu": 8,
+    "lib_id": 6,
+    "group_name": "D40"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 11,
+    "lambda": 10,
+    "mu": 8,
+    "lib_id": 7,
+    "group_name": "C2 x (C5 : C4)"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 11,
+    "lambda": 10,
+    "mu": 8,
+    "lib_id": 8,
+    "group_name": "(C10 x C2) : C2"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 11,
+    "lambda": 10,
+    "mu": 8,
+    "lib_id": 10,
+    "group_name": "C5 x D8"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 11,
+    "lambda": 10,
+    "mu": 8,
+    "lib_id": 11,
+    "group_name": "C5 x Q8"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 11,
+    "lambda": 10,
+    "mu": 8,
+    "lib_id": 12,
+    "group_name": "C2 x (C5 : C4)"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 11,
+    "lambda": 10,
+    "mu": 8,
+    "lib_id": 13,
+    "group_name": "C2 x C2 x D10"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 14,
+    "lambda": 13,
+    "mu": 5,
+    "lib_id": 1,
+    "group_name": "C5 : C8"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 14,
+    "lambda": 13,
+    "mu": 5,
+    "lib_id": 3,
+    "group_name": "C5 : C8"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 14,
+    "lambda": 13,
+    "mu": 5,
+    "lib_id": 4,
+    "group_name": "C5 : Q8"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 14,
+    "lambda": 13,
+    "mu": 5,
+    "lib_id": 5,
+    "group_name": "C4 x D10"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 14,
+    "lambda": 13,
+    "mu": 5,
+    "lib_id": 6,
+    "group_name": "D40"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 14,
+    "lambda": 13,
+    "mu": 5,
+    "lib_id": 7,
+    "group_name": "C2 x (C5 : C4)"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 14,
+    "lambda": 13,
+    "mu": 5,
+    "lib_id": 8,
+    "group_name": "(C10 x C2) : C2"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 14,
+    "lambda": 13,
+    "mu": 5,
+    "lib_id": 10,
+    "group_name": "C5 x D8"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 14,
+    "lambda": 13,
+    "mu": 5,
+    "lib_id": 11,
+    "group_name": "C5 x Q8"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 14,
+    "lambda": 13,
+    "mu": 5,
+    "lib_id": 12,
+    "group_name": "C2 x (C5 : C4)"
+  },
+  {
+    "n": 40,
+    "k": 19,
+    "t": 14,
+    "lambda": 13,
+    "mu": 5,
+    "lib_id": 13,
+    "group_name": "C2 x C2 x D10"
+  },
+  {
+    "n": 44,
+    "k": 20,
+    "t": 16,
+    "lambda": 10,
+    "mu": 8,
+    "lib_id": 3,
+    "group_name": "D44"
+  },
+  {
+    "n": 46,
+    "k": 20,
+    "t": 15,
+    "lambda": 8,
+    "mu": 9,
+    "lib_id": 1,
+    "group_name": "D46"
+  },
+  {
+    "n": 46,
+    "k": 21,
+    "t": 12,
+    "lambda": 9,
+    "mu": 10,
+    "lib_id": 1,
+    "group_name": "D46"
+  }
+]
