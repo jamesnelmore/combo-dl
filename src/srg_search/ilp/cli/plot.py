@@ -91,7 +91,7 @@ def add_parser(subparsers: argparse._SubParsersAction) -> None:
 def _run(args: argparse.Namespace) -> None:
     """Entry point called by the CLI dispatcher."""
     # Lazy import so that ``--help`` doesn't need matplotlib / numpy.
-    from ilp.bench.viz import plot_walltime_vs_n, print_summary
+    from srg_search.ilp.bench.viz import plot_walltime_vs_n, print_summary
 
     paths = [str(p) for p in args.result_files]
 

@@ -11,7 +11,7 @@ import time
 
 sys.path.insert(0, "src")
 
-from ilp.models.cayley_dsrg import search_all_groups
+from srg_search.ilp.models.cayley_dsrg import search_all_groups
 
 
 def run_one(n, k, lam, mu):

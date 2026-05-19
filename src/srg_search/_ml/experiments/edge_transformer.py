@@ -14,8 +14,8 @@ from torch import nn
 from torch.nn import functional as F
 from tqdm import tqdm
 
-from combo_dl import WagnerCorollary21
-from combo_dl.graph_utils import edge_vec_to_adj
+from .. import WagnerCorollary21
+from ..graph_utils import edge_vec_to_adj
 
 
 # --- Model ---

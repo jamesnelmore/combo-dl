@@ -4,7 +4,7 @@ import math
 
 import torch
 
-from combo_dl.graph_utils import edge_vec_to_adj
+from .graph_utils import edge_vec_to_adj
 
 
 class StronglyRegularGraphs:

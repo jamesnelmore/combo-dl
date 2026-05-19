@@ -19,7 +19,7 @@ from pathlib import Path
 
 sys.path.insert(0, "src")
 
-from ilp.models.cayley_dsrg import load_cayley_data, build_cayley_dsrg, build_cayley_dsrg_quad, _extract_status
+from srg_search.ilp.models.cayley_dsrg import load_cayley_data, build_cayley_dsrg, build_cayley_dsrg_quad, _extract_status
 
 
 def main():

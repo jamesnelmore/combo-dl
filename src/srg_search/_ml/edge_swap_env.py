@@ -4,8 +4,8 @@ import gymnasium as gym
 import numpy as np
 import torch
 
-from combo_dl import StronglyRegularGraphs
-from combo_dl.graph_utils import gen_random_regular_graph
+from . import StronglyRegularGraphs
+from .graph_utils import gen_random_regular_graph
 
 # RegularEdgeSwapEnv for k-regular graphs. Takes a problem and degree k, not an SRG parameter set
 

@@ -13,8 +13,8 @@ import sys
 
 import torch
 
-from combo_dl import StronglyRegularGraphs, WagnerDeepCrossEntropy
-from combo_dl.models import MLP
+from srg_search._ml import StronglyRegularGraphs, WagnerDeepCrossEntropy
+from srg_search._ml.models import MLP
 
 
 def pick_device() -> str:

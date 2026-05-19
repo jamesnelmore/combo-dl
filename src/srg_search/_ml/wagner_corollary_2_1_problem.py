@@ -4,7 +4,7 @@ import math
 
 import torch
 
-from combo_dl.graph_utils import (
+from .graph_utils import (
     compute_largest_eigenvalue,
     compute_maximum_matching,
     edge_vec_to_adj,

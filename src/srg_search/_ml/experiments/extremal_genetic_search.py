@@ -15,7 +15,7 @@ import torch
 from torch import nn
 from tqdm import tqdm
 
-from combo_dl.wagner_corollary_2_1_problem import WagnerCorollary21
+from ..wagner_corollary_2_1_problem import WagnerCorollary21
 
 
 class ExtremalGraphMLP(nn.Module):

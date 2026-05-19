@@ -19,7 +19,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from ilp.cli import bench_single, solve, sweep, plot
+from srg_search.ilp.cli import bench_single, solve, sweep, plot
 
 
 def main() -> None:

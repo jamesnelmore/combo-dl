@@ -15,8 +15,8 @@ import time
 
 import torch
 
-from combo_dl import StronglyRegularGraphs, WagnerDeepCrossEntropy
-from combo_dl.models import MLP
+from srg_search._ml import StronglyRegularGraphs, WagnerDeepCrossEntropy
+from srg_search._ml.models import MLP
 
 # 10 smallest known (n,k,lambda,mu) SRG parameter sets.
 CASES: list[tuple[int, int, int, int]] = [

@@ -8,7 +8,7 @@ import time
 
 sys.path.insert(0, "src")
 
-from ilp.models.cayley_dsrg import (
+from srg_search.ilp.models.cayley_dsrg import (
     GAP_BIN,
     _extract_status,
     build_cayley_dsrg,

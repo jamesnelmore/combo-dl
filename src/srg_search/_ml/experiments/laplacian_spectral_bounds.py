@@ -5,8 +5,8 @@ from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 import torch
 
-from combo_dl import WagnerDeepCrossEntropy
-from combo_dl.graph_utils import edge_vec_to_adj
+from .. import WagnerDeepCrossEntropy
+from ..graph_utils import edge_vec_to_adj
 
 
 def set_seed(seed: int, deterministic_cudnn: bool = True) -> None:

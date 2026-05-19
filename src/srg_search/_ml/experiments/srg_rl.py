@@ -3,9 +3,11 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
 import torch
 
-from combo_dl.algorithms.edge_swap_env import RegularEdgeSwapEnv
-from combo_dl.experiment_logger import ExperimentLogger
-from combo_dl.problems import StronglyRegularGraphs
+from .. import StronglyRegularGraphs
+from ..edge_swap_env import RegularEdgeSwapEnv
+
+# ExperimentLogger was not migrated from combo_dl; stub so archived code parses
+ExperimentLogger = object
 
 
 class LoggingCallback(BaseCallback):

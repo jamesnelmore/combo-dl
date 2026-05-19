@@ -196,7 +196,7 @@ def _run(args: argparse.Namespace) -> None:
 
     # ── Dispatch to the appropriate solver ────────────────────────────────
     if graph_type == "srg":
-        from ilp.models.srg import solve_srg
+        from srg_search.ilp.models.srg import solve_srg
 
         result = solve_srg(
             n=params["n"],
@@ -214,7 +214,7 @@ def _run(args: argparse.Namespace) -> None:
             gurobi_params=gurobi_params,
         )
     else:
-        from ilp.models.dsrg import solve_dsrg
+        from srg_search.ilp.models.dsrg import solve_dsrg
 
         result = solve_dsrg(
             n=params["n"],

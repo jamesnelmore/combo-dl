@@ -6,7 +6,6 @@ old_cayley_results/
 cayley_ilp_results/
 cayley_ilp_results_6hr/
 cayley_export/
-cayley_*_tasks.json
 cayley_*_tasks.csv
 old_bench_output
 # =============================================================================

@@ -28,7 +28,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from ilp.models import list_models
+from srg_search.ilp.models import list_models
 
 
 def add_parser(subparsers: argparse._SubParsersAction) -> None:
@@ -191,7 +191,7 @@ def _load_row(path: Path, index: int, model_name: str) -> dict[str, int]:
 
 def _run(args: argparse.Namespace) -> None:
     """Entry point called by the CLI dispatcher."""
-    from ilp.bench.runner import run_instance
+    from srg_search.ilp.bench.runner import run_instance
 
     model_name: str = args.model
     params = _load_row(args.params, args.index, model_name)

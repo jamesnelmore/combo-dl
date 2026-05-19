@@ -41,7 +41,7 @@ from typing import Any
 import gurobipy as gp
 from gurobipy import GRB
 
-from ilp.models import get_builder
+from srg_search.ilp.models import get_builder
 
 
 # ---------------------------------------------------------------------------

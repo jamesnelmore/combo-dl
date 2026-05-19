@@ -25,7 +25,7 @@ import time
 
 import torch
 
-from cayley_search.generate import (
+from srg_search.cayley.generate import (
     _classify_elements,
     _count_t_valid_subsets,
     _t_valid_batches,

@@ -11,17 +11,17 @@ from itertools import combinations
 from multiprocessing import Pool
 from typing import override
 
+from ..graph_utils import edge_vec_to_adj
+from ..models.mlp import MLP
 import numpy as np
 import torch
 from torch import nn
 from tqdm import tqdm
 
-from combo_dl import WagnerDeepCrossEntropy
-from combo_dl.graph_utils import edge_vec_to_adj
-from combo_dl.models.mlp import MLP
+from .. import WagnerDeepCrossEntropy
 
 
-# Bron-Kerbosch algorithm 
+# Bron-Kerbosch algorithm
 def bron_kerbosch_pivot(adj: np.ndarray, R: set[int], P: set[int], X: set[int]) -> int:  # noqa: N803
     """Recursive step of the Bron-Kerbosch pivot algorithm to find maximum clique size.
     Args:
@@ -494,7 +494,7 @@ def main():
     # Initialize Deep Cross Entropy optimizer
     # Create experiment name with Ramsey parameters
     experiment_name = f"ramsey_n{n}_r{r}_s{s}_avg_score"
-    
+
     dce = WagnerDeepCrossEntropy(
         model,
         problem,  # type: ignore[arg-type]
@@ -509,13 +509,13 @@ def main():
         save_best_constructions=True,
         experiment_name=experiment_name,
     )
-    
+
     # Create ReduceLROnPlateau scheduler using DCE's optimizer
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         dce.optimizer,
         mode="max",
-        factor=0.5, 
-        patience=300,  
+        factor=0.5,
+        patience=300,
         min_lr=1e-8,
     )
     dce.scheduler = scheduler

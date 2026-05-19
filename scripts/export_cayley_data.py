@@ -31,7 +31,7 @@ from pynauty import Graph, autgrp, canon_label, certificate
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from cayley_search.generate import GroupTable, load_group_tables
+from srg_search.cayley.generate import GroupTable, load_group_tables
 
 # ---------------------------------------------------------------------------
 # Utility functions
@@ -325,7 +325,7 @@ def _load_all_group_tables(
         for lid in lib_ids:
             print(f"  Loading group table for SmallGroup({n},{lid})...", flush=True)
             try:
-                from ilp.models.cayley_dsrg import load_cayley_data
+                from srg_search.ilp.models.cayley_dsrg import load_cayley_data
                 cgd = load_cayley_data(n, lid)
                 # Build a GroupTable-compatible object from CayleyGroupData
                 # We only need identity_pos for connection set extraction from ILP

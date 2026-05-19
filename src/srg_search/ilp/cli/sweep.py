@@ -33,7 +33,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from ilp.models import list_models
+from srg_search.ilp.models import list_models
 
 
 def add_parser(subparsers: argparse._SubParsersAction) -> None:
@@ -217,7 +217,7 @@ def _load_params_csv(
 def _run(args: argparse.Namespace) -> None:
     """Entry point called by the CLI dispatcher."""
     # Lazy import so the CLI --help is fast (no Gurobi import).
-    from ilp.bench.runner import run_sweep
+    from srg_search.ilp.bench.runner import run_sweep
 
     model_name: str = args.model
     param_rows = _load_params_csv(args.params, model_name)

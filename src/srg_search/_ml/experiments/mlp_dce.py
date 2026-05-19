@@ -3,7 +3,7 @@ from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 import torch
 
-from combo_dl import WagnerDeepCrossEntropy
+from .. import WagnerDeepCrossEntropy
 
 
 def set_seed(seed: int, deterministic_cudnn: bool = True) -> None:
