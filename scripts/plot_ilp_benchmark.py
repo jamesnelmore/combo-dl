@@ -55,7 +55,7 @@ def main() -> None:
         "relaxed + lex-leader": "^",
     }
 
-    fig, ax = plt.subplots(figsize=(16, 6))
+    fig, ax = plt.subplots(figsize=(6.5, 2.44))
 
     x_pos = np.arange(len(all_indices))
     offsets = np.linspace(-0.2, 0.2, len(jobs))
@@ -116,10 +116,12 @@ def main() -> None:
     ]
     ax.legend(handles=legend_handles, fontsize=8, loc="upper left")
 
-    plt.tight_layout()
-    out = "plots/ilp_benchmark_scatter.png"
-    plt.savefig(out, dpi=200)
-    print(f"Saved to {out}")
+    plt.tight_layout(pad=0.3)
+    out_png = "plots/ilp_benchmark_scatter.png"
+    out_pdf = "plots/ilp_benchmark_scatter.pdf"
+    plt.savefig(out_png, dpi=200, bbox_inches="tight")
+    plt.savefig(out_pdf, bbox_inches="tight")
+    print(f"Saved to {out_png} and {out_pdf}")
 
 
 if __name__ == "__main__":
