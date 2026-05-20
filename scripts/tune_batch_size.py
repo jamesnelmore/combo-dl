@@ -25,7 +25,7 @@ import time
 
 import torch
 
-from srg_search.cayley.generate import (
+from srg_search.exhaustive_cayley.generate import (
     _classify_elements,
     _count_t_valid_subsets,
     _t_valid_batches,
@@ -58,7 +58,11 @@ def _reset_peak(device: torch.device) -> None:
 
 
 def bench_batch_size(
-    n: int, k: int, t: int, lambda_: int, mu: int,
+    n: int,
+    k: int,
+    t: int,
+    lambda_: int,
+    mu: int,
     batch_size: int,
     group,
     involutions: list[int],
@@ -172,10 +176,18 @@ def main():
 
     # Batch sizes to test
     batch_sizes = [
-        1_000, 2_000, 5_000,
-        10_000, 20_000, 50_000,
-        100_000, 200_000, 500_000,
-        1_000_000, 2_000_000, 5_000_000,
+        1_000,
+        2_000,
+        5_000,
+        10_000,
+        20_000,
+        50_000,
+        100_000,
+        200_000,
+        500_000,
+        1_000_000,
+        2_000_000,
+        5_000_000,
     ]
 
     # Filter out sizes that would obviously OOM (rough heuristic)
@@ -183,9 +195,11 @@ def main():
     max_bytes = 8e9
     batch_sizes = [bs for bs in batch_sizes if bs * bytes_per_subset < max_bytes]
 
-    print(f"{'batch_size':>12}  {'subsets/s':>10}  {'check/s':>10}  "
-          f"{'wall(s)':>8}  {'gen(s)':>7}  {'chk(s)':>7}  "
-          f"{'peak_MB':>8}  {'delta_MB':>9}  {'found':>5}")
+    print(
+        f"{'batch_size':>12}  {'subsets/s':>10}  {'check/s':>10}  "
+        f"{'wall(s)':>8}  {'gen(s)':>7}  {'chk(s)':>7}  "
+        f"{'peak_MB':>8}  {'delta_MB':>9}  {'found':>5}"
+    )
     print("-" * 100)
 
     best = None
@@ -193,7 +207,11 @@ def main():
 
     for bs in batch_sizes:
         result = bench_batch_size(
-            n, k, t, lam, mu,
+            n,
+            k,
+            t,
+            lam,
+            mu,
             batch_size=bs,
             group=group,
             involutions=involutions,
@@ -225,7 +243,9 @@ def main():
         )
 
     if best:
-        print(f"\nBest throughput: {best['subsets_per_s']:,} subsets/s at batch_size={best['batch_size']:,}")
+        print(
+            f"\nBest throughput: {best['subsets_per_s']:,} subsets/s at batch_size={best['batch_size']:,}"
+        )
 
         # Project full search time
         total_batches = (tv + best["batch_size"] - 1) // best["batch_size"]
@@ -233,11 +253,11 @@ def main():
         if est_seconds < 120:
             est_str = f"{est_seconds:.0f}s"
         elif est_seconds < 7200:
-            est_str = f"{est_seconds/60:.1f}m"
+            est_str = f"{est_seconds / 60:.1f}m"
         elif est_seconds < 86400 * 2:
-            est_str = f"{est_seconds/3600:.1f}h"
+            est_str = f"{est_seconds / 3600:.1f}h"
         else:
-            est_str = f"{est_seconds/86400:.1f}d"
+            est_str = f"{est_seconds / 86400:.1f}d"
 
         print(f"Estimated time for this group ({tv:,} subsets): {est_str}")
         print(f"Recommended: --batch-size {best['batch_size']}")

@@ -18,12 +18,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import csv
-import json
-import sys
 from collections import defaultdict
+import csv
 from dataclasses import dataclass, field
+import json
 from pathlib import Path
+import sys
 
 import numpy as np
 from pynauty import Graph, autgrp, canon_label, certificate
@@ -31,11 +31,12 @@ from pynauty import Graph, autgrp, canon_label, certificate
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from srg_search.cayley.generate import GroupTable, load_group_tables
+from srg_search.exhaustive_cayley.generate import GroupTable, load_group_tables
 
 # ---------------------------------------------------------------------------
 # Utility functions
 # ---------------------------------------------------------------------------
+
 
 def _adj_to_pynauty(adj: np.ndarray) -> Graph:
     n = adj.shape[0]
@@ -107,6 +108,7 @@ Params = tuple[int, int, int, int, int]  # (n, k, t, lambda, mu)
 @dataclass
 class NpzTask:
     """An NPZ file to process from exhaustive search."""
+
     params: Params
     group_lib_id: int
     group_name: str
@@ -116,6 +118,7 @@ class NpzTask:
 @dataclass
 class IlpResult:
     """A single ILP solve result."""
+
     params: Params
     group_lib_id: int
     group_name: str
@@ -126,6 +129,7 @@ class IlpResult:
 @dataclass
 class InfeasibleGroup:
     """A group proven to have no Cayley DSRG for given params (exhaustive)."""
+
     params: Params
     group_lib_id: int
     group_name: str
@@ -141,6 +145,7 @@ class GraphRecord:
 # ---------------------------------------------------------------------------
 # Phase 1: Build inventory
 # ---------------------------------------------------------------------------
+
 
 def _load_old_results_inventory(
     old_dir: Path,
@@ -169,8 +174,11 @@ def _load_old_results_inventory(
             reader = csv.DictReader(f)
             for row in reader:
                 p: Params = (
-                    int(row["n"]), int(row["k"]), int(row["t"]),
-                    int(row["lambda"]), int(row["mu"]),
+                    int(row["n"]),
+                    int(row["k"]),
+                    int(row["t"]),
+                    int(row["lambda"]),
+                    int(row["mu"]),
                 )
                 ng = row.get("num_groups", "").strip()
                 if ng:
@@ -190,12 +198,14 @@ def _load_old_results_inventory(
                 npz_path = base / file_str
                 if npz_path.exists():
                     found_groups[p].add(gid)
-                    npz_tasks.append(NpzTask(
-                        params=p,
-                        group_lib_id=gid,
-                        group_name=row.get("group_name", "").strip(),
-                        npz_path=npz_path,
-                    ))
+                    npz_tasks.append(
+                        NpzTask(
+                            params=p,
+                            group_lib_id=gid,
+                            group_name=row.get("group_name", "").strip(),
+                            npz_path=npz_path,
+                        )
+                    )
                     all_searched_params.add(p)
 
     return npz_tasks, num_groups_map, all_searched_params, old_all_abelian
@@ -284,7 +294,9 @@ def _load_ilp_inventory(ilp_dir: Path) -> list[IlpResult]:
         raw_status = data.get("status", "")
 
         if raw_status == "Optimal" and data.get("connection_set_original_indices"):
-            results.append(IlpResult(p, gid, gname, "found", data["connection_set_original_indices"]))
+            results.append(
+                IlpResult(p, gid, gname, "found", data["connection_set_original_indices"])
+            )
         elif raw_status == "Infeasible":
             results.append(IlpResult(p, gid, gname, "infeasible", None))
         elif raw_status == "TimeLimit":
@@ -296,6 +308,7 @@ def _load_ilp_inventory(ilp_dir: Path) -> list[IlpResult]:
 # ---------------------------------------------------------------------------
 # Phase 2: Group table loading
 # ---------------------------------------------------------------------------
+
 
 def _load_all_group_tables(
     orders: set[int],
@@ -326,6 +339,7 @@ def _load_all_group_tables(
             print(f"  Loading group table for SmallGroup({n},{lid})...", flush=True)
             try:
                 from srg_search.ilp.models.cayley_dsrg import load_cayley_data
+
                 cgd = load_cayley_data(n, lid)
                 # Build a GroupTable-compatible object from CayleyGroupData
                 # We only need identity_pos for connection set extraction from ILP
@@ -347,14 +361,15 @@ def _load_all_group_tables(
 # Phase 3 & 4: Canonical labeling, dedup, and connection set extraction
 # ---------------------------------------------------------------------------
 
+
 def _process_all(
     npz_tasks: list[NpzTask],
     ilp_found: list[IlpResult],
     group_cache: dict[tuple[int, int], GroupTable],
 ) -> tuple[
-    dict[int, GraphRecord],       # graph_info
-    list[dict],                   # search_rows (found only)
-    dict[Params, int],            # raw_counts
+    dict[int, GraphRecord],  # graph_info
+    list[dict],  # search_rows (found only)
+    dict[Params, int],  # raw_counts
 ]:
     """Process all NPZ files and ILP found results.
 
@@ -375,7 +390,9 @@ def _process_all(
         n, k, t, lam, mu = task.params
         gt = group_cache.get((n, task.group_lib_id))
         if gt is None:
-            print(f"  WARNING: No group table for SmallGroup({n},{task.group_lib_id}), skipping {task.npz_path.name}")
+            print(
+                f"  WARNING: No group table for SmallGroup({n},{task.group_lib_id}), skipping {task.npz_path.name}"
+            )
             continue
 
         identity_idx = gt.identity
@@ -391,7 +408,10 @@ def _process_all(
         raw_counts[task.params] += total_matrices
 
         if (ti + 1) % 50 == 0 or ti == total_npz - 1:
-            print(f"  NPZ [{ti+1}/{total_npz}] {task.npz_path.name} ({total_matrices} matrices)", flush=True)
+            print(
+                f"  NPZ [{ti + 1}/{total_npz}] {task.npz_path.name} ({total_matrices} matrices)",
+                flush=True,
+            )
 
         for start in range(0, total_matrices, CHUNK):
             end = min(start + CHUNK, total_matrices)
@@ -425,7 +445,11 @@ def _process_all(
                     conn = extract_connection_set(adj, identity_idx)
                     conn_1idx = [x + 1 for x in conn]
                     search_rows.append({
-                        "n": n, "k": k, "t": t, "lambda": lam, "mu": mu,
+                        "n": n,
+                        "k": k,
+                        "t": t,
+                        "lambda": lam,
+                        "mu": mu,
                         "group_lib_id": task.group_lib_id,
                         "group_name": task.group_name,
                         "search_method": "exhaustive",
@@ -440,7 +464,9 @@ def _process_all(
         n, k, t, lam, mu = ilp.params
         gt = group_cache.get((n, ilp.group_lib_id))
         if gt is None:
-            print(f"  WARNING: No group table for SmallGroup({n},{ilp.group_lib_id}), skipping ILP result")
+            print(
+                f"  WARNING: No group table for SmallGroup({n},{ilp.group_lib_id}), skipping ILP result"
+            )
             continue
 
         inv_np = gt.inv.numpy().astype(int)
@@ -471,7 +497,11 @@ def _process_all(
             seen_graph_group.add(key)
             conn_1idx = [x + 1 for x in ilp.connset_0idx]
             search_rows.append({
-                "n": n, "k": k, "t": t, "lambda": lam, "mu": mu,
+                "n": n,
+                "k": k,
+                "t": t,
+                "lambda": lam,
+                "mu": mu,
                 "group_lib_id": ilp.group_lib_id,
                 "group_name": ilp.group_name,
                 "search_method": "inexhaustive",
@@ -486,6 +516,7 @@ def _process_all(
 # ---------------------------------------------------------------------------
 # Phase 5 & 6: Assemble CSVs
 # ---------------------------------------------------------------------------
+
 
 def _build_infeasible_rows_old(
     old_all_searched: set[Params],
@@ -514,7 +545,11 @@ def _build_infeasible_rows_old(
         for (_, lid), gt in order_groups:
             if (p, lid) not in found_pg:
                 rows.append({
-                    "n": p[0], "k": p[1], "t": p[2], "lambda": p[3], "mu": p[4],
+                    "n": p[0],
+                    "k": p[1],
+                    "t": p[2],
+                    "lambda": p[3],
+                    "mu": p[4],
                     "group_lib_id": lid,
                     "group_name": gt.name,
                     "search_method": "exhaustive",
@@ -539,22 +574,30 @@ def main():
     old_npz, old_num_groups, old_all_searched, old_all_abelian = _load_old_results_inventory(
         ROOT / "old_cayley_results"
     )
-    print(f"  old_cayley_results: {len(old_npz)} NPZ tasks, {len(old_all_searched)} param sets, {len(old_all_abelian)} all-abelian")
-
-    cd_npz, cd_infeasible, cd_all_abelian, cd_done_groups, all_cd_params = _load_cayley_data_inventory(
-        ROOT / "cayley_data"
+    print(
+        f"  old_cayley_results: {len(old_npz)} NPZ tasks, {len(old_all_searched)} param sets, {len(old_all_abelian)} all-abelian"
     )
-    print(f"  cayley_data: {len(cd_npz)} NPZ tasks, {len(cd_infeasible)} infeasible groups, {len(cd_all_abelian)} all-abelian")
+
+    cd_npz, cd_infeasible, cd_all_abelian, cd_done_groups, all_cd_params = (
+        _load_cayley_data_inventory(ROOT / "cayley_data")
+    )
+    print(
+        f"  cayley_data: {len(cd_npz)} NPZ tasks, {len(cd_infeasible)} infeasible groups, {len(cd_all_abelian)} all-abelian"
+    )
 
     ilp_results = _load_ilp_inventory(ROOT / "cayley_ilp_results")
     ilp_found = [r for r in ilp_results if r.status == "found"]
     ilp_infeasible = [r for r in ilp_results if r.status == "infeasible"]
     ilp_inconclusive = [r for r in ilp_results if r.status == "inconclusive"]
-    print(f"  ILP: {len(ilp_found)} found, {len(ilp_infeasible)} infeasible, {len(ilp_inconclusive)} inconclusive")
+    print(
+        f"  ILP: {len(ilp_found)} found, {len(ilp_infeasible)} infeasible, {len(ilp_inconclusive)} inconclusive"
+    )
 
     # Resolve overlaps: cayley_data supersedes old_cayley_results
     old_params = set(t.params for t in old_npz)
-    cd_params = set(t.params for t in cd_npz) | set(ig.params for ig in cd_infeasible) | cd_all_abelian
+    cd_params = (
+        set(t.params for t in cd_npz) | set(ig.params for ig in cd_infeasible) | cd_all_abelian
+    )
     overlap_params = old_params & cd_params
     if overlap_params:
         print(f"  Overlap: {len(overlap_params)} param sets, using cayley_data for these")
@@ -604,8 +647,11 @@ def main():
     # cayley_data infeasible (explicit from progress.csv)
     for ig in cd_infeasible:
         all_search_rows.append({
-            "n": ig.params[0], "k": ig.params[1], "t": ig.params[2],
-            "lambda": ig.params[3], "mu": ig.params[4],
+            "n": ig.params[0],
+            "k": ig.params[1],
+            "t": ig.params[2],
+            "lambda": ig.params[3],
+            "mu": ig.params[4],
             "group_lib_id": ig.group_lib_id,
             "group_name": ig.group_name,
             "search_method": "exhaustive",
@@ -616,7 +662,11 @@ def main():
 
     # old_cayley_results infeasible (inferred from num_groups - found groups)
     old_infeasible_rows = _build_infeasible_rows_old(
-        old_all_searched, old_num_groups, found_rows, group_cache, overlap_params,
+        old_all_searched,
+        old_num_groups,
+        found_rows,
+        group_cache,
+        overlap_params,
     )
     all_search_rows.extend(old_infeasible_rows)
     print(f"  Infeasible from cayley_data: {len(cd_infeasible)}")
@@ -625,8 +675,11 @@ def main():
     # ILP infeasible
     for r in ilp_infeasible:
         all_search_rows.append({
-            "n": r.params[0], "k": r.params[1], "t": r.params[2],
-            "lambda": r.params[3], "mu": r.params[4],
+            "n": r.params[0],
+            "k": r.params[1],
+            "t": r.params[2],
+            "lambda": r.params[3],
+            "mu": r.params[4],
             "group_lib_id": r.group_lib_id,
             "group_name": r.group_name,
             "search_method": "inexhaustive",
@@ -638,8 +691,11 @@ def main():
     # ILP inconclusive
     for r in ilp_inconclusive:
         all_search_rows.append({
-            "n": r.params[0], "k": r.params[1], "t": r.params[2],
-            "lambda": r.params[3], "mu": r.params[4],
+            "n": r.params[0],
+            "k": r.params[1],
+            "t": r.params[2],
+            "lambda": r.params[3],
+            "mu": r.params[4],
             "group_lib_id": r.group_lib_id,
             "group_name": r.group_name,
             "search_method": "inexhaustive",
@@ -656,14 +712,27 @@ def main():
     print("\nPhase 6: Writing CSVs...", flush=True)
 
     # --- cayley_searches.csv ---
-    all_search_rows.sort(key=lambda r: (r["n"], r["k"], r["t"], r["lambda"], r["mu"], r["group_lib_id"]))
+    all_search_rows.sort(
+        key=lambda r: (r["n"], r["k"], r["t"], r["lambda"], r["mu"], r["group_lib_id"])
+    )
     searches_path = outdir / "cayley_searches.csv"
     with open(searches_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=[
-            "n", "k", "t", "lambda", "mu",
-            "group_lib_id", "group_name",
-            "search_method", "status", "graph_id", "connection_set",
-        ])
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "n",
+                "k",
+                "t",
+                "lambda",
+                "mu",
+                "group_lib_id",
+                "group_name",
+                "search_method",
+                "status",
+                "graph_id",
+                "connection_set",
+            ],
+        )
         writer.writeheader()
         writer.writerows(all_search_rows)
     print(f"  {searches_path}: {len(all_search_rows)} rows")
@@ -684,7 +753,11 @@ def main():
         n, k, t, lam, mu = rec.params
         graph_rows.append({
             "graph_id": gid,
-            "n": n, "k": k, "t": t, "lambda": lam, "mu": mu,
+            "n": n,
+            "k": k,
+            "t": t,
+            "lambda": lam,
+            "mu": mu,
             "digraph6": rec.digraph6,
             "aut_group_order": rec.aut_group_order,
             "num_constructions": graph_constructions.get(gid, 0),
@@ -693,10 +766,21 @@ def main():
 
     graphs_path = outdir / "graphs.csv"
     with open(graphs_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=[
-            "graph_id", "n", "k", "t", "lambda", "mu",
-            "digraph6", "aut_group_order", "num_constructions", "num_groups",
-        ])
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "graph_id",
+                "n",
+                "k",
+                "t",
+                "lambda",
+                "mu",
+                "digraph6",
+                "aut_group_order",
+                "num_constructions",
+                "num_groups",
+            ],
+        )
         writer.writeheader()
         writer.writerows(graph_rows)
     print(f"  {graphs_path}: {len(graph_rows)} rows")
@@ -752,7 +836,11 @@ def main():
             status = "partial"
 
         param_rows.append({
-            "n": n, "k": k, "t": t, "lambda": lam, "mu": mu,
+            "n": n,
+            "k": k,
+            "t": t,
+            "lambda": lam,
+            "mu": mu,
             "num_nonabelian_groups": num_na,
             "groups_checked_exhaustively": gce,
             "search_status": status,
@@ -762,11 +850,21 @@ def main():
 
     params_path = outdir / "parameters.csv"
     with open(params_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=[
-            "n", "k", "t", "lambda", "mu",
-            "num_nonabelian_groups", "groups_checked_exhaustively",
-            "search_status", "num_dsrgs_raw", "num_dsrgs_unique",
-        ])
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "n",
+                "k",
+                "t",
+                "lambda",
+                "mu",
+                "num_nonabelian_groups",
+                "groups_checked_exhaustively",
+                "search_status",
+                "num_dsrgs_raw",
+                "num_dsrgs_unique",
+            ],
+        )
         writer.writeheader()
         writer.writerows(param_rows)
     print(f"  {params_path}: {len(param_rows)} rows")
@@ -777,7 +875,9 @@ def main():
     exhaustive_count = sum(1 for r in param_rows if r["search_status"] == "exhaustive")
     partial_count = sum(1 for r in param_rows if r["search_status"] == "partial")
     abelian_count = sum(1 for r in param_rows if r["search_status"] == "all_abelian")
-    print(f"  exhaustive: {exhaustive_count}, partial: {partial_count}, all_abelian: {abelian_count}")
+    print(
+        f"  exhaustive: {exhaustive_count}, partial: {partial_count}, all_abelian: {abelian_count}"
+    )
     print(f"Unique graphs: {len(graph_rows)}")
     total_raw = sum(r["num_dsrgs_raw"] for r in param_rows)
     print(f"Total raw adjacency matrices: {total_raw}")

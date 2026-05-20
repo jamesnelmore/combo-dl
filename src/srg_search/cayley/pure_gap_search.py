@@ -4,12 +4,6 @@
 Splits the connector-set search space into blocks of configurable size and
 dispatches them across worker processes, each of which runs a parameterised
 GAP subprocess.  Progress is reported via tqdm as blocks complete.
-
-Usage::
-
-    python -m ilp.cayley_search.search n k t lambda mu \
-        [--block-size 100000] [--workers NUM_CPUS] \
-        [--timeout 3600] [--log FILE] [--stop-on-first]
 """
 
 from __future__ import annotations
@@ -435,6 +429,7 @@ def _save_adjacency(
 # ---------------------------------------------------------------------------
 
 
+# TODO convert to Typer CLI or delete
 def search(
     n: int,
     k: int,
@@ -487,7 +482,13 @@ def search(
         logger.error(
             "Parameters (n=%d, k=%d, t=%d, lambda=%d, mu=%d) fail the necessary condition "
             "k(k - lambda) - t = (n - k - 1) * mu  (%d != %d)",
-            n, k, t, lambda_, mu, lhs, rhs,
+            n,
+            k,
+            t,
+            lambda_,
+            mu,
+            lhs,
+            rhs,
         )
         return []
 
@@ -505,7 +506,10 @@ def search(
     total_reps = sum(g.num_reps for g in groups)
     logger.info(
         "C(%d, %d) = %s raw subsets/group → %s orbit-rep(s) total after Aut(G) + t-filter",
-        n - 1, k, f"{sets_per_group_raw:,}", f"{total_reps:,}",
+        n - 1,
+        k,
+        f"{sets_per_group_raw:,}",
+        f"{total_reps:,}",
     )
 
     # -- Job list -------------------------------------------------------------
@@ -522,7 +526,11 @@ def search(
             end = min(start + block_size - 1, g.num_reps)
             jobs.append(
                 Job(
-                    n=n, k=k, t=t, lambda_=lambda_, mu=mu,
+                    n=n,
+                    k=k,
+                    t=t,
+                    lambda_=lambda_,
+                    mu=mu,
                     group_lib_id=g.library_id,
                     group_name=g.name,
                     start_idx=start,
@@ -535,7 +543,10 @@ def search(
     workers = num_workers or mp.cpu_count()
     logger.info(
         "%d block(s) across %d group(s), %d worker(s), block size %s",
-        total_blocks, len(groups), workers, f"{block_size:,}",
+        total_blocks,
+        len(groups),
+        workers,
+        f"{block_size:,}",
     )
 
     # -- Dispatch -------------------------------------------------------------
@@ -565,8 +576,14 @@ def search(
                         f"block=[{result.start_idx}..{result.end_idx}]"
                     )
                     _save_adjacency(
-                        result.adjacency, n, k, t, lambda_, mu,
-                        result.group_lib_id, logger,
+                        result.adjacency,
+                        n,
+                        k,
+                        t,
+                        lambda_,
+                        mu,
+                        result.group_lib_id,
+                        logger,
                     )
                 elif result.status not in {"done", "skipped"}:
                     tqdm.write(f"  Worker issue: {result.status}")
@@ -579,7 +596,9 @@ def search(
     elapsed = time.perf_counter() - start_time
     logger.info(
         "Search complete in %s — %s sets checked, %d DSRG(s) found",
-        _fmt_elapsed(elapsed), f"{total_checked:,}", found_count,
+        _fmt_elapsed(elapsed),
+        f"{total_checked:,}",
+        found_count,
     )
     return results
 
@@ -601,27 +620,39 @@ if __name__ == "__main__":
     parser.add_argument("lambda_", type=int, nargs="?", metavar="lambda", help="lambda parameter")
     parser.add_argument("mu", type=int, nargs="?", help="mu parameter")
     parser.add_argument(
-        "--params-file", type=Path, default=None, metavar="FILE",
+        "--params-file",
+        type=Path,
+        default=None,
+        metavar="FILE",
         help="File with one 'n k t lambda mu' per line; runs a search for each",
     )
     parser.add_argument(
-        "--block-size", type=int, default=100_000,
+        "--block-size",
+        type=int,
+        default=100_000,
         help="Connector sets per worker block (default: 100000)",
     )
     parser.add_argument(
-        "--workers", type=int, default=None,
+        "--workers",
+        type=int,
+        default=None,
         help="Number of worker processes (default: CPU count)",
     )
     parser.add_argument(
-        "--timeout", type=float, default=3600,
+        "--timeout",
+        type=float,
+        default=3600,
         help="Wall-clock limit in seconds (default: 3600)",
     )
     parser.add_argument(
-        "--log", type=Path, default=Path("cayley_search.log"),
+        "--log",
+        type=Path,
+        default=Path("cayley_search.log"),
         help="Log file path (default: cayley_search.log); ignored when --params-file is used",
     )
     parser.add_argument(
-        "--stop-on-first", action="store_true",
+        "--stop-on-first",
+        action="store_true",
         help="Stop after the first DSRG is found",
     )
     args = parser.parse_args()
@@ -642,7 +673,9 @@ if __name__ == "__main__":
                     continue
                 parts = line.split()
                 if len(parts) != 5:
-                    parser.error(f"{args.params_file}:{lineno}: expected 5 values, got {len(parts)}")
+                    parser.error(
+                        f"{args.params_file}:{lineno}: expected 5 values, got {len(parts)}"
+                    )
                 try:
                     param_sets.append(tuple(int(p) for p in parts))  # type: ignore[misc]
                 except ValueError as exc:
@@ -652,14 +685,27 @@ if __name__ == "__main__":
             logfile = Path(f"cayley_search_{pn}_{pk}_{pt}_{pl}_{pm}.log")
             search(pn, pk, pt, pl, pm, logfile=logfile, **shared)  # type: ignore[arg-type]
     else:
-        missing = [name for name, val in [("n", args.n), ("k", args.k), ("t", args.t),
-                                           ("lambda", args.lambda_), ("mu", args.mu)]
-                   if val is None]
+        missing = [
+            name
+            for name, val in [
+                ("n", args.n),
+                ("k", args.k),
+                ("t", args.t),
+                ("lambda", args.lambda_),
+                ("mu", args.mu),
+            ]
+            if val is None
+        ]
         if missing:
-            parser.error(f"missing positional argument(s): {', '.join(missing)} "
-                         f"(or use --params-file)")
+            parser.error(
+                f"missing positional argument(s): {', '.join(missing)} (or use --params-file)"
+            )
         search(
-            args.n, args.k, args.t, args.lambda_, args.mu,
+            args.n,
+            args.k,
+            args.t,
+            args.lambda_,
+            args.mu,
             logfile=args.log,
             **shared,  # type: ignore[arg-type]
         )

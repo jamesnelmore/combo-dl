@@ -3,7 +3,7 @@ name = "srg_search"
 version = "0.1.0"
 description = "Strongly regular graph and digraph search"
 readme = "README.md"
-requires-python = ">=3.13,<3.14"
+requires-python = ">=3.12,<3.14"
 authors = [
     {name = "James Elmore", email = "email@jameselmore.org"},
 ]
@@ -22,6 +22,7 @@ dependencies = [
     "python-sat>=1.8.dev30",
     "scipy>=1.16.2",
     "tqdm>=4.67.1",
+    "typer>=0.25.1",
 ]
 
 [project.optional-dependencies]
@@ -39,6 +40,9 @@ ml = [
     "torch-geometric>=2.6.1",
     "wandb>=0.21.3",
 ]
+
+[project.scripts]
+srg-search = "srg_search.cli:app"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]

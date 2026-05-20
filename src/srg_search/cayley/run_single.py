@@ -16,10 +16,11 @@ Usage:
 from __future__ import annotations
 
 import csv
-import sys
-import time
+from dataclasses import dataclass
 from math import comb
 from pathlib import Path
+import sys
+import time
 
 import numpy as np
 import pandas as pd
@@ -36,6 +37,18 @@ from .generate import (
 )
 
 
+@dataclass
+class DSRGParams:
+    n: int
+    k: int
+    t: int
+    lambda_: int
+    mu: int
+
+    def is_feasible(self) -> bool:
+        return self.k * (self.k - self.lambda_) - self.t == (self.n - self.k - 1) * self.mu
+
+
 def _fmt_elapsed(seconds: float) -> str:
     s = int(seconds)
     h, rem = divmod(s, 3600)
@@ -47,6 +60,18 @@ def _fmt_elapsed(seconds: float) -> str:
     return f"{sec}s"
 
 
+def search_one_group(
+    params: DSRGParams,
+    group_id: int,
+    output_dir: Path,
+    batch_size: int = 100_000,
+    device: str | None = None,
+    noninteractive: bool = False,
+):
+    pass
+
+
+# CLI entrypoint 'single'
 def run_single(
     n: int,
     k: int,
@@ -55,18 +80,17 @@ def run_single(
     mu: int,
     output_dir: Path,
     batch_size: int = 100_000,
-    device: torch.device | str = "cpu",
+    device: str = "cpu",
     noninteractive: bool = False,
 ) -> None:
     """Search for DSRGs in a single parameter set, saving results incrementally."""
-
     task_dir = output_dir / f"{n}_{k}_{t}_{lambda_}_{mu}"
     task_dir.mkdir(parents=True, exist_ok=True)
     progress_csv = task_dir / "progress.csv"
 
     total_subsets = comb(n - 1, k)
     print(f"DSRG({n}, {k}, {t}, {lambda_}, {mu})")
-    print(f"Total {k}-subsets of {n-1} non-identity elements: {total_subsets:,}")
+    print(f"Total {k}-subsets of {n - 1} non-identity elements: {total_subsets:,}")
     print(f"Output: {task_dir}")
 
     # Check feasibility
@@ -74,14 +98,19 @@ def run_single(
     rhs = (n - k - 1) * mu
     if lhs != rhs:
         print(f"INFEASIBLE: k(k-λ)-t={lhs} != (n-k-1)μ={rhs}")
-        _write_progress(progress_csv, [{
-            "group_lib_id": "",
-            "group_name": "",
-            "status": "infeasible",
-            "t_valid_count": 0,
-            "num_dsrgs": 0,
-            "elapsed_s": 0,
-        }])
+        _write_progress(
+            progress_csv,
+            [
+                {
+                    "group_lib_id": "",
+                    "group_name": "",
+                    "status": "infeasible",
+                    "t_valid_count": 0,
+                    "num_dsrgs": 0,
+                    "elapsed_s": 0,
+                }
+            ],
+        )
         return
 
     # Load groups
@@ -91,14 +120,19 @@ def run_single(
 
     if not groups:
         print("No groups to search")
-        _write_progress(progress_csv, [{
-            "group_lib_id": "",
-            "group_name": "",
-            "status": "no_groups",
-            "t_valid_count": 0,
-            "num_dsrgs": 0,
-            "elapsed_s": 0,
-        }])
+        _write_progress(
+            progress_csv,
+            [
+                {
+                    "group_lib_id": "",
+                    "group_name": "",
+                    "status": "no_groups",
+                    "t_valid_count": 0,
+                    "num_dsrgs": 0,
+                    "elapsed_s": 0,
+                }
+            ],
+        )
         return
 
     # Load existing progress if resuming, treating any "running" row as not done
@@ -173,7 +207,7 @@ def run_single(
                     elapsed = time.perf_counter() - t0
                     bps = (bi + 1) / elapsed if elapsed > 0 else 0
                     print(
-                        f"    batch {bi+1}/{total_batches}"
+                        f"    batch {bi + 1}/{total_batches}"
                         f"  generated={checked}  found={found_so_far}"
                         f"  elapsed={_fmt_elapsed(elapsed)}  {bps:.1f} batch/s"
                     )
@@ -182,7 +216,7 @@ def run_single(
                 elapsed = time.perf_counter() - t0
                 bps = (bi + 1) / elapsed if elapsed > 0 else 0
                 print(
-                    f"    batch {bi+1}/{total_batches}"
+                    f"    batch {bi + 1}/{total_batches}"
                     f"  generated={checked}  found={found_so_far}"
                     f"  elapsed={_fmt_elapsed(elapsed)}  {bps:.1f} batch/s"
                 )
@@ -229,7 +263,14 @@ def run_single(
 
 def _write_progress(path: Path, rows: list[dict]) -> None:
     """Write (or overwrite) the progress CSV."""
-    fieldnames = ["group_lib_id", "group_name", "status", "t_valid_count", "num_dsrgs", "elapsed_s"]
+    fieldnames = [
+        "group_lib_id",
+        "group_name",
+        "status",
+        "t_valid_count",
+        "num_dsrgs",
+        "elapsed_s",
+    ]
     with open(path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
@@ -244,11 +285,21 @@ if __name__ == "__main__":
         usage="%(prog)s n k t lambda mu [options]\n       %(prog)s --params FILE --index N [options]",
     )
     parser.add_argument("positional", nargs="*", type=int, metavar="N", help="n k t lambda mu")
-    parser.add_argument("--params", type=Path, default=None, help="CSV/Excel with n,k,t,lambda,mu columns")
-    parser.add_argument("--index", type=int, default=None, help="Row index (0-based) in the params file")
-    parser.add_argument("--output-dir", type=Path, default=Path("cayley_data"), help="Base output directory")
+    parser.add_argument(
+        "--params", type=Path, default=None, help="CSV/Excel with n,k,t,lambda,mu columns"
+    )
+    parser.add_argument(
+        "--index", type=int, default=None, help="Row index (0-based) in the params file"
+    )
+    parser.add_argument(
+        "--output-dir", type=Path, default=Path("cayley_data"), help="Base output directory"
+    )
     parser.add_argument("--batch-size", type=int, default=100_000, help="Subsets per GPU batch")
-    parser.add_argument("--noninteractive", action="store_true", help="Print periodic logs instead of tqdm progress bars")
+    parser.add_argument(
+        "--noninteractive",
+        action="store_true",
+        help="Print periodic logs instead of tqdm progress bars",
+    )
     args = parser.parse_args()
 
     if args.params is not None:
@@ -292,7 +343,11 @@ if __name__ == "__main__":
     print(f"Device: {device}")
 
     run_single(
-        n, k, t, lambda_, mu,
+        n,
+        k,
+        t,
+        lambda_,
+        mu,
         output_dir=args.output_dir,
         batch_size=args.batch_size,
         device=device,
