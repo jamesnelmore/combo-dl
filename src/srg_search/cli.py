@@ -1,10 +1,10 @@
 import typer
 
-from srg_search.cayley import cayley_cli
+from srg_search.cayley import cli as cayley_cli
 
 app = typer.Typer()
 
-app.add_typer(cayley_cli.app, name="cayley-ex")
+app.add_typer(cayley_cli.app, name="cayley")
 
 
 @app.command()
