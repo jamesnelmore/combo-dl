@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=cayley-dsrg
-#SBATCH --time=24:00:00
+#SBATCH --time=72:00:00
 #SBATCH --output=slurm_logs/cayley_dsrg_%A_%a.out
 #SBATCH --error=slurm_logs/cayley_dsrg_%A_%a.err
 #SBATCH --cpus-per-task=2
@@ -14,14 +14,19 @@ cd "${SLURM_SUBMIT_DIR:-.}"
 TASK_FILE="${TASK_FILE:-cayley_ilp_tasks.json}"
 OUTPUT_DIR="${OUTPUT_DIR:-cayley_ilp_results-post-thesis}"
 BATCH_SIZE="${BATCH_SIZE:-1}"
+# TASK_OFFSET lets us cover >999 tasks across multiple array submissions
+# (Slurm caps array indices at 999). Each submission handles a contiguous block.
+TASK_OFFSET="${TASK_OFFSET:-0}"
 NTASKS=$(python3 -c "import json; print(len(json.load(open('$TASK_FILE'))))")
-# Gurobi time limit: split Slurm wall evenly across batch items, minus 5 min overhead each
-SLURM_SECS=$(( 24 * 3600 ))
+# Gurobi time limit: keep the full Slurm wall per ILP (minus 5 min overhead).
+# Derive from the actual allocation so it tracks --time without hardcoding.
+SLURM_SECS=$(( ${SLURM_JOB_END_TIME:-0} - ${SLURM_JOB_START_TIME:-0} ))
+if [ "$SLURM_SECS" -le 0 ]; then SLURM_SECS=$(( 72 * 3600 )); fi
 GUROBI_LIMIT=$(( SLURM_SECS / BATCH_SIZE - 300 ))
 
 mkdir -p slurm_logs "$OUTPUT_DIR"
 
-TASK_BASE=$(( SLURM_ARRAY_TASK_ID * BATCH_SIZE ))
+TASK_BASE=$(( SLURM_ARRAY_TASK_ID * BATCH_SIZE + TASK_OFFSET ))
 
 for i in $(seq 0 $(( BATCH_SIZE - 1 ))); do
   TASK_IDX=$(( TASK_BASE + i ))
