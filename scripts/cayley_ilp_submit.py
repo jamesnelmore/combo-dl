@@ -166,25 +166,26 @@ def main():
 #SBATCH --time={slurm_time}
 #SBATCH --output=slurm_logs/cayley_{kind}_%A_%a.out
 #SBATCH --error=slurm_logs/cayley_{kind}_%A_%a.err
-#SBATCH --cpus-per-task=1
-#SBATCH --mem=4G
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=32G
 
 set -euo pipefail
 cd "${{SLURM_SUBMIT_DIR:-.}}"
 mkdir -p slurm_logs {args.output_dir}
 
-# Read task from JSON task list
-TASK=$(python3 -c "
+TASK=$(python3 - "$SLURM_ARRAY_TASK_ID" <<'PYEOF'
 import json, sys
 tasks = json.load(open('{task_file}'))
-t = tasks[$SLURM_ARRAY_TASK_ID]
-print(f'--n {{t[\"n\"]}} --k {{t[\"k\"]}} --t {{t[\"t\"]}} --lambda {{t[\"lambda\"]}} --mu {{t[\"mu\"]}} --lib-id {{t[\"lib_id\"]}}')
-")
+t = tasks[int(sys.argv[1])]
+print(f"--n {{t['n']}} --k {{t['k']}} --t {{t['t']}} --lambda {{t['lambda']}} --mu {{t['mu']}} --lib-id {{t['lib_id']}}")
+PYEOF
+)
 
 uv run python3 scripts/cayley_ilp_worker.py \\
     $TASK \\
     --output-dir {args.output_dir} \\
-    --time-limit {time_limit_secs}{undirected_flag}
+    --time-limit {time_limit_secs} \\
+    --threads ${{SLURM_CPUS_PER_TASK:-8}}{undirected_flag}
 """)
 
     print(f"SLURM script written to {slurm_script}")

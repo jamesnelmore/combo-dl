@@ -1,4 +1,23 @@
-
+cayley_data/
+images/
+plots/
+bench_output
+old_cayley_results/
+cayley_ilp_results/
+cayley_ilp_results_6hr/
+cayley_ilp_results-post-thesis/
+cayley_export/
+cayley_*_tasks.json
+cayley_*_tasks.csv
+old_bench_output
+# RRHC sweep results (large data directories)
+rrhc_results/
+rrhc_n64_results/
+rrhc_test_results/
+rrhc_none_ilp_results/
+# Scratch files
+head
+data/
 # =============================================================================
 # Python
 # =============================================================================
