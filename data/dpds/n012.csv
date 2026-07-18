@@ -1,0 +1,73 @@
+group_id,param_id,graph_id,members,source_method
+14,8,1346,2 4 5 7,exhaustive
+14,8,1346,2 5 8 11,exhaustive
+14,8,1346,4 6 7 9,exhaustive
+14,8,1346,4 7 10 12,exhaustive
+14,8,1346,6 8 9 11,exhaustive
+14,8,1346,8 10 11 12,exhaustive
+14,9,1347,2 3 4 5 7,exhaustive
+14,9,1347,2 3 5 8 11,exhaustive
+14,9,1347,3 4 6 7 9,exhaustive
+14,9,1347,3 4 7 10 12,exhaustive
+14,9,1347,3 6 8 9 11,exhaustive
+14,9,1347,3 8 10 11 12,exhaustive
+16,7,1345,2 3 10,exhaustive
+16,7,1345,2 4 12,exhaustive
+16,7,1345,2 8 9,exhaustive
+16,7,1345,3 5 11,exhaustive
+16,7,1345,3 6 9,exhaustive
+16,7,1345,3 7 12,exhaustive
+16,7,1345,4 5 6,exhaustive
+16,7,1345,4 7 10,exhaustive
+16,7,1345,4 9 11,exhaustive
+16,7,1345,5 7 8,exhaustive
+16,7,1345,6 8 10,exhaustive
+16,7,1345,8 11 12,exhaustive
+16,9,1349,2 3 5 6 9,exhaustive
+16,9,1348,2 3 5 7 12,exhaustive
+16,9,1349,2 3 6 10 12,exhaustive
+16,9,1348,2 3 7 9 10,exhaustive
+16,9,1348,2 4 10 11 12,exhaustive
+16,9,1349,2 4 5 7 10,exhaustive
+16,9,1348,2 4 5 9 11,exhaustive
+16,9,1349,2 4 7 9 12,exhaustive
+16,9,1348,2 5 6 8 10,exhaustive
+16,9,1349,2 5 8 11 12,exhaustive
+16,9,1348,2 6 8 9 12,exhaustive
+16,9,1349,2 8 9 10 11,exhaustive
+16,9,1348,3 5 6 11 12,exhaustive
+16,9,1349,3 5 7 9 11,exhaustive
+16,9,1348,3 6 9 10 11,exhaustive
+16,9,1349,3 7 10 11 12,exhaustive
+16,9,1349,4 5 6 10 11,exhaustive
+16,9,1348,4 5 6 7 9,exhaustive
+16,9,1348,4 6 7 10 12,exhaustive
+16,9,1349,4 6 9 11 12,exhaustive
+16,9,1349,5 6 7 8 12,exhaustive
+16,9,1348,5 7 8 10 11,exhaustive
+16,9,1349,6 7 8 9 10,exhaustive
+16,9,1348,7 8 9 11 12,exhaustive
+17,8,1346,2 4 5 7,exhaustive
+17,8,1346,2 5 8 11,exhaustive
+17,8,1346,4 6 7 9,exhaustive
+17,8,1346,4 7 10 12,exhaustive
+17,8,1346,6 8 9 11,exhaustive
+17,8,1346,8 10 11 12,exhaustive
+17,9,1347,2 3 4 5 7,exhaustive
+17,9,1347,2 3 5 8 11,exhaustive
+17,9,1350,2 4 6 11 12,exhaustive
+17,9,1350,2 4 9 10 11,exhaustive
+17,9,1350,2 4 9 11 12,exhaustive
+17,9,1350,2 6 7 8 12,exhaustive
+17,9,1350,2 7 8 9 10,exhaustive
+17,9,1350,2 7 8 9 12,exhaustive
+17,9,1347,3 4 6 7 9,exhaustive
+17,9,1347,3 4 7 10 12,exhaustive
+17,9,1347,3 6 8 9 11,exhaustive
+17,9,1347,3 8 10 11 12,exhaustive
+17,9,1350,4 5 6 10 11,exhaustive
+17,9,1350,4 5 6 11 12,exhaustive
+17,9,1350,4 5 9 10 11,exhaustive
+17,9,1350,5 6 7 8 10,exhaustive
+17,9,1350,5 6 7 8 12,exhaustive
+17,9,1350,5 7 8 9 10,exhaustive
