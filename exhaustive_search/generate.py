@@ -357,6 +357,9 @@ def _t_valid_batches(
                     yield prefix.unsqueeze(0)
                     continue
 
+                # c > 0 here, so bit_patterns was built above (not None).
+                assert bit_patterns is not None
+
                 remaining_pair_indices = [pi for pi in range(num_pairs) if pi not in pair_full_set]
                 remaining_pairs = pair_tensor[remaining_pair_indices]  # (R, 2)
                 R = len(remaining_pair_indices)
