@@ -1,6 +1,0 @@
-{
-  "include": ["."],
-  "typeCheckingMode": "basic",
-  "reportMissingImports": "warning",
-  "reportAttributeAccessIssue": "warning"
-}
