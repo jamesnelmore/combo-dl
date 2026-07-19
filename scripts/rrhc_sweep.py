@@ -8,9 +8,16 @@ status column) and sweeps the nonabelian groups of order n for each row with
 verdicts are written, in the searches.csv column layout, to a *new* file (never
 appended to the real searches table).
 
-For a slurm job array, sweep one row per task: `--count` prints how many rows
-match (to size `--array=1-N`), and `--row N` sweeps just the Nth of them, e.g.
-`--row "$SLURM_ARRAY_TASK_ID"` writing to a per-row `rrhc_sweep.N.csv`.
+For a slurm job array, first materialize a job manifest with `--plan jobs.csv`
+(the matching rows, one per task), then run the array over it *without* --status
+so row N is simply line N of the manifest:
+
+    python3 rrhc_sweep.py params.csv --status open --plan jobs.csv   # phase 1
+    # then, per array task (--array=1-<lines-1>):
+    python3 rrhc_sweep.py jobs.csv --row "$SLURM_ARRAY_TASK_ID" -r 5000
+
+`--count` prints the number of matching rows, and `--row N` sweeps just the Nth,
+writing to a per-row `rrhc_sweep.N.csv`.
 
 Usage: python3 rrhc_sweep.py params.csv [--status open] [--row N | --start N]
                                         [-r restarts] [-o out.csv] [--seed S]
@@ -72,6 +79,12 @@ def _main():
         "--count", action="store_true", help="print how many rows match (to size --array) and exit"
     )
     ap.add_argument(
+        "--plan",
+        metavar="FILE",
+        help="write the matching rows to FILE (a job manifest) and exit; run the "
+        "array over it with --row and no --status, so row N is line N of the plan",
+    )
+    ap.add_argument(
         "-o",
         "--out",
         help="output CSV path (default rrhc_sweep.csv, or rrhc_sweep.N.csv with --row)",
@@ -81,15 +94,27 @@ def _main():
     args = ap.parse_args()
 
     with Path(args.params).open(newline="", encoding="utf8") as f:
+        reader = csv.DictReader(f)
+        header = reader.fieldnames
         rows = [
             r
-            for r in csv.DictReader(f)
+            for r in reader
             if args.status is None
             or (r.get("status") or r.get("Status", "")).lower() == args.status.lower()
         ]
 
     if args.count:
         print(len(rows))
+        return
+
+    if args.plan:
+        if header is None:
+            sys.exit(f"{args.params} has no header row")
+        with Path(args.plan).open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=header)
+            w.writeheader()
+            w.writerows(rows)
+        print(f"{len(rows)} rows -> {args.plan}", file=sys.stderr)
         return
 
     # One row (slurm array task) or a resumable range to the end.
