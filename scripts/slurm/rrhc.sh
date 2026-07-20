@@ -3,9 +3,10 @@
 #SBATCH --output=rrhc-out/slurm-%A_%a.out
 #SBATCH --time=02:00:00
 #SBATCH --cpus-per-task=30
+
 # One rrhc DSRG task: sweep every nonabelian group of a single parameter set and
-# write the found connection sets to a dpds-schema CSV. Array task N reads line N
-# of the manifest, so the two map one-to-one.
+# write the found connection sets to a dpds-schema CSV.
+# Array task N reads line N of the manifest, so the two map one-to-one.
 #
 # Everything -- the slurm stdout log, the dpds CSV, and the searches CSV -- is
 # saved under rrhc-out/. Slurm opens the --output log before the job runs, so
@@ -19,10 +20,7 @@
 # Override any default via env: MANIFEST (job manifest, default manifest.txt),
 # RESTARTS (per-group restart budget, default 10000), OUTDIR (output dir,
 # default rrhc-out), SEED (unset -> entropy), RRHC (path to the binary).
-#
-# The status stream (one line per group as it finishes) goes to stdout, which
-# slurm captures to the --output log; the dpds constructions and the searches
-# rows (one per swept group, negatives included) go to CSVs in OUTDIR.
+
 set -euo pipefail
 
 task="${SLURM_ARRAY_TASK_ID:-${1:-}}"
