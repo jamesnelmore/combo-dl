@@ -1,8 +1,10 @@
 mod group;
 mod rrhc;
 
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::time::Duration;
+use std::fs::File;
+use std::io::{BufWriter, Write};
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use clap::{ArgGroup, Args, Parser, Subcommand};
 use rayon::prelude::*;
@@ -54,6 +56,16 @@ struct DsrgArgs {
     lambda: usize,
     /// DSRG parameter mu
     mu: usize,
+    /// Write the found connection sets to a dpds-schema CSV
+    /// (`lib_id,members,source_method`; `members` 1-based per data/schema.md).
+    /// One invocation is a single order n, so the file drops straight into
+    /// data/dpds/nNNN.csv.
+    #[arg(long, value_name = "PATH")]
+    dpds_out: Option<PathBuf>,
+    /// Write one searches-schema row per swept group -- including the negatives
+    /// -- to a CSV (`lib_id,n,k,t,lambda,mu,method,outcome,num_dpds`).
+    #[arg(long, value_name = "PATH")]
+    searches_out: Option<PathBuf>,
     #[command(flatten)]
     common: CommonArgs,
 }
@@ -114,9 +126,16 @@ fn run(cli: Cli) -> Result<(), BoxError> {
             };
             let restarts = args.common.max_restarts;
             // DSRGs are searched on the nonabelian groups only.
-            execute(args.n, &args.common, false, move |group, seed, progress| {
+            let results = execute(args.n, &args.common, false, move |group, seed, progress| {
                 random_restart_hill_climb(group, &params, restarts, seed, progress)
-            })
+            })?;
+            if let Some(path) = args.dpds_out.as_deref() {
+                write_dpds(path, &results)?;
+            }
+            if let Some(path) = args.searches_out.as_deref() {
+                write_searches(path, args.n, args.k, args.t, args.lambda, args.mu, &results)?;
+            }
+            Ok(())
         }
         Command::Srg(args) => {
             let params = SRGParameterSet {
@@ -127,15 +146,18 @@ fn run(cli: Cli) -> Result<(), BoxError> {
             };
             let restarts = args.common.max_restarts;
             // SRGs (inverse-closed) arise on abelian groups too: search all.
+            // No CSV output for the srg mode: it keeps its streamed stdout output.
             execute(args.v, &args.common, true, move |group, seed, progress| {
                 random_restart_hill_climb_srg(group, &params, restarts, seed, progress)
-            })
+            })?;
+            Ok(())
         }
     }
 }
 
-/// Load the target group(s), run `search` on each in parallel with live
-/// progress, and print one deterministic `id=... FOUND/NONE` line per group.
+/// Load the target group(s), run `search` on each in parallel, and stream one
+/// status line to stdout as each group finishes. Returns the results sorted by
+/// id so the caller can write whatever CSV artifacts it wants.
 ///
 /// `all_groups_include_abelian` selects the sweep source when `--all-groups` is
 /// given: every group of the order (SRG) versus only the nonabelian ones (DSRG).
@@ -145,7 +167,7 @@ fn execute<F>(
     common: &CommonArgs,
     all_groups_include_abelian: bool,
     search: F,
-) -> Result<(), BoxError>
+) -> Result<Vec<(u64, ScoredSet)>, BoxError>
 where
     F: Fn(&Group, u64, &AtomicUsize) -> ScoredSet + Sync,
 {
@@ -156,7 +178,7 @@ where
     // Load all the Cayley tables from a single GAP process up front (one GAP
     // startup, not one per group), then hand the queue to the search below.
     // Exactly one of group_id / --all-groups is set (enforced by clap).
-    eprintln!("loading groups of order {order} from GAP...");
+    println!("loading groups of order {order} from GAP...");
     let groups: Vec<(u64, Group)> = match common.group_id {
         Some(id) => vec![(id, Group::from_gap(order as u64, id)?)],
         None if all_groups_include_abelian => Group::load_all(order as u64)?,
@@ -164,77 +186,115 @@ where
     };
     if groups.is_empty() {
         println!("no candidate groups of order {order}");
-        return Ok(());
+        return Ok(Vec::new());
     }
 
     let total = groups.len();
-    let total_restarts = total * common.max_restarts;
-    eprintln!(
-        "loaded {total} group(s); searching (up to {} restarts each) on {} cores...",
+    println!(
+        "loaded {total} group(s); searching up to {} restarts each on {} core(s)...",
         common.max_restarts,
         rayon::current_num_threads()
     );
-
-    // Shared live-progress counters, printed by a monitor thread on a timer so
-    // the workers never touch stderr in the hot loop.
+    // Required by the search API for per-restart accounting; not displayed.
     let restarts_done = AtomicUsize::new(0);
-    let groups_done = AtomicUsize::new(0);
-    let searching = AtomicBool::new(true);
+    let completed = AtomicUsize::new(0);
 
-    let mut results: Vec<(u64, ScoredSet)> = Vec::new();
-    std::thread::scope(|scope| {
-        scope.spawn(|| {
-            while searching.load(Ordering::Relaxed) {
-                std::thread::sleep(Duration::from_millis(250));
-                let restarts = restarts_done.load(Ordering::Relaxed);
-                let pct = if total_restarts == 0 {
-                    100
-                } else {
-                    100 * restarts / total_restarts
-                };
-                eprint!(
-                    "\r  groups {}/{total} | restarts {restarts}/{total_restarts} ({pct}%)   ",
-                    groups_done.load(Ordering::Relaxed)
-                );
-            }
-        });
+    // Workers pull groups off the queue in parallel and search each; the inner
+    // restart search is parallel too (rayon shares one pool).
+    let mut results: Vec<(u64, ScoredSet)> = groups
+        .par_iter()
+        .map(|(id, group)| {
+            // Derive a well-separated per-group seed so a fixed --seed
+            // reproduces regardless of core count and completion order.
+            let base_seed = match common.seed {
+                Some(seed) => seed.wrapping_add(id.wrapping_mul(0x9E3779B97F4A7C15)),
+                None => rand::random::<u64>(),
+            };
+            let best = search(group, base_seed, &restarts_done);
+            // One status line per group as it finishes, in completion order.
+            // `println!` locks stdout, so parallel workers never interleave.
+            let done = completed.fetch_add(1, Ordering::Relaxed) + 1;
+            println!("[{done}/{total}] id={id}: {}", summarize(&best));
+            (*id, best)
+        })
+        .collect();
 
-        // Workers pull groups off the queue in parallel and search each; the
-        // inner restart search is parallel too (rayon shares one pool).
-        results = groups
-            .par_iter()
-            .map(|(id, group)| {
-                // Derive a well-separated per-group seed so a fixed --seed
-                // reproduces regardless of core count and completion order.
-                let base_seed = match common.seed {
-                    Some(seed) => seed.wrapping_add(id.wrapping_mul(0x9E3779B97F4A7C15)),
-                    None => rand::random::<u64>(),
-                };
-                let best = search(group, base_seed, &restarts_done);
-                groups_done.fetch_add(1, Ordering::Relaxed);
-                (*id, best)
-            })
-            .collect();
-
-        searching.store(false, Ordering::Relaxed);
-    });
-    eprintln!(); // end the progress line
-
-    // Final results to stdout, sorted by id: clean, pipeable, deterministic.
+    // Sort by id so the CSV artifacts the caller writes are deterministic.
     results.sort_by_key(|(id, _)| *id);
-    for (id, best) in &results {
-        println!("id={id}: {}", summarize(best));
-    }
+    let found = results.iter().filter(|(_, best)| best.error == 0).count();
+    println!(
+        "swept {total} group(s): {found} found, {} none",
+        total - found
+    );
 
+    Ok(results)
+}
+
+/// Write the FOUND connection sets as dpds-schema CSV rows
+/// (`lib_id,members,source_method`), one per group that solved the equation.
+/// `members` is 1-based (per data/schema.md's `Elements`-order encoding);
+/// `results` is assumed already sorted by id.
+fn write_dpds(path: &Path, results: &[(u64, ScoredSet)]) -> Result<(), BoxError> {
+    let mut w = BufWriter::new(File::create(path)?);
+    writeln!(w, "lib_id,members,source_method")?;
+    for (id, best) in results {
+        if best.error == 0 {
+            let members: Vec<String> = best
+                .connection_set
+                .iter()
+                .map(|e| (e + 1).to_string())
+                .collect();
+            writeln!(w, "{id},{},rrhc", members.join(" "))?;
+        }
+    }
+    w.flush()?;
     Ok(())
 }
 
-/// One-line summary of a result: `FOUND <indices>`, `NONE (best error N)`, or,
-/// for the SRG search, `INFEASIBLE` when the group has no inverse-closed set of
-/// size k at all (signalled by `error == i64::MAX`).
+/// Write one searches-schema row per swept group -- including the negatives, the
+/// record that can't be recovered from the constructions -- as CSV
+/// (`lib_id,n,k,t,lambda,mu,method,outcome,num_dpds`). The parameters are the
+/// same for every row (one invocation is one parameter set); `results` is
+/// assumed already sorted by id.
+#[allow(clippy::too_many_arguments)]
+fn write_searches(
+    path: &Path,
+    n: usize,
+    k: usize,
+    t: usize,
+    lambda: usize,
+    mu: usize,
+    results: &[(u64, ScoredSet)],
+) -> Result<(), BoxError> {
+    let mut w = BufWriter::new(File::create(path)?);
+    writeln!(w, "lib_id,n,k,t,lambda,mu,method,outcome,num_dpds")?;
+    for (id, best) in results {
+        // rrhc dsrg only ever finds (error 0) or fails to (a positive best
+        // error); it never proves nonexistence, so a miss is `heuristic_none`.
+        let (outcome, num_dpds) = if best.error == 0 {
+            ("found", 1)
+        } else {
+            ("heuristic_none", 0)
+        };
+        writeln!(
+            w,
+            "{id},{n},{k},{t},{lambda},{mu},rrhc,{outcome},{num_dpds}"
+        )?;
+    }
+    w.flush()?;
+    Ok(())
+}
+
+/// One-line summary of a result: `FOUND <indices>` (1-based, per data/schema.md),
+/// `NONE (best error N)`, or, for the SRG search, `INFEASIBLE` when the group has
+/// no inverse-closed set of size k at all (signalled by `error == i64::MAX`).
 fn summarize(best: &ScoredSet) -> String {
     if best.error == 0 {
-        let elements: Vec<String> = best.connection_set.iter().map(|e| e.to_string()).collect();
+        let elements: Vec<String> = best
+            .connection_set
+            .iter()
+            .map(|e| (e + 1).to_string())
+            .collect();
         format!("FOUND {}", elements.join(" "))
     } else if best.error == i64::MAX {
         "INFEASIBLE (no inverse-closed set of size k in this group)".to_string()

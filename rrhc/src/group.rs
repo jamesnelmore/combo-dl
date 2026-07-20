@@ -79,12 +79,15 @@ impl Group {
 ///     GROUP <id> <order> <identity_index>
 ///     <order rows of the Cayley table, 0-based product indices>
 ///
-/// GAP is 1-indexed, so we subtract 1 everywhere. `AsList(G)` fixes a stable
-/// element ordering that all the `Position` lookups agree on.
+/// GAP is 1-indexed, so we subtract 1 everywhere. `Set(G)` (== `Elements(G)`,
+/// a strictly sorted list) fixes the stable element ordering that all the
+/// `Position` lookups agree on, and is the same enumeration the CSV schema
+/// (`data/schema.md`) uses to encode `members`, so a found connection set's
+/// element indices (once shifted back to 1-based) drop straight into a dpds row.
 fn dump_script(n: u64, ids: &str) -> String {
     format!(
         "for i in {ids} do\n\
-         \x20 G := SmallGroup({n}, i);; elts := AsList(G);; nn := Size(G);;\n\
+         \x20 G := SmallGroup({n}, i);; elts := Set(G);; nn := Size(G);;\n\
          \x20 Print(\"GROUP \", i, \" \", nn, \" \", Position(elts, Identity(G)) - 1, \"\\n\");\n\
          \x20 for a in [1..nn] do\n\
          \x20   for b in [1..nn] do\n\
