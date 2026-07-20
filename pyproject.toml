@@ -1,7 +1,7 @@
 [project]
-name = "srg_search"
+name = "dpds_search"
 version = "0.1.0"
-description = "Strongly regular graph and digraph search"
+description = "Collection of directed partial difference sets and DPDS search tools"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 authors = [
@@ -9,66 +9,34 @@ authors = [
 ]
 dependencies = [
     "gurobipy>=13.0.1",
-    "hydra-core>=1.3.2",
-    "ipykernel>=6.30.1",
-    "jaxtyping>=0.3.9",
-    "marimo>=0.23.1",
-    "networkx>=3.5",
     "numpy>=2.3.2",
-    "omegaconf>=2.3.0",
     "openpyxl>=3.1.5",
-    "pulp>=3.3.0",
-    "pydantic>=2.6,<2.9",
-    "pynauty>=2.8.8.1",
-    "python-sat>=1.8.dev30",
-    "scipy>=1.16.2",
+    "pandas>=2.2",
     "torch>=2.9.0",
     "tqdm>=4.67.1",
-    "typer>=0.25.1",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pyright>=1.1.404",
     "ruff>=0.12.10",
-    "nbstripout>=0.7.0",
-    "nbqa>=1.7.0",
+    "marimo>=0.23.1",
+    "datasette>=0.65.2"
 ]
-ml = [
-    "gymnasium>=1.2.1",
-    "hydra-submitit-launcher>=1.2.0",
-    "stable-baselines3[extra]>=2.7.0",
-    "torch>=2.8.0",
-    "torch-geometric>=2.6.1",
-    "wandb>=0.21.3",
-]
-
-[project.scripts]
-srg-search = "srg_search.cli:app"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools.package-dir]
-"" = "src"
+include = ["exhaustive_search*", "ilp*"]
 
 [tool.ruff]
 line-length = 99
 target-version = "py313"
-src = ["src"]
 preview = true  # Enable preview features for DOC rules
 exclude = [
-    "old/**",
-    "config_backup/**",
-    "hydra_outputs/**",
-    "wandb/**",
     ".venv/**",
-    "notebooks/**",
-    "src/**/_ml/**",
 ]
 
 [tool.ruff.lint]
@@ -96,7 +64,7 @@ ignore = [
     "PLR0913", # Too many arguments to function call
     "PLR0914", # Too many local variables
     "PLR0915", # Too many statements
-    "PLR0917", # Too many local variables
+    "PLR0917", # Too many positional arguments
     "PLR2004", # Magic value used in comparison
     "PLR6104", # Consider using `x += y` instead of `x = x + y`
     "N806",    # Variable names should be lowercase
@@ -126,14 +94,6 @@ ignore = [
     "PLC2701", # Private name import
 ]
 
-"notebooks/**/*.py" = [
-    "D",       # All pydocstyle rules (docstring conventions)
-    "DOC",     # All flake8-docstrings rules
-    "PLR6301", # Method could be a function
-    "PLR6201", # Use set literal for membership
-    "F841",    # Local variable assigned but never used
-]
-
 [tool.ruff.lint.isort]
 known-first-party = ["srg_search"]
 force-sort-within-sections = true
@@ -149,44 +109,5 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 exclude = [
-    "old/**",
-    "config_backup/**",
-    "hydra_outputs/**",
-    "wandb/**",
     ".venv/**",
-]
-
-[tool.pyright]
-include = ["src/srg_search/", "notebooks/", "scripts/"]
-exclude = ["**/__pycache__", "**/.venv", "**/venv"]
-pythonVersion = "3.13"
-venvPath = "."
-venv = ".venv"
-typeCheckingMode = "basic"
-reportIncompatibleMethodOverride = "error"
-reportImplicitOverride = "error"
-reportIncompatibleVariableOverride = "error"
-reportInconsistentConstructor = "error"
-reportUnsafeMultipleInheritance = "warning"
-
-# Use library code for better type analysis
-useLibraryCodeForTypes = true
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py", "*_test.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-pythonpath = ["src"]
-addopts = [
-    "--strict-markers",
-    "--strict-config",
-    "-v",
-]
-filterwarnings = [
-    "error",
-    "ignore::UserWarning",
-    "ignore::DeprecationWarning",
-    "ignore::pydantic.warnings.PydanticDeprecatedSince20",
-    "ignore::pydantic._internal._generate_schema.UnsupportedFieldAttributeWarning",
 ]
