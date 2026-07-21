@@ -1,7 +1,7 @@
 # Submitting To Slurm
 
 ## Random-restart Hillclimbing
-1. Ensure that the directory `rrhc-out` exists. The scruot will not create it by default
+1. Ensure that the directory `rrhc-out` exists. The script will not create it by default
 2. Generate a manifest of parameter sets to run. Each row should represent a single set with parameters seperated by spaces. For example
 ```
 100 16 7 0 3

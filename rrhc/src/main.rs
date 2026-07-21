@@ -57,13 +57,13 @@ struct DsrgArgs {
     /// DSRG parameter mu
     mu: usize,
     /// Write the found connection sets to a dpds-schema CSV
-    /// (`lib_id,members,source_method`; `members` 1-based per data/schema.md).
-    /// One invocation is a single order n, so the file drops straight into
-    /// data/dpds/nNNN.csv.
+    /// (`n,k,t,lambda,mu,lib_id,members,source_method`; `members` 1-based per
+    /// data/schema.md). One invocation is a single order n, so the file drops
+    /// straight into data/dpds/nNNN.csv.
     #[arg(long, value_name = "PATH")]
     dpds_out: Option<PathBuf>,
     /// Write one searches-schema row per swept group -- including the negatives
-    /// -- to a CSV (`lib_id,n,k,t,lambda,mu,method,outcome,num_dpds`).
+    /// -- to a CSV (`n,k,t,lambda,mu,lib_id,method,outcome,num_dpds`).
     #[arg(long, value_name = "PATH")]
     searches_out: Option<PathBuf>,
     #[command(flatten)]
@@ -130,7 +130,7 @@ fn run(cli: Cli) -> Result<(), BoxError> {
                 random_restart_hill_climb(group, &params, restarts, seed, progress)
             })?;
             if let Some(path) = args.dpds_out.as_deref() {
-                write_dpds(path, &results)?;
+                write_dpds(path, args.n, args.k, args.t, args.lambda, args.mu, &results)?;
             }
             if let Some(path) = args.searches_out.as_deref() {
                 write_searches(path, args.n, args.k, args.t, args.lambda, args.mu, &results)?;
@@ -231,12 +231,22 @@ where
 }
 
 /// Write the FOUND connection sets as dpds-schema CSV rows
-/// (`lib_id,members,source_method`), one per group that solved the equation.
-/// `members` is 1-based (per data/schema.md's `Elements`-order encoding);
-/// `results` is assumed already sorted by id.
-fn write_dpds(path: &Path, results: &[(u64, ScoredSet)]) -> Result<(), BoxError> {
+/// (`n,k,t,lambda,mu,lib_id,members,source_method`), one per group that solved
+/// the equation. The parameters are the same for every row (one invocation is
+/// one parameter set). `members` is 1-based (per data/schema.md's `Elements`-order
+/// encoding); `results` is assumed already sorted by id.
+#[allow(clippy::too_many_arguments)]
+fn write_dpds(
+    path: &Path,
+    n: usize,
+    k: usize,
+    t: usize,
+    lambda: usize,
+    mu: usize,
+    results: &[(u64, ScoredSet)],
+) -> Result<(), BoxError> {
     let mut w = BufWriter::new(File::create(path)?);
-    writeln!(w, "lib_id,members,source_method")?;
+    writeln!(w, "n,k,t,lambda,mu,lib_id,members,source_method")?;
     for (id, best) in results {
         if best.error == 0 {
             let members: Vec<String> = best
@@ -244,7 +254,7 @@ fn write_dpds(path: &Path, results: &[(u64, ScoredSet)]) -> Result<(), BoxError>
                 .iter()
                 .map(|e| (e + 1).to_string())
                 .collect();
-            writeln!(w, "{id},{},rrhc", members.join(" "))?;
+            writeln!(w, "{n},{k},{t},{lambda},{mu},{id},{},rrhc", members.join(" "))?;
         }
     }
     w.flush()?;
@@ -253,7 +263,7 @@ fn write_dpds(path: &Path, results: &[(u64, ScoredSet)]) -> Result<(), BoxError>
 
 /// Write one searches-schema row per swept group -- including the negatives, the
 /// record that can't be recovered from the constructions -- as CSV
-/// (`lib_id,n,k,t,lambda,mu,method,outcome,num_dpds`). The parameters are the
+/// (`n,k,t,lambda,mu,lib_id,method,outcome,num_dpds`). The parameters are the
 /// same for every row (one invocation is one parameter set); `results` is
 /// assumed already sorted by id.
 #[allow(clippy::too_many_arguments)]
@@ -267,7 +277,7 @@ fn write_searches(
     results: &[(u64, ScoredSet)],
 ) -> Result<(), BoxError> {
     let mut w = BufWriter::new(File::create(path)?);
-    writeln!(w, "lib_id,n,k,t,lambda,mu,method,outcome,num_dpds")?;
+    writeln!(w, "n,k,t,lambda,mu,lib_id,method,outcome,num_dpds")?;
     for (id, best) in results {
         // rrhc dsrg only ever finds (error 0) or fails to (a positive best
         // error); it never proves nonexistence, so a miss is `heuristic_none`.
@@ -278,7 +288,7 @@ fn write_searches(
         };
         writeln!(
             w,
-            "{id},{n},{k},{t},{lambda},{mu},rrhc,{outcome},{num_dpds}"
+            "{n},{k},{t},{lambda},{mu},{id},rrhc,{outcome},{num_dpds}"
         )?;
     }
     w.flush()?;
